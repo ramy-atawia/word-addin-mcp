@@ -1,0 +1,50 @@
+name: 'Setup Development Environment'
+description: 'Set up Python and Node.js development environment'
+
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.11'
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '18'
+  cache-dependencies:
+    description: 'Whether to cache dependencies'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Set up Node.js ${{ inputs.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ inputs.cache-dependencies }}
+
+    - name: Cache Python dependencies
+      if: inputs.cache-dependencies == 'true'
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache Node.js dependencies
+      if: inputs.cache-dependencies == 'true'
+      uses: actions/cache@v3
+      with:
+        path: |
+          frontend/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-

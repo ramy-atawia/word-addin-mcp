@@ -1,0 +1,30 @@
+{
+  "test_summary": {
+    "total_queries_tested": 3,
+    "successful_tests": 3,
+    "timestamp": "2025-08-28T20:31:58.987126"
+  },
+  "query_results": [
+    {
+      "query": "Ramy Atawia",
+      "raw_results_count": 0,
+      "result_types": [],
+      "sources": [],
+      "urls": []
+    },
+    {
+      "query": "Open RAN",
+      "raw_results_count": 0,
+      "result_types": [],
+      "sources": [],
+      "urls": []
+    },
+    {
+      "query": "AI and 5G",
+      "raw_results_count": 0,
+      "result_types": [],
+      "sources": [],
+      "urls": []
+    }
+  ]
+}

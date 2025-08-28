@@ -1,0 +1,16 @@
+.App {
+  text-align: left;
+}
+
+/* Remove default React styles */
+.App-header {
+  display: none;
+}
+
+.App-logo {
+  display: none;
+}
+
+.App-link {
+  display: none;
+}

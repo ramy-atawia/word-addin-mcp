@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # CI/CD Database
+  ci-postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ci_test_db
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ci-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ci_user -d ci_test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # CI/CD Redis
+  ci-redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - ci-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # CI/CD Backend
+  ci-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      - DATABASE_URL=postgresql://ci_user:ci_password@ci-postgres:5432/ci_test_db
+      - REDIS_URL=redis://ci-redend:6379
+      - AZURE_OPENAI_API_KEY=ci-test-key
+      - AZURE_OPENAI_ENDPOINT=https://ci-test.openai.azure.com
+      - AZURE_OPENAI_API_VERSION=2024-02-15-preview
+      - SECRET_KEY=ci-test-secret-key
+      - ENVIRONMENT=ci
+    depends_on:
+      ci-postgres:
+        condition: service_healthy
+      ci-redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ci-backend-cache:/app/.cache
+    command: ["pytest", "tests/", "-v", "--cov=app", "--cov-report=xml", "--cov-report=html"]
+
+  # CI/CD Frontend
+  ci-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      - CI=true
+      - REACT_APP_API_URL=http://ci-backend:8000
+    volumes:
+      - ./frontend:/app
+      - ci-frontend-cache:/app/.cache
+      - ci-frontend-node-modules:/app/node_modules
+    command: ["npm", "run", "test:coverage"]
+
+  # CI/CD Test Runner
+  ci-test-runner:
+    image: mcr.microsoft.com/playwright:v1.40.0-focal
+    environment:
+      - CI=true
+      - PLAYWRIGHT_BASE_URL=http://ci-frontend:3000
+    volumes:
+      - ./tests:/tests
+      - ci-test-results:/test-results
+    depends_on:
+      - ci-frontend
+      - ci-backend
+    command: ["npx", "playwright", "test", "--reporter=html", "--output=/test-results"]
+
+  # CI/CD Code Quality
+  ci-code-quality:
+    image: python:3.11-slim
+    volumes:
+      - ./backend:/app
+      - ci-code-quality-cache:/app/.cache
+    working_dir: /app
+    command: |
+      bash -c "
+        pip install flake8 black isort bandit safety
+        flake8 app/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 app/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        black --check app/ tests/
+        isort --check-only app/ tests/
+        bandit -r app/ -f json -o bandit-report.json
+        safety check --json --output safety-report.json
+      "
+
+  # CI/CD Security Scanner
+  ci-security:
+    image: node:18-slim
+    volumes:
+      - ./frontend:/app
+      - ci-security-cache:/app/.cache
+    working_dir: /app
+    command: |
+      bash -c "
+        npm ci
+        npm audit --json > audit-report.json
+        npm run lint
+        npm run type-check
+      "
+
+volumes:
+  ci-postgres-data:
+  ci-redis-data:
+  ci-backend-cache:
+  ci-frontend-cache:
+  ci-frontend-node-modules:
+  ci-test-results:
+  ci-code-quality-cache:
+  ci-security-cache:
+
+networks:
+  default:
+    name: ci-network

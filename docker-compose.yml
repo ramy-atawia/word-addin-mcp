@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: wordaddin-postgres
+    environment:
+      POSTGRES_DB: wordaddin
+      POSTGRES_USER: wordaddin_user
+      POSTGRES_PASSWORD: wordaddin_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - wordaddin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wordaddin_user -d wordaddin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: wordaddin-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - wordaddin-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend FastAPI Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wordaddin-backend
+    environment:
+      - DATABASE_URL=postgresql://wordaddin_user:wordaddin_password@postgres:5432/wordaddin
+      - REDIS_URL=redis://redis:6379
+      - FASTAPI_HOST=0.0.0.0
+      - FASTAPI_PORT=9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - wordaddin-network
+    healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MCP Server
+  mcp-server:
+    build:
+      context: ./middleware
+      dockerfile: Dockerfile
+    container_name: wordaddin-mcp-server
+    environment:
+      - MCP_SERVER_PORT=9001
+      - MCP_SERVER_HOST=0.0.0.0
+    ports:
+      - "9001:9001"
+    volumes:
+      - ./middleware:/app
+      - ./uploads:/app/uploads
+    networks:
+      - wordaddin-network
+    healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React Application
+  frontend:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    container_name: wordaddin-frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:9000
+      - REACT_APP_MCP_SERVER_URL=http://localhost:9001
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./src:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+      - mcp-server
+    networks:
+      - wordaddin-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: wordaddin-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/conf.d:/etc/nginx/conf.d
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - backend
+      - frontend
+      - mcp-server
+    networks:
+      - wordaddin-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: wordaddin-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - wordaddin-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: wordaddin-grafana
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - wordaddin-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  wordaddin-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
