@@ -18,9 +18,9 @@ from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.tools.render import format_tool_to_openai_tool
 
-from backend.app.core.config import settings
-from backend.app.services.mcp_service import MCPService
-from backend.app.core.mcp_tool_interface import BaseMCPTool, ToolExecutionResult
+from app.core.config import settings
+from app.services.mcp_service import MCPService
+from app.core.mcp_tool_interface import BaseMCPTool, ToolExecutionResult
 
 logger = structlog.get_logger()
 
@@ -133,7 +133,7 @@ class LangChainService:
         """Create a tool instance from tool info (placeholder implementation)."""
         # This is a placeholder - in a real implementation, you'd create
         # actual tool instances based on the tool_info
-        from backend.app.tools.file_reader import FileReaderTool
+        from app.tools.file_reader import FileReaderTool
         
         # Return a default tool for now
         return FileReaderTool()

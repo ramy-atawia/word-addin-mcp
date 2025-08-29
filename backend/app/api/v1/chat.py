@@ -9,8 +9,8 @@ from typing import Dict, Any, List, Optional
 import time
 import json
 
-from backend.app.core.config import settings
-from backend.app.schemas.chat import (
+from app.core.config import settings
+from app.schemas.chat import (
     ChatMessage,
     ChatRequest,
     ChatResponse,

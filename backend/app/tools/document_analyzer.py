@@ -5,7 +5,7 @@ This tool implements the MCP tool interface for document analysis.
 """
 
 from typing import Dict, Any
-from backend.app.core.mcp_tool_interface import (
+from app.core.mcp_tool_interface import (
     BaseMCPTool,
     ToolMetadata,
     ToolExecutionContext,

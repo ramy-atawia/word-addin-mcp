@@ -51,8 +51,8 @@ class AgentService:
         try:
             # Try different import paths based on environment
             try:
-                from backend.app.services.llm_client import llm_client
-                from backend.app.core.config import is_azure_openai_configured
+                from app.services.llm_client import llm_client
+                from app.core.config import is_azure_openai_configured
                 logger.info("Using backend.app.* import path")
             except ImportError:
                 try:

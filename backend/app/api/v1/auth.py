@@ -16,12 +16,12 @@ from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, validator
 
-from backend.app.core.security import (
+from app.core.security import (
     security_service, User, TokenData, UserRole, Permission,
     get_current_user, get_current_active_user, require_permission,
     require_role, rate_limit, sanitize_input, validate_email
 )
-from backend.app.core.config import settings
+from app.core.config import settings
 
 logger = structlog.get_logger()
 

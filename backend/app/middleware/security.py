@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import structlog
 
-from backend.app.core.config import settings
+from app.core.config import settings
 
 logger = structlog.get_logger()
 

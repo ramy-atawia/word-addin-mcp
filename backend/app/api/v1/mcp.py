@@ -9,8 +9,8 @@ from typing import Dict, Any, List, Optional
 import time
 from datetime import datetime
 
-from backend.app.core.config import settings
-from backend.app.schemas.mcp import (
+from app.core.config import settings
+from app.schemas.mcp import (
     MCPToolExecutionRequest,
     MCPToolExecutionResponse,
     MCPToolListResponse,
@@ -18,14 +18,14 @@ from backend.app.schemas.mcp import (
     MCPError,
     MCPToolResult
 )
-from backend.app.services.langchain_service import langchain_service
-from backend.app.services.memory_service import memory_service
-from backend.app.services.web_search_service import web_search_service
-from backend.app.services.file_system_service import file_system_service
-from backend.app.services.validation_service import validation_service
-from backend.app.services.tool_execution_service import tool_execution_service
-from backend.app.core.config import is_azure_openai_configured
-from backend.app.services.llm_client import llm_client
+from app.services.langchain_service import langchain_service
+from app.services.memory_service import memory_service
+from app.services.web_search_service import web_search_service
+from app.services.file_system_service import file_system_service
+from app.services.validation_service import validation_service
+from app.services.tool_execution_service import tool_execution_service
+from app.core.config import is_azure_openai_configured
+from app.services.llm_client import llm_client
 
 router = APIRouter()
 logger = structlog.get_logger()
@@ -654,8 +654,8 @@ async def handle_conversation(
             raise HTTPException(status_code=400, detail="Message is required")
         
         # Import LLM client for conversational AI
-        from backend.app.services.llm_client import llm_client
-        from backend.app.core.config import is_azure_openai_configured
+        from app.services.llm_client import llm_client
+        from app.core.config import is_azure_openai_configured
         
         # Check if Azure OpenAI is available
         if not is_azure_openai_configured():
@@ -812,7 +812,7 @@ async def detect_user_intent(request: Dict[str, Any]) -> Dict[str, Any]:
         Dict containing intent detection results and routing decision
     """
     try:
-        from backend.app.services.agent import AgentService
+        from app.services.agent import AgentService
         
         message = request.get("message")
         conversation_history = request.get("conversation_history", [])

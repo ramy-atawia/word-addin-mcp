@@ -9,13 +9,13 @@ import asyncio
 from typing import Dict, Any, List, Optional
 import structlog
 
-from backend.app.core.mcp_client import (
+from app.core.mcp_client import (
     MCPClient, 
     MCPConnectionConfig, 
     mcp_client_manager,
     ConnectionStatus
 )
-from backend.app.core.config import settings
+from app.core.config import settings
 
 logger = structlog.get_logger()
 

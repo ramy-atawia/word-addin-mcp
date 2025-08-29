@@ -462,7 +462,7 @@ class LLMClient:
 def create_llm_client():
     """Create LLM client with environment configuration."""
     try:
-        from backend.app.core.config import get_azure_openai_config, is_azure_openai_configured
+        from app.core.config import get_azure_openai_config, is_azure_openai_configured
     except ImportError:
         from app.core.config import get_azure_openai_config, is_azure_openai_configured
     

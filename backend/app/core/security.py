@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, validator
 from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend.app.core.config import settings
+from app.core.config import settings
 
 logger = structlog.get_logger()
 

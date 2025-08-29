@@ -18,7 +18,7 @@ import json
 import re
 from html import unescape
 
-from backend.app.core.mcp_tool_interface import (
+from app.core.mcp_tool_interface import (
     BaseMCPTool,
     ToolMetadata,
     ToolExecutionContext,
@@ -26,8 +26,8 @@ from backend.app.core.mcp_tool_interface import (
     ToolExecutionStatus,
     ToolErrorCode
 )
-from backend.app.services.llm_client import llm_client
-from backend.app.core.config import is_azure_openai_configured, settings
+from app.services.llm_client import llm_client
+from app.core.config import is_azure_openai_configured, settings
 
 logger = structlog.get_logger()
 

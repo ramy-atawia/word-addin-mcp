@@ -9,7 +9,7 @@ from fastapi import Request, Response
 from fastapi.responses import StreamingResponse
 import structlog
 
-from backend.app.core.logging import log_request_info
+from app.core.logging import log_request_info
 
 logger = structlog.get_logger()
 

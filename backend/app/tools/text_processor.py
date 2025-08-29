@@ -14,7 +14,7 @@ import time
 from typing import Dict, Any, List
 import structlog
 
-from backend.app.core.mcp_tool_interface import (
+from app.core.mcp_tool_interface import (
     BaseMCPTool,
     ToolMetadata,
     ToolExecutionContext,
@@ -22,8 +22,8 @@ from backend.app.core.mcp_tool_interface import (
     ToolExecutionStatus,
     ToolErrorCode
 )
-from backend.app.services.llm_client import llm_client
-from backend.app.core.config import get_azure_openai_config, is_azure_openai_configured
+from app.services.llm_client import llm_client
+from app.core.config import get_azure_openai_config, is_azure_openai_configured
 
 logger = structlog.get_logger()
 

@@ -12,7 +12,7 @@ from typing import Optional
 import structlog
 from structlog.stdlib import LoggerFactory
 
-from backend.app.core.config import settings
+from app.core.config import settings
 
 
 def setup_logging() -> None:

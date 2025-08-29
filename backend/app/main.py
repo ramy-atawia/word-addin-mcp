@@ -9,15 +9,15 @@ from fastapi.responses import JSONResponse
 import time
 import structlog
 
-from backend.app.core.config import settings
-from backend.app.core.logging import setup_logging
-from backend.app.api.v1 import chat, mcp, document, session, health, auth
-from backend.app.middleware.security import (
+from app.core.config import settings
+from app.core.logging import setup_logging
+from app.api.v1 import chat, mcp, document, session, health, auth
+from app.middleware.security import (
     SecurityMiddleware, 
     InputValidationMiddleware, 
     RateLimitMiddleware
 )
-from backend.app.middleware.logging import LoggingMiddleware
+from app.middleware.logging import LoggingMiddleware
 
 # Setup logging
 setup_logging()

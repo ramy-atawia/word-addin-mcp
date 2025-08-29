@@ -9,10 +9,10 @@ import time
 from typing import Dict, Any, Optional
 import structlog
 
-from backend.app.services.validation_service import validation_service
-from backend.app.services.llm_client import llm_client
-from backend.app.core.config import is_azure_openai_configured, settings
-from backend.app.core.mcp_tool_interface import ToolExecutionContext, ToolExecutionStatus
+from app.services.validation_service import validation_service
+from app.services.llm_client import llm_client
+from app.core.config import is_azure_openai_configured, settings
+from app.core.mcp_tool_interface import ToolExecutionContext, ToolExecutionStatus
 
 logger = structlog.get_logger()
 
@@ -36,8 +36,8 @@ class ToolExecutionService:
                 }
             
             # Import LLM client for real AI processing
-            from backend.app.services.llm_client import llm_client
-            from backend.app.core.config import is_azure_openai_configured
+            from app.services.llm_client import llm_client
+            from app.core.config import is_azure_openai_configured
             
             # Check if Azure OpenAI is available
             if not is_azure_openai_configured():
@@ -89,8 +89,8 @@ class ToolExecutionService:
                 }
             
             # Import LLM client for real AI processing
-            from backend.app.services.llm_client import llm_client
-            from backend.app.core.config import is_azure_openai_configured
+            from app.services.llm_client import llm_client
+            from app.core.config import is_azure_openai_configured
             
             # Check if Azure OpenAI is available
             if not is_azure_openai_configured():
@@ -205,8 +205,8 @@ class ToolExecutionService:
                 }
             
             # Import LLM client for real AI processing
-            from backend.app.services.llm_client import llm_client
-            from backend.app.core.config import is_azure_openai_configured
+            from app.services.llm_client import llm_client
+            from app.core.config import is_azure_openai_configured
             
             # Check if Azure OpenAI is available
             if not is_azure_openai_configured():
@@ -301,7 +301,7 @@ class ToolExecutionService:
                 }
             
             # Use the enhanced WebContentFetcherTool directly
-            from backend.app.tools.web_content_fetcher import WebContentFetcherTool
+            from app.tools.web_content_fetcher import WebContentFetcherTool
             
             # Create tool instance and execute
             tool = WebContentFetcherTool()

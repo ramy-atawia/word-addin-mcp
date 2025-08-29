@@ -8,7 +8,7 @@ import time
 import structlog
 from typing import Dict, Any
 
-from backend.app.core.config import settings
+from app.core.config import settings
 
 router = APIRouter()
 logger = structlog.get_logger()

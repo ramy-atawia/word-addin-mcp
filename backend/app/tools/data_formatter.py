@@ -11,7 +11,7 @@ from typing import Dict, Any, List, Union
 from io import StringIO
 import structlog
 
-from backend.app.core.mcp_tool_interface import (
+from app.core.mcp_tool_interface import (
     BaseMCPTool,
     ToolMetadata,
     ToolExecutionContext,

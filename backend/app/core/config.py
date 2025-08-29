@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     database_url: Optional[str] = os.getenv("DATABASE_URL")
     
     # CORS Configuration
-    allowed_origins: list = ["http://localhost:3000", "http://localhost:3001", "https://localhost:3000", "https://localhost:3001"]
+    allowed_origins: list = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://localhost:3000", "https://localhost:3001", "https://localhost:3002"]
     allowed_methods: list = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     allowed_headers: list = ["*"]
     
