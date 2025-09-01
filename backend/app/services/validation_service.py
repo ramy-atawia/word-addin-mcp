@@ -241,12 +241,12 @@ class ValidationService:
                     return False, query_error, {}
                 
                 # Validate extract_type
-                if extract_type not in ['text', 'summary', 'key_points', 'full_content']:
-                    return False, f"Invalid extract_type: {extract_type}. Must be one of: text, summary, key_points, full_content", {}
+                if extract_type not in ['summary', 'full', 'key_points']:
+                    return False, f"Invalid extract_type: {extract_type}. Must be one of: summary, full, key_points", {}
                 
                 # Validate max_length
-                if not isinstance(max_length, (int, float)) or max_length < 10 or max_length > 10000:
-                    return False, "max_length must be a number between 10 and 10000", {}
+                if not isinstance(max_length, (int, float)) or max_length < 100 or max_length > 5000:
+                    return False, "max_length must be a number between 100 and 5000", {}
                 
                 # Sanitize and return
                 sanitized_params = {
@@ -269,12 +269,12 @@ class ValidationService:
                     return False, url_error, {}
                 
                 # Validate extract_type
-                if extract_type not in ['text', 'summary', 'key_points', 'full_content']:
-                    return False, f"Invalid extract_type: {extract_type}. Must be one of: text, summary, key_points, full_content", {}
+                if extract_type not in ['summary', 'full', 'key_points']:
+                    return False, f"Invalid extract_type: {extract_type}. Must be one of: summary, full, key_points", {}
                 
                 # Validate max_length
-                if not isinstance(max_length, (int, float)) or max_length < 10 or max_length > 10000:
-                    return False, "max_length must be a number between 10 and 10000", {}
+                if not isinstance(max_length, (int, float)) or max_length < 100 or max_length > 5000:
+                    return False, "max_length must be a number between 100 and 5000", {}
                 
                 # Sanitize and return
                 sanitized_params = {

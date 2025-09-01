@@ -28,9 +28,10 @@ class WebSearchService:
             "Mozilla/5.0 (X11; Linux x64) AppleWebKit/537.36"
         ]
         
-        # Get API credentials from environment
-        self.google_api_key = os.getenv('GOOGLE_API_KEY')
-        self.google_engine_id = os.getenv('GOOGLE_CSE_ID')
+        # Get API credentials from settings (loads from .env file)
+        from app.core.config import settings
+        self.google_api_key = settings.google_search_api_key
+        self.google_engine_id = settings.google_search_engine_id
         
     async def __aenter__(self):
         """Async context manager entry."""

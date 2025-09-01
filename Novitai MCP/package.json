@@ -16,15 +16,18 @@
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "dev-server": "webpack serve --mode development",
+    "start": "office-addin-debugging start manifest.xml",
+    "start:https": "HTTPS=true SSL_CRT_FILE=~/.office-addin-dev-certs/localhost.crt SSL_KEY_FILE=~/.office-addin-dev-certs/localhost.key webpack serve --mode development",
+    "start:dev": "webpack serve --mode development --port 3002",
+    "stop": "office-addin-debugging stop manifest.xml",
+    "validate": "office-addin-manifest validate manifest.xml",
+    "watch": "webpack --mode development --watch",
+    "test-integration": "node test_integration.js",
     "lint": "office-addin-lint check",
     "lint:fix": "office-addin-lint fix",
     "prettier": "office-addin-lint prettier",
     "signin": "office-addin-dev-settings m365-account login",
-    "signout": "office-addin-dev-settings m365-account logout",
-    "start": "office-addin-debugging start manifest.xml",
-    "stop": "office-addin-debugging stop manifest.xml",
-    "validate": "office-addin-manifest validate manifest.xml",
-    "watch": "webpack --mode development --watch"
+    "signout": "office-addin-dev-settings m365-account logout"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.55.1",

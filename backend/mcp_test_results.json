@@ -1,0 +1,92 @@
+{
+  "total_tests": 12,
+  "passed": 5,
+  "failed": 7,
+  "success_rate": 41.66666666666667,
+  "test_results": [
+    {
+      "test_name": "Backend Connectivity",
+      "success": true,
+      "details": "Backend responding: Word Add-in MCP Backend",
+      "error": "",
+      "timestamp": 1756630159.913771
+    },
+    {
+      "test_name": "MCP Tools Discovery",
+      "success": true,
+      "details": "Discovered 4 tools: ['web_search_tool', 'text_analysis_tool', 'document_analysis_tool', 'file_reader_tool']",
+      "error": "",
+      "timestamp": 1756630160.9213598
+    },
+    {
+      "test_name": "Web Search Tool Execution",
+      "success": false,
+      "details": "Status code: 422, Response: {\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"tool_name\"],\"msg\":\"Field required\",\"input\":{\"parameters\":{\"query\":\"Mariam elazab\",\"max_results\":5},\"session_id\":\"test_session_1756630159\",\"request_id\":\"test_1756630161\"}}]}",
+      "error": "",
+      "timestamp": 1756630161.978445
+    },
+    {
+      "test_name": "Agent Chat with Web Search",
+      "success": false,
+      "details": "Status code: 422, Response: {\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"context\"],\"msg\":\"Field required\",\"input\":{\"message\":\"web search Mariam elazab\",\"session_id\":\"test_session_1756630159\",\"user_id\":\"test_user\"}}]}",
+      "error": "",
+      "timestamp": 1756630162.987055
+    },
+    {
+      "test_name": "Agent Conversational Response",
+      "success": false,
+      "details": "Status code: 422, Response: {\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"context\"],\"msg\":\"Field required\",\"input\":{\"message\":\"Hello, how are you?\",\"session_id\":\"test_session_1756630159\",\"user_id\":\"test_user\"}}]}",
+      "error": "",
+      "timestamp": 1756630163.992285
+    },
+    {
+      "test_name": "External Server Connection Test",
+      "success": false,
+      "details": "Status code: 405",
+      "error": "",
+      "timestamp": 1756630165.0080068
+    },
+    {
+      "test_name": "External Server Addition",
+      "success": true,
+      "details": "Server addition handled (status: 500)",
+      "error": "",
+      "timestamp": 1756630165.014422
+    },
+    {
+      "test_name": "MCP Status Endpoint",
+      "success": true,
+      "details": "Status: healthy",
+      "error": "",
+      "timestamp": 1756630166.0202959
+    },
+    {
+      "test_name": "Health Endpoint",
+      "success": false,
+      "details": "Status code: 500",
+      "error": "",
+      "timestamp": 1756630166.023294
+    },
+    {
+      "test_name": "Tool Parameter Validation",
+      "success": true,
+      "details": "Invalid parameters properly rejected (status: 422)",
+      "error": "",
+      "timestamp": 1756630167.0280478
+    },
+    {
+      "test_name": "Conversation Memory - First Message",
+      "success": false,
+      "details": "Status code: 422",
+      "error": "",
+      "timestamp": 1756630168.0326521
+    },
+    {
+      "test_name": "Error Handling - Non-existent Tool",
+      "success": false,
+      "details": "Expected error status, got: 422",
+      "error": "",
+      "timestamp": 1756630169.037722
+    }
+  ]
+}

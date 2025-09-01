@@ -351,7 +351,7 @@ class ToolExecutionEngine:
                 execution_time=time.time() - start_time
             )
         except Exception as e:
-            logger.error(f"Tool execution failed", tool_name=tool_name, error=str(e))
+            logger.error(f"Tool execution failed - Tool: {tool_name}, Error: {str(e)}")
             return ToolExecutionResult(
                 status=ToolExecutionStatus.FAILED,
                 error_code=ToolErrorCode.EXECUTION_FAILED,

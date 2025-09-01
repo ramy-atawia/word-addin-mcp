@@ -35,7 +35,7 @@ async def create_session(user_id: Optional[str] = None,
         }
         
     except Exception as e:
-        logger.error("Failed to create session", user_id=user_id, error=str(e))
+        logger.error(f"Failed to create session - User ID: {user_id}, Error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to create session: {str(e)}"
@@ -69,7 +69,7 @@ async def get_session(session_id: str) -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to get session", session_id=session_id, error=str(e))
+        logger.error(f"Failed to get session - Session ID: {session_id}, Error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get session: {str(e)}"
@@ -88,7 +88,7 @@ async def delete_session(session_id: str) -> Dict[str, Any]:
                 detail="Session not found"
             )
         
-        logger.info("Session deleted", session_id=session_id)
+        logger.info(f"Session deleted - Session ID: {session_id}")
         
         return {
             "session_id": session_id,
@@ -99,7 +99,7 @@ async def delete_session(session_id: str) -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to delete session", session_id=session_id, error=str(e))
+        logger.error(f"Failed to delete session - Session ID: {session_id}, Error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete session: {str(e)}"
@@ -129,7 +129,7 @@ async def update_session(session_id: str,
                 detail="Failed to update session"
             )
         
-        logger.info("Session updated", session_id=session_id)
+        logger.info(f"Session updated - Session ID: {session_id}")
         
         return {
             "session_id": session_id,
@@ -256,7 +256,7 @@ async def get_user_sessions(user_id: str, limit: int = 20) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        logger.error("Failed to get user sessions", user_id=user_id, error=str(e))
+        logger.error(f"Failed to get user sessions - User ID: {user_id}, Error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get user sessions: {str(e)}"
@@ -280,9 +280,7 @@ async def get_session_statistics(session_id: str) -> Dict[str, Any]:
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to get session statistics", 
-                    session_id=session_id, 
-                    error=str(e))
+        logger.error(f"Failed to get session statistics - Session ID: {session_id}, Error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get session statistics: {str(e)}"
@@ -297,7 +295,7 @@ async def get_global_statistics() -> Dict[str, Any]:
         return stats
         
     except Exception as e:
-        logger.error("Failed to get global statistics", error=str(e))
+        logger.error(f"Failed to get global statistics: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get global statistics: {str(e)}"
@@ -317,9 +315,7 @@ async def validate_session(session_id: str) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        logger.error("Failed to validate session", 
-                    session_id=session_id, 
-                    error=str(e))
+        logger.error(f"Failed to validate session - Session ID: {session_id}, Error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to validate session: {str(e)}"

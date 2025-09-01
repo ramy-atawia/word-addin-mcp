@@ -43,7 +43,7 @@ async def get_document_info() -> Dict[str, Any]:
         return document_info
         
     except Exception as e:
-        logger.error("Failed to retrieve document information", error=str(e))
+        logger.error(f"Failed to retrieve document information: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve document information"
@@ -66,11 +66,7 @@ async def get_document_content(
         Document content dictionary
     """
     try:
-        logger.info(
-            "Retrieving document content",
-            include_formatting=include_formatting,
-            include_metadata=include_metadata
-        )
+        logger.info(f"Retrieving document content - Include Formatting: {include_formatting}, Include Metadata: {include_metadata}")
         
         # TODO: Implement actual document content retrieval via Office.js
         # This is a placeholder implementation
@@ -117,7 +113,7 @@ async def get_document_content(
         return content
         
     except Exception as e:
-        logger.error("Failed to retrieve document content", error=str(e))
+        logger.error(f"Failed to retrieve document content: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve document content"
@@ -171,7 +167,7 @@ async def insert_content(
         return result
         
     except Exception as e:
-        logger.error("Failed to insert content", error=str(e))
+        logger.error(f"Failed to insert content: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to insert content"
@@ -198,13 +194,7 @@ async def replace_content(
         Replacement result
     """
     try:
-        logger.info(
-            "Replacing content in document",
-            search_text=search_text,
-            replacement_text=replacement_text,
-            replace_all=replace_all,
-            case_sensitive=case_sensitive
-        )
+        logger.info(f"Replacing content in document - Search: '{search_text}', Replacement: '{replacement_text}', Replace All: {replace_all}, Case Sensitive: {case_sensitive}")
         
         # TODO: Implement actual content replacement via Office.js
         # This is a placeholder implementation
@@ -221,12 +211,12 @@ async def replace_content(
             "message": "Content replaced successfully"
         }
         
-        logger.info("Content replaced successfully", **result)
+        logger.info(f"Content replaced successfully - Replacements: {result['replacements_made']}, Search: '{result['search_text']}'")
         
         return result
         
     except Exception as e:
-        logger.error("Failed to replace content", error=str(e))
+        logger.error(f"Failed to replace content: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to replace content"
@@ -260,7 +250,7 @@ async def get_selected_text() -> Dict[str, Any]:
         return selection
         
     except Exception as e:
-        logger.error("Failed to retrieve selected text", error=str(e))
+        logger.error(f"Failed to retrieve selected text: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve selected text"
@@ -308,7 +298,7 @@ async def apply_formatting(
         return result
         
     except Exception as e:
-        logger.error("Failed to apply formatting", error=str(e))
+        logger.error(f"Failed to apply formatting: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to apply formatting"
@@ -358,7 +348,7 @@ async def get_available_styles() -> List[Dict[str, Any]]:
         return styles
         
     except Exception as e:
-        logger.error("Failed to retrieve styles", error=str(e))
+        logger.error(f"Failed to retrieve styles: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve styles"
@@ -381,11 +371,7 @@ async def save_document(
         Save result
     """
     try:
-        logger.info(
-            "Saving document",
-            save_as=save_as,
-            format=format
-        )
+        logger.info(f"Saving document - Save As: {save_as}, Format: {format}")
         
         # TODO: Implement actual document saving via Office.js
         # This is a placeholder implementation
@@ -401,12 +387,12 @@ async def save_document(
             "message": "Document saved successfully"
         }
         
-        logger.info("Document saved successfully", **result)
+        logger.info(f"Document saved successfully - Filename: {result['filename']}, Format: {result['format']}")
         
         return result
         
     except Exception as e:
-        logger.error("Failed to save document", error=str(e))
+        logger.error(f"Failed to save document: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to save document"
@@ -462,11 +448,11 @@ async def analyze_document(
                 "confidence": 0.0
             }
         
-        logger.info("Document analysis completed", analysis_type=analysis_type)
+        logger.info(f"Document analysis completed - Analysis Type: {analysis_type}")
         return result
         
     except Exception as e:
-        logger.error("Failed to analyze document", error=str(e))
+        logger.error(f"Failed to analyze document: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to analyze document"
@@ -489,11 +475,7 @@ async def process_document(
         Processing results
     """
     try:
-        logger.info(
-            "Processing document content",
-            content_length=len(content),
-            operations=operations
-        )
+        logger.info(f"Processing document content - Content Length: {len(content)}, Operations: {operations}")
         
         # TODO: Implement actual document processing via Azure OpenAI
         # This is a placeholder implementation
@@ -520,11 +502,11 @@ async def process_document(
             "message": "Document processing completed"
         }
         
-        logger.info("Document processing completed", operations=operations)
+        logger.info(f"Document processing completed - Operations: {operations}")
         return result
         
     except Exception as e:
-        logger.error("Failed to process document", error=str(e))
+        logger.error(f"Failed to process document: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to process document"

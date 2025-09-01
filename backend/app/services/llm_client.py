@@ -89,6 +89,12 @@ class LLMClient:
                 temperature=temperature
             )
             
+            # Debug logging
+            logger.info(f"Azure OpenAI response type: {type(response)}")
+            logger.info(f"Response choices: {response.choices}")
+            logger.info(f"First choice message content type: {type(response.choices[0].message.content)}")
+            logger.info(f"First choice message content: {response.choices[0].message.content}")
+            
             # Extract response
             generated_text = response.choices[0].message.content
             usage = response.usage
@@ -462,9 +468,14 @@ class LLMClient:
 def create_llm_client():
     """Create LLM client with environment configuration."""
     try:
-        from app.core.config import get_azure_openai_config, is_azure_openai_configured
+        from ..core.config import get_azure_openai_config, is_azure_openai_configured
     except ImportError:
-        from app.core.config import get_azure_openai_config, is_azure_openai_configured
+        # Fallback to absolute import if relative fails
+        try:
+            from app.core.config import get_azure_openai_config, is_azure_openai_configured
+        except ImportError:
+            logger.error("Failed to import config functions")
+            return LLMClient()
     
     if is_azure_openai_configured():
         config = get_azure_openai_config()
@@ -477,4 +488,14 @@ def create_llm_client():
         logger.warning("Azure OpenAI not configured - creating LLM client without credentials")
         return LLMClient()
 
-llm_client = create_llm_client()
+# Lazy-loaded global instance to avoid import errors
+_llm_client_instance = None
+
+def get_llm_client():
+    """Get the LLM client instance, creating it if necessary."""
+    global _llm_client_instance
+    if _llm_client_instance is None:
+        _llm_client_instance = create_llm_client()
+    return _llm_client_instance
+
+# Don't create instance at module level - let it be created when needed

@@ -446,21 +446,7 @@ async def get_current_active_user(current_user: TokenData = Depends(get_current_
     return current_user
 
 
-def get_current_user_sync(request: Request) -> User:
-    """Synchronous version for testing."""
-    auth_header = request.headers.get("authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-    
-    token = auth_header.split(" ")[1]
-    token_data = security_service.verify_token(token)
-    
-    # Get user from token data
-    user = security_service.get_user_by_id(token_data.user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return user
+
 
 
 def require_permission(permission: Permission):
@@ -488,11 +474,7 @@ def require_role(role: UserRole):
 
 
 # Security utilities
-def generate_secure_token(length: int = 32) -> str:
-    """Generate secure random token."""
-    # secrets.token_urlsafe returns base64 encoded bytes, which may not match exact length
-    # For consistent length, we'll use hex encoding
-    return secrets.token_hex(length // 2)
+
 
 
 def sanitize_input(input_string: str) -> str:

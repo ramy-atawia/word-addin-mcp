@@ -4,13 +4,37 @@ const devCerts = require("office-addin-dev-certs");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
+const path = require("path");
+const fs = require("fs");
+const os = require("os");
+
+const REACT_APP_API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://localhost:9000';
+// const NODE_ENV = process.env.NODE_ENV || 'development'; // Removed as webpack handles NODE_ENV via mode option
 
 const urlDev = "https://localhost:3002/";
 const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
 
 async function getHttpsOptions() {
-  const httpsOptions = await devCerts.getHttpsServerOptions();
-  return { ca: httpsOptions.ca, key: httpsOptions.key, cert: httpsOptions.cert };
+  try {
+    // Use Office Add-in development certificates
+    const certPath = path.join(os.homedir(), '.office-addin-dev-certs/localhost.crt');
+    const keyPath = path.join(os.homedir(), '.office-addin-dev-certs/localhost.key');
+    
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      return {
+        cert: fs.readFileSync(certPath),
+        key: fs.readFileSync(keyPath)
+      };
+    } else {
+      // Fallback to office-addin-dev-certs
+      const httpsOptions = await devCerts.getHttpsServerOptions();
+      return { ca: httpsOptions.ca, key: httpsOptions.key, cert: httpsOptions.cert };
+    }
+  } catch (error) {
+    console.warn('Warning: Could not load Office Add-in certificates, falling back to default');
+    const httpsOptions = await devCerts.getHttpsServerOptions();
+    return { ca: httpsOptions.ca, key: httpsOptions.key, cert: httpsOptions.cert };
+  }
 }
 
 module.exports = async (env, options) => {
@@ -34,17 +58,18 @@ module.exports = async (env, options) => {
     },
     module: {
       rules: [
-        {
-          test: /\.ts$/,
-          exclude: /node_modules/,
-          use: {
-            loader: "babel-loader",
-          },
-        },
+
         {
           test: /\.tsx?$/,
           exclude: /node_modules/,
-          use: ["ts-loader"],
+          use: [{
+            loader: "ts-loader",
+            options: {
+              configFile: path.resolve(__dirname, "tsconfig.json"),
+              transpileOnly: false,
+              experimentalWatchApi: true
+            }
+          }],
         },
         {
           test: /\.html$/,
@@ -93,6 +118,9 @@ module.exports = async (env, options) => {
       new webpack.ProvidePlugin({
         Promise: ["es6-promise", "Promise"],
       }),
+      new webpack.DefinePlugin({
+        "process.env.REACT_APP_API_BASE_URL": JSON.stringify(REACT_APP_API_BASE_URL),
+      }),
     ],
     devServer: {
       hot: true,
@@ -103,7 +131,9 @@ module.exports = async (env, options) => {
         type: "https",
         options: env.WEBPACK_BUILD || options.https !== undefined ? options.https : await getHttpsOptions(),
       },
-      port: process.env.npm_package_config_dev_server_port || 3000,
+      port: 3002, // Fixed port for consistency
+      host: 'localhost',
+      allowedHosts: 'all',
     },
   };
 

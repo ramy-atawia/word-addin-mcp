@@ -1,0 +1,160 @@
+{
+  "total_tests": 19,
+  "passed": 19,
+  "failed": 0,
+  "success_rate": 100.0,
+  "test_results": [
+    {
+      "test_id": 1,
+      "test_name": "Backend Root Endpoint",
+      "success": true,
+      "details": "Backend responding: Word Add-in MCP Backend",
+      "error": "",
+      "timestamp": 1756680395.639124
+    },
+    {
+      "test_id": 2,
+      "test_name": "Backend Health Endpoint",
+      "success": true,
+      "details": "Health status: healthy",
+      "error": "",
+      "timestamp": 1756680395.646486
+    },
+    {
+      "test_id": 3,
+      "test_name": "Backend SSL Certificate",
+      "success": true,
+      "details": "Expected SSL failure with self-signed cert: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (",
+      "error": "",
+      "timestamp": 1756680395.661324
+    },
+    {
+      "test_id": 4,
+      "test_name": "Backend Response Time",
+      "success": true,
+      "details": "Response time: 0.006s (under 1s threshold)",
+      "error": "",
+      "timestamp": 1756680395.668489
+    },
+    {
+      "test_id": 5,
+      "test_name": "Backend Concurrent Requests",
+      "success": true,
+      "details": "5/5 concurrent requests succeeded in 0.017s",
+      "error": "",
+      "timestamp": 1756680395.68588
+    },
+    {
+      "test_id": 6,
+      "test_name": "MCP Tools Discovery Compliance",
+      "success": true,
+      "details": "Discovered 4 tools with proper MCP schema",
+      "error": "",
+      "timestamp": 1756680395.6945338
+    },
+    {
+      "test_id": 7,
+      "test_name": "MCP Tool Info Compliance",
+      "success": true,
+      "details": "Tool info contains all required MCP fields",
+      "error": "",
+      "timestamp": 1756680395.702131
+    },
+    {
+      "test_id": 8,
+      "test_name": "MCP Tool Execution Schema",
+      "success": true,
+      "details": "Execution result contains required MCP fields",
+      "error": "",
+      "timestamp": 1756680396.276899
+    },
+    {
+      "test_id": 9,
+      "test_name": "MCP Status Endpoint Compliance",
+      "success": true,
+      "details": "Status response contains required MCP fields",
+      "error": "",
+      "timestamp": 1756680396.284191
+    },
+    {
+      "test_id": 10,
+      "test_name": "MCP Error Response Format",
+      "success": true,
+      "details": "Error response follows MCP format (status: 500)",
+      "error": "",
+      "timestamp": 1756680396.29264
+    },
+    {
+      "test_id": 11,
+      "test_name": "MCP Content Type Headers",
+      "success": true,
+      "details": "Proper content type: application/json",
+      "error": "",
+      "timestamp": 1756680396.666364
+    },
+    {
+      "test_id": 12,
+      "test_name": "MCP HTTP Methods Compliance",
+      "success": true,
+      "details": "HTTP methods properly implemented (GET/POST allowed, PUT/DELETE rejected)",
+      "error": "",
+      "timestamp": 1756680397.641679
+    },
+    {
+      "test_id": 13,
+      "test_name": "MCP Status Codes Compliance",
+      "success": true,
+      "details": "All expected status codes returned correctly",
+      "error": "",
+      "timestamp": 1756680397.656349
+    },
+    {
+      "test_id": 14,
+      "test_name": "Tool Discovery All Tools",
+      "success": true,
+      "details": "All 4 expected tools discovered: ['web_search_tool', 'text_analysis_tool', 'document_analysis_tool', 'file_reader_tool']",
+      "error": "",
+      "timestamp": 1756680397.6639209
+    },
+    {
+      "test_id": 15,
+      "test_name": "Tool Discovery Individual Tool",
+      "success": true,
+      "details": "Tool 'web_search_tool' info retrieved with all required fields",
+      "error": "",
+      "timestamp": 1756680397.671445
+    },
+    {
+      "test_id": 16,
+      "test_name": "Tool Discovery Non-existent Tool",
+      "success": true,
+      "details": "Properly returned 404 for non-existent tool 'non_existent_tool_12345'",
+      "error": "",
+      "timestamp": 1756680397.678588
+    },
+    {
+      "test_id": 17,
+      "test_name": "Tool Discovery Count Accuracy",
+      "success": true,
+      "details": "Counts accurate: total=4, built-in=4, external=0",
+      "error": "",
+      "timestamp": 1756680397.686126
+    },
+    {
+      "test_id": 18,
+      "test_name": "Tool Discovery Metadata",
+      "success": true,
+      "details": "All 4 tools have complete metadata",
+      "error": "",
+      "timestamp": 1756680397.6942248
+    },
+    {
+      "test_id": 19,
+      "test_name": "Tool Discovery Response Structure",
+      "success": true,
+      "details": "Response structure valid with correct data types",
+      "error": "",
+      "timestamp": 1756680397.702327
+    }
+  ]
+}

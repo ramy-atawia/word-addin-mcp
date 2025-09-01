@@ -117,11 +117,7 @@ async def detailed_health_check() -> Dict[str, Any]:
         health_status["status"] = "degraded"
     
     # Log health check
-    logger.info(
-        "Health check completed",
-        status=health_status["status"],
-        environment=settings.ENVIRONMENT
-    )
+    logger.info(f"Health check completed - Status: {health_status['status']}, Environment: {settings.ENVIRONMENT}")
     
     return health_status
 
@@ -150,7 +146,7 @@ async def readiness_check() -> Dict[str, Any]:
         }
         
     except Exception as e:
-        logger.error("Readiness check failed", error=str(e))
+        logger.error(f"Readiness check failed: {str(e)}")
         raise HTTPException(status_code=503, detail="Service not ready")
 
 

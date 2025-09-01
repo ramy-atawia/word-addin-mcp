@@ -5,6 +5,18 @@ Configuration settings for the Word Add-in MCP project.
 import os
 from typing import Optional
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+import pathlib
+
+# Load .env file explicitly
+env_file = pathlib.Path(__file__).parent.parent.parent / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
+else:
+    # Try alternative location
+    alt_env = pathlib.Path(__file__).parent.parent.parent.parent / ".env"
+    if alt_env.exists():
+        load_dotenv(alt_env)
 
 
 class Settings(BaseSettings):
@@ -32,17 +44,42 @@ class Settings(BaseSettings):
     max_requests_per_minute: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "60"))
     max_requests_per_hour: int = int(os.getenv("MAX_REQUESTS_PER_HOUR", "1000"))
     
+    # Rate limit aliases for middleware
+    @property
+    def RATE_LIMIT_PER_MINUTE(self) -> int:
+        return self.max_requests_per_minute
+    
+    @property
+    def RATE_LIMIT_PER_HOUR(self) -> int:
+        return self.max_requests_per_hour
+    
     # Logging Configuration
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")  # Alias for compatibility
     log_file: str = os.getenv("LOG_FILE", "logs/app.log")
-    LOG_FILE: str = os.getenv("LOG_FILE", "logs/app.log")  # Alias for compatibility
     log_format: str = os.getenv("LOG_FORMAT", "text")
-    LOG_FORMAT: str = os.getenv("LOG_FORMAT", "text")  # Alias for compatibility
     log_max_size: int = int(os.getenv("LOG_MAX_SIZE", "10485760"))  # 10MB
-    LOG_MAX_SIZE: int = int(os.getenv("LOG_MAX_SIZE", "10485760"))  # Alias for compatibility
     log_backup_count: int = int(os.getenv("LOG_BACKUP_COUNT", "5"))
-    LOG_BACKUP_COUNT: int = int(os.getenv("LOG_BACKUP_COUNT", "5"))  # Alias for compatibility
+    
+    # Legacy aliases for backward compatibility
+    @property
+    def LOG_LEVEL(self) -> str:
+        return self.log_level
+    
+    @property
+    def LOG_FILE(self) -> str:
+        return self.log_file
+    
+    @property
+    def LOG_FORMAT(self) -> str:
+        return self.log_format
+    
+    @property
+    def LOG_MAX_SIZE(self) -> int:
+        return self.log_max_size
+    
+    @property 
+    def LOG_BACKUP_COUNT(self) -> int:
+        return self.log_backup_count
     
     # Security Configuration
     secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
@@ -69,8 +106,11 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     allowed_origins: list = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://localhost:3000", "https://localhost:3001", "https://localhost:3002"]
+    ALLOWED_ORIGINS: list = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://localhost:3000", "https://localhost:3001", "https://localhost:3002"]  # Alias for compatibility
     allowed_methods: list = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    ALLOWED_METHODS: list = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]  # Alias for compatibility
     allowed_headers: list = ["*"]
+    ALLOWED_HEADERS: list = ["*"]  # Alias for compatibility
     
     # Langfuse Configuration (optional)
     langfuse_secret_key: Optional[str] = os.getenv("LANGFUSE_SECRET_KEY")
@@ -82,19 +122,31 @@ class Settings(BaseSettings):
     
     # FastAPI Configuration
     enable_swagger: bool = os.getenv("ENABLE_SWAGGER", "true").lower() == "true"
-    ENABLE_SWAGGER: bool = os.getenv("ENABLE_SWAGGER", "true").lower() == "true"  # Alias for compatibility
     fastapi_host: str = os.getenv("FASTAPI_HOST", "0.0.0.0")
-    FASTAPI_HOST: str = os.getenv("FASTAPI_HOST", "0.0.0.0")  # Alias for compatibility
     fastapi_port: int = int(os.getenv("FASTAPI_PORT", "9000"))
-    FASTAPI_PORT: int = int(os.getenv("FASTAPI_PORT", "9000"))  # Alias for compatibility
     fastapi_reload: bool = os.getenv("FASTAPI_RELOAD", "true").lower() == "true"
-    FASTAPI_RELOAD: bool = os.getenv("FASTAPI_RELOAD", "true").lower() == "true"  # Alias for compatibility
     fastapi_log_level: str = os.getenv("FASTAPI_LOG_LEVEL", "INFO")
-    FASTAPI_LOG_LEVEL: str = os.getenv("FASTAPI_LOG_LEVEL", "INFO")  # Alias for compatibility
+    
+    # FastAPI aliases used by application
+    @property
+    def HOST(self) -> str:
+        return self.fastapi_host
+    
+    @property
+    def PORT(self) -> int:
+        return self.fastapi_port
+    
+    @property
+    def DEBUG(self) -> bool:
+        return self.fastapi_reload
+    
+    @property
+    def ENVIRONMENT(self) -> str:
+        return self.environment
     
     # MCP Configuration
-    mcp_server_url: str = os.getenv("MCP_SERVER_URL", "http://localhost:9000")
-    MCP_SERVER_URL: str = os.getenv("MCP_SERVER_URL", "http://localhost:9000")  # Alias for compatibility
+    mcp_server_url: str = os.getenv("MCP_SERVER_URL", "https://localhost:9000")
+    MCP_SERVER_URL: str = os.getenv("MCP_SERVER_URL", "https://localhost:9000")  # Alias for compatibility
     
     # Application Configuration
     app_version: str = os.getenv("APP_VERSION", "1.0.0")
@@ -102,8 +154,16 @@ class Settings(BaseSettings):
     environment: str = os.getenv("ENVIRONMENT", "development")
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")  # Alias for compatibility
     
+    # Debug Configuration
+    debug: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"  # Alias for compatibility
+    
+    # Host Configuration
+    allowed_hosts: list = ["localhost", "127.0.0.1", "0.0.0.0"]
+    ALLOWED_HOSTS: list = ["localhost", "127.0.0.1", "0.0.0.0"]  # Alias for compatibility
+    
     class Config:
-        env_file = "/Users/Mariam/word-addin-mcp/.env"
+        env_file = [".env", "../.env", "/Users/Mariam/word-addin-mcp/.env"]
         case_sensitive = False
         extra = "allow"  # Allow extra fields from .env
 
@@ -121,25 +181,9 @@ def get_azure_openai_config() -> dict:
     }
 
 
-def get_google_search_config() -> dict:
-    """Get Google Search API configuration."""
-    return {
-        "api_key": settings.google_search_api_key,
-        "engine_id": settings.google_search_engine_id
-    }
-
-
 def is_azure_openai_configured() -> bool:
     """Check if Azure OpenAI is properly configured."""
     return bool(
         settings.azure_openai_api_key and 
         settings.azure_openai_endpoint
-    )
-
-
-def is_google_search_configured() -> bool:
-    """Check if Google Search API is properly configured."""
-    return bool(
-        settings.google_search_api_key and 
-        settings.google_search_engine_id
     )

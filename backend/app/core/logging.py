@@ -152,36 +152,7 @@ def log_request_info(request_id: str, method: str, path: str, status_code: int,
         logger.info("HTTP request completed successfully", **log_data)
 
 
-def log_mcp_tool_execution(tool_name: str, session_id: str, request_id: str,
-                          parameters: dict, execution_time: float, 
-                          status: str, error: Optional[str] = None) -> None:
-    """Log MCP tool execution information.
-    
-    Args:
-        tool_name: Name of the executed tool
-        session_id: User session identifier
-        request_id: Unique request identifier
-        parameters: Tool execution parameters
-        execution_time: Tool execution time in seconds
-        status: Execution status (success/error)
-        error: Error message if execution failed
-    """
-    logger = get_logger("mcp_tool_execution")
-    
-    log_data = {
-        "tool_name": tool_name,
-        "session_id": session_id,
-        "request_id": request_id,
-        "parameters": parameters,
-        "execution_time": execution_time,
-        "status": status
-    }
-    
-    if error:
-        log_data["error"] = error
-        logger.warning("MCP tool execution failed", **log_data)
-    else:
-        logger.info("MCP tool execution completed", **log_data)
+
 
 
 def log_security_event(event_type: str, user_id: Optional[str] = None,
@@ -209,26 +180,7 @@ def log_security_event(event_type: str, user_id: Optional[str] = None,
     logger.warning("Security event detected", **log_data)
 
 
-def log_performance_metric(metric_name: str, value: float, unit: str,
-                          tags: Optional[dict] = None) -> None:
-    """Log performance metrics.
-    
-    Args:
-        metric_name: Name of the performance metric
-        value: Metric value
-        unit: Unit of measurement
-        tags: Additional metric tags
-    """
-    logger = get_logger("performance")
-    
-    log_data = {
-        "metric_name": metric_name,
-        "value": value,
-        "unit": unit,
-        "tags": tags or {}
-    }
-    
-    logger.info("Performance metric recorded", **log_data)
+
 
 
 def log_error(error: Exception, context: Optional[dict] = None,
@@ -254,55 +206,7 @@ def log_error(error: Exception, context: Optional[dict] = None,
     logger.error("Error occurred", **log_data, exc_info=True)
 
 
-def log_database_operation(operation: str, table: str, duration: float,
-                          success: bool, error: Optional[str] = None) -> None:
-    """Log database operation information.
-    
-    Args:
-        operation: Database operation type (SELECT, INSERT, UPDATE, DELETE)
-        table: Database table name
-        duration: Operation duration in seconds
-        success: Whether operation was successful
-        error: Error message if operation failed
-    """
-    logger = get_logger("database")
-    
-    log_data = {
-        "operation": operation,
-        "table": table,
-        "duration": duration,
-        "success": success
-    }
-    
-    if error:
-        log_data["error"] = error
-        logger.warning("Database operation failed", **log_data)
-    else:
-        logger.debug("Database operation completed", **log_data)
 
 
-def log_cache_operation(operation: str, key: str, success: bool,
-                       duration: float, error: Optional[str] = None) -> None:
-    """Log cache operation information.
-    
-    Args:
-        operation: Cache operation type (GET, SET, DELETE)
-        key: Cache key
-        success: Whether operation was successful
-        duration: Operation duration in seconds
-        error: Error message if operation failed
-    """
-    logger = get_logger("cache")
-    
-    log_data = {
-        "operation": operation,
-        "key": key,
-        "success": success,
-        "duration": duration
-    }
-    
-    if error:
-        log_data["error"] = error
-        logger.warning("Cache operation failed", **log_data)
-    else:
-        logger.debug("Cache operation completed", **log_data)
+
+

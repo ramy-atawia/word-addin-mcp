@@ -1,28 +1,26 @@
 """
-MCP Client Connection Management for Word Add-in MCP Project.
+Custom MCP Client Implementation - Production Ready
 
-This module provides robust connection management for MCP servers including:
-- Connection establishment and pooling
-- Automatic reconnection on failure
-- Connection health monitoring
-- Proper resource cleanup
+This implementation provides a robust, abstracted MCP client with proper error handling,
+retry mechanisms, connection pooling, and comprehensive logging.
 """
 
 import asyncio
 import json
 import logging
 import time
-from typing import Dict, Any, List, Optional, Callable
+import uuid
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
-import aiohttp
-import structlog
+from datetime import datetime, timedelta
+from enum import Enum 
+from typing import Any, Dict, List, Optional, Union
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 
-class ConnectionStatus(Enum):
-    """MCP connection status enumeration."""
+class MCPConnectionState(Enum):
+    """MCP connection state."""
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -30,174 +28,668 @@ class ConnectionStatus(Enum):
     RECONNECTING = "reconnecting"
 
 
+class MCPTransportType(Enum):
+    """MCP transport types."""
+    STDIO = "stdio"
+    HTTP = "http"
+    WEBSOCKET = "websocket"
+
+
+class MCPConnectionError(Exception):
+    """Exception for MCP connection errors."""
+    pass
+
+
+class MCPToolError(Exception):
+    """Exception for MCP tool operation errors."""
+    pass
+
+
+class MCPProtocolError(Exception):
+    """Exception for MCP protocol errors."""
+    pass
+
+
 @dataclass
 class MCPConnectionConfig:
     """Configuration for MCP server connection."""
-    server_url: str
+    # Server identification
+    server_name: str
+    server_url: Optional[str] = None
+    server_command: Optional[List[str]] = None
+    
+    # Connection settings
+    transport_type: MCPTransportType = MCPTransportType.HTTP
     timeout: int = 30
     max_retries: int = 3
-    retry_delay: float = 1.0
-    health_check_interval: float = 30.0
-    connection_pool_size: int = 5
+    retry_delay: int = 5
+    
+    # Client identification
+    client_name: str = "Word-Addin-MCP-Client"
+    client_version: str = "1.0.0"
+    
+    # Health monitoring
+    health_check_interval: int = 60
+    heartbeat_interval: int = 30
+    
+    # Tool caching
+    tool_cache_ttl: int = 300  # 5 minutes
+    
+    def __post_init__(self):
+        """Validate configuration."""
+        if self.transport_type == MCPTransportType.HTTP and not self.server_url:
+            raise ValueError("server_url is required for HTTP transport")
+        if self.transport_type == MCPTransportType.STDIO and not self.server_command:
+            raise ValueError("server_command is required for STDIO transport")
 
 
-@dataclass
-class MCPConnectionInfo:
-    """Information about an MCP connection."""
-    server_url: str
-    status: ConnectionStatus
-    last_heartbeat: float
-    connection_id: str
-    capabilities: Dict[str, Any]
-    error_count: int = 0
-    last_error: Optional[str] = None
-
-
-class MCPConnectionPool:
-    """Connection pool for managing multiple MCP server connections."""
+class MCPTransport(ABC):
+    """Abstract base class for MCP transports."""
     
     def __init__(self, config: MCPConnectionConfig):
         self.config = config
-        self.connections: Dict[str, MCPConnectionInfo] = {}
-        self.connection_semaphore = asyncio.Semaphore(config.connection_pool_size)
-        self.health_check_task: Optional[asyncio.Task] = None
-        self._shutdown = False
+        self.connection_id = str(uuid.uuid4())
+        self.state = MCPConnectionState.DISCONNECTED
+        self.last_error: Optional[str] = None
+        self.connection_time: Optional[datetime] = None
+        
+    @abstractmethod
+    async def connect(self) -> bool:
+        """Connect to the MCP server."""
+        pass
     
-    async def get_connection(self, server_url: str) -> Optional['MCPClient']:
-        """Get a connection from the pool, creating if necessary."""
-        async with self.connection_semaphore:
-            if server_url not in self.connections:
-                await self._create_connection(server_url)
-            
-            connection_info = self.connections.get(server_url)
-            if connection_info and connection_info.status == ConnectionStatus.CONNECTED:
-                return MCPClient(server_url, self.config)
-            
-            return None
+    @abstractmethod
+    async def disconnect(self) -> None:
+        """Disconnect from the MCP server."""
+        pass
     
-    async def _create_connection(self, server_url: str):
-        """Create a new connection to an MCP server."""
-        connection_id = f"mcp_{int(time.time() * 1000)}"
+    @abstractmethod
+    async def send_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Send a JSON-RPC request to the MCP server."""
+        pass
+    
+    @abstractmethod
+    async def health_check(self) -> bool:
+        """Perform a health check."""
+        pass
+    
+    def is_connected(self) -> bool:
+        """Check if transport is connected."""
+        return self.state == MCPConnectionState.CONNECTED
+
+
+class StdioTransport(MCPTransport):
+    """STDIO transport for local MCP servers."""
+    
+    def __init__(self, config: MCPConnectionConfig):
+        super().__init__(config)
+        self.process: Optional[asyncio.subprocess.Process] = None
+        self.request_id = 0
         
-        connection_info = MCPConnectionInfo(
-            server_url=server_url,
-            status=ConnectionStatus.CONNECTING,
-            last_heartbeat=time.time(),
-            connection_id=connection_id,
-            capabilities={}
-        )
-        
-        self.connections[server_url] = connection_info
-        
+    async def connect(self) -> bool:
+        """Connect to MCP server via STDIO."""
         try:
-            # Test connection
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{server_url}/health", timeout=self.config.timeout) as response:
-                    if response.status == 200:
-                        connection_info.status = ConnectionStatus.CONNECTED
-                        logger.info("MCP connection established", server_url=server_url, connection_id=connection_id)
-                    else:
-                        connection_info.status = ConnectionStatus.FAILED
-                        connection_info.last_error = f"HTTP {response.status}"
-                        logger.error("MCP connection failed", server_url=server_url, status=response.status)
-        except Exception as e:
-            connection_info.status = ConnectionStatus.FAILED
-            connection_info.last_error = str(e)
-            logger.error("MCP connection failed", server_url=server_url, error=str(e))
-    
-    async def start_health_monitoring(self):
-        """Start health monitoring for all connections."""
-        if self.health_check_task:
-            return
-        
-        self.health_check_task = asyncio.create_task(self._health_monitor_loop())
-        logger.info("MCP connection health monitoring started")
-    
-    async def _health_monitor_loop(self):
-        """Health monitoring loop for all connections."""
-        while not self._shutdown:
-            try:
-                for server_url, connection_info in self.connections.items():
-                    await self._check_connection_health(server_url, connection_info)
+            logger.info(f"Connecting to MCP server via STDIO: {' '.join(self.config.server_command)}")
+            self.state = MCPConnectionState.CONNECTING
+            
+            # Start the server process
+            self.process = await asyncio.create_subprocess_exec(
+                *self.config.server_command,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            # Initialize the MCP connection
+            init_response = await self.send_request("initialize", {
+                "protocolVersion": "1.0.0",
+                "capabilities": {},
+                "clientInfo": {
+                    "name": self.config.client_name,
+                    "version": self.config.client_version
+                }
+            })
+            
+            if init_response.get("result"):
+                self.state = MCPConnectionState.CONNECTED
+                self.connection_time = datetime.now()
+                logger.info(f"Successfully connected to MCP server via STDIO")
+                return True
+            else:
+                self.state = MCPConnectionState.FAILED
+                self.last_error = "Initialization failed"
+                return False
                 
-                await asyncio.sleep(self.config.health_check_interval)
-            except Exception as e:
-                logger.error("Health monitoring error", error=str(e))
-                await asyncio.sleep(5.0)  # Brief pause on error
-    
-    async def _check_connection_health(self, server_url: str, connection_info: MCPConnectionInfo):
-        """Check health of a specific connection."""
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{server_url}/health", timeout=10) as response:
-                    if response.status == 200:
-                        connection_info.status = ConnectionStatus.CONNECTED
-                        connection_info.last_heartbeat = time.time()
-                        connection_info.error_count = 0
-                        connection_info.last_error = None
-                    else:
-                        await self._handle_connection_failure(server_url, connection_info, f"HTTP {response.status}")
         except Exception as e:
-            await self._handle_connection_failure(server_url, connection_info, str(e))
+            self.state = MCPConnectionState.FAILED
+            self.last_error = str(e)
+            logger.error(f"STDIO connection failed: {e}")
+            return False
     
-    async def _handle_connection_failure(self, server_url: str, connection_info: MCPConnectionInfo, error: str):
-        """Handle connection failure and attempt reconnection."""
-        connection_info.error_count += 1
-        connection_info.last_error = error
-        connection_info.status = ConnectionStatus.FAILED
-        
-        logger.warning("MCP connection health check failed", 
-                      server_url=server_url, 
-                      error=error, 
-                      error_count=connection_info.error_count)
-        
-        if connection_info.error_count <= self.config.max_retries:
-            await self._attempt_reconnection(server_url, connection_info)
+    async def disconnect(self) -> None:
+        """Disconnect from MCP server."""
+        try:
+            if self.process and self.process.returncode is None:
+                self.process.terminate()
+                await self.process.wait()
+            self.state = MCPConnectionState.DISCONNECTED
+            logger.info("STDIO transport disconnected")
+        except Exception as e:
+            logger.error(f"Error during STDIO disconnect: {e}")
     
-    async def _attempt_reconnection(self, server_url: str, connection_info: MCPConnectionInfo):
-        """Attempt to reconnect to an MCP server."""
-        connection_info.status = ConnectionStatus.RECONNECTING
+    async def send_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Send JSON-RPC request via STDIO."""
+        if not self.process or self.process.returncode is not None:
+            raise MCPConnectionError("Not connected to server")
+        
+        self.request_id += 1
+        request = {
+            "jsonrpc": "2.0",
+            "id": self.request_id,
+            "method": method,
+            "params": params or {}
+        }
         
         try:
-            await asyncio.sleep(self.config.retry_delay * connection_info.error_count)
-            await self._create_connection(server_url)
+            # Send request
+            request_data = json.dumps(request) + "\n"
+            self.process.stdin.write(request_data.encode())
+            await self.process.stdin.drain()
+            
+            # Read response
+            response_data = await self.process.stdout.readline()
+            if not response_data:
+                raise MCPConnectionError("No response from server")
+            
+            response = json.loads(response_data.decode().strip())
+            
+            if "error" in response:
+                raise MCPProtocolError(f"Server error: {response['error']}")
+            
+            return response
+            
         except Exception as e:
-            logger.error("MCP reconnection failed", server_url=server_url, error=str(e))
+            logger.error(f"STDIO request failed: {e}")
+            raise MCPConnectionError(f"Request failed: {e}")
     
-    async def shutdown(self):
-        """Shutdown the connection pool and cleanup resources."""
-        self._shutdown = True
+    async def health_check(self) -> bool:
+        """Perform health check via ping."""
+        try:
+            response = await self.send_request("ping")
+            return response.get("result") is not None
+        except:
+            return False
+
+
+class HTTPTransport(MCPTransport):
+    """HTTP transport for remote MCP servers."""
+    
+    def __init__(self, config: MCPConnectionConfig):
+        super().__init__(config)
+        self.session: Optional[Any] = None  # aiohttp.ClientSession
+        self.request_id = 0
+        self.session_id: Optional[str] = None  # MCP session ID from server
         
-        if self.health_check_task:
-            self.health_check_task.cancel()
+    async def connect(self) -> bool:
+        """Connect to MCP server via HTTP with complete MCP lifecycle."""
+        try:
+            import aiohttp
+            
+            logger.info(f"Connecting to MCP server via HTTP: {self.config.server_url}")
+            self.state = MCPConnectionState.CONNECTING
+            
+            # Create HTTP session with SSE support
+            timeout = aiohttp.ClientTimeout(total=self.config.timeout)
+            headers = {
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json"
+            }
+            self.session = aiohttp.ClientSession(timeout=timeout, headers=headers)
+            
+            # STEP 1: Initialize MCP connection
             try:
-                await self.health_check_task
-            except asyncio.CancelledError:
-                pass
-        
-        # Cleanup connections
-        for server_url in list(self.connections.keys()):
-            await self._cleanup_connection(server_url)
-        
-        logger.info("MCP connection pool shutdown complete")
+                logger.info(f"Step 1: Sending initialize request to {self.config.server_url}")
+                init_response = await self.send_request("initialize", {
+                    "protocolVersion": "2024-11-05",  # Use server's supported version
+                    "capabilities": {
+                        "tools": {"listChanged": True},
+                        "resources": {"listChanged": True},
+                        "prompts": {"listChanged": True}
+                    },
+                    "clientInfo": {
+                        "name": self.config.client_name,
+                        "version": self.config.client_version
+                    }
+                })
+                
+                if not init_response.get("result"):
+                    self.state = MCPConnectionState.FAILED
+                    self.last_error = "MCP initialization failed - no result"
+                    logger.error(f"Initialize failed: {init_response}")
+                    return False
+                
+                # STEP 2: Extract session ID from response headers
+                if not self.session_id:
+                    self.state = MCPConnectionState.FAILED
+                    self.last_error = "No session ID received from server"
+                    logger.error("No session ID in initialize response")
+                    return False
+                
+                logger.info(f"Step 2: Received session ID: {self.session_id}")
+                
+                # STEP 3: Send initialized notification (OPTIONAL in MCP spec)
+                try:
+                    logger.info(f"Step 3: Sending initialized notification")
+                    await self.send_request("notifications/initialized", {})
+                    logger.info("Initialized notification sent successfully")
+                except Exception as e:
+                    logger.info(f"Initialized notification not supported by server: {e}, continuing...")
+                    # This is optional, so we continue without it
+                
+                # STEP 4: Test tool discovery to verify connection (with timeout handling)
+                try:
+                    logger.info(f"Step 4: Testing tool discovery")
+                    # Use a shorter timeout for tool discovery test
+                    tools_response = await asyncio.wait_for(
+                        self.send_request("tools/list", {}), 
+                        timeout=15.0  # 15 second timeout for tool discovery
+                    )
+                    if tools_response.get("result", {}).get("tools"):
+                        tool_count = len(tools_response["result"]["tools"])
+                        logger.info(f"Successfully discovered {tool_count} tools")
+                    else:
+                        logger.info("No tools discovered (server may not support tools)")
+                except asyncio.TimeoutError:
+                    logger.info("Tool discovery test timed out, but connection established - server may be slow")
+                except Exception as e:
+                    logger.info(f"Tool discovery test failed: {e}, but connection established")
+                
+                # Connection successful
+                self.state = MCPConnectionState.CONNECTED
+                self.connection_time = datetime.now()
+                logger.info(f"Successfully connected to MCP server via HTTP")
+                logger.info(f"MCP Session ID: {self.session_id}")
+                return True
+                        
+            except aiohttp.ClientError as e:
+                self.state = MCPConnectionState.FAILED
+                self.last_error = f"HTTP error: {e}"
+                logger.error(f"HTTP error during connection: {e}")
+                return False
+            except Exception as e:
+                self.state = MCPConnectionState.FAILED
+                self.last_error = f"Connection error: {e}"
+                logger.error(f"Connection failed: {e}")
+                return False
+                
+        except ImportError:
+            self.state = MCPConnectionState.FAILED
+            self.last_error = "aiohttp not available"
+            logger.error("aiohttp is required for HTTP transport")
+            return False
+        except Exception as e:
+            self.state = MCPConnectionState.FAILED
+            self.last_error = str(e)
+            logger.error(f"HTTP connection failed: {e}")
+            return False
     
-    async def _cleanup_connection(self, server_url: str):
-        """Cleanup a specific connection."""
-        if server_url in self.connections:
-            connection_info = self.connections[server_url]
-            connection_info.status = ConnectionStatus.DISCONNECTED
-            del self.connections[server_url]
-            logger.info("MCP connection cleaned up", server_url=server_url)
+    async def disconnect(self) -> None:
+        """Disconnect from MCP server."""
+        try:
+            if self.session:
+                await self.session.close()
+                self.session = None
+            self.state = MCPConnectionState.DISCONNECTED
+            logger.info("HTTP transport disconnected")
+        except Exception as e:
+            logger.error(f"Error during HTTP disconnect: {e}")
+    
+    async def send_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Send JSON-RPC request via HTTP with proper MCP session handling."""
+        if not self.session:
+            raise MCPConnectionError("Not connected to server")
+        
+        self.request_id += 1
+        request = {
+            "jsonrpc": "2.0",
+            "id": self.request_id,
+            "method": method,
+            "params": params or {}
+        }
+        
+        try:
+            # Build headers
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream"
+            }
+            
+            # Add session ID for subsequent requests (not for initialize)
+            if method != "initialize" and self.session_id:
+                headers["Mcp-Session-Id"] = self.session_id
+                logger.debug(f"Added session ID header: {self.session_id[:8]}...")
+            
+            logger.debug(f"Sending {method} request to {self.config.server_url}")
+            async with self.session.post(
+                self.config.server_url,
+                json=request,
+                headers=headers
+            ) as response:
+                if response.status != 200:
+                    response_text = await response.text()
+                    logger.error(f"HTTP {response.status} error: {response_text}")
+                    raise MCPConnectionError(f"HTTP {response.status}: {response_text}")
+                
+                # Extract session ID from response headers for initialize request
+                if method == "initialize":
+                    if "mcp-session-id" in response.headers:
+                        self.session_id = response.headers["mcp-session-id"]
+                        logger.info(f"Received MCP Session ID: {self.session_id}")
+                    else:
+                        logger.warning("No session ID in initialize response headers")
+                
+                # Handle SSE response
+                if response.headers.get("content-type", "").startswith("text/event-stream"):
+                    response_data = await self._parse_sse_response(response)
+                else:
+                    response_data = await response.json()
+                
+                if "error" in response_data:
+                    logger.error(f"Server error in {method}: {response_data['error']}")
+                    raise MCPProtocolError(f"Server error: {response_data['error']}")
+                
+                logger.debug(f"Successfully received response for {method}")
+                return response_data
+                
+        except Exception as e:
+            logger.error(f"HTTP request failed for {method}: {e}")
+            raise MCPConnectionError(f"Request failed: {e}")
+    
+    async def _parse_sse_response(self, response) -> Dict[str, Any]:
+        """Parse Server-Sent Events response with robust error handling."""
+        try:
+            text = await response.text()
+            logger.debug(f"Raw SSE content length: {len(text)} characters")
+            logger.debug(f"Raw SSE content preview: {text[:200]}...")
+            
+            # Handle empty responses
+            if not text.strip():
+                logger.warning("Empty SSE response received")
+                return {}
+            
+            lines = text.strip().split('\n')
+            logger.debug(f"SSE response has {len(lines)} lines")
+            
+            # Look for "data: " lines in SSE format
+            data_lines = [line for line in lines if line.startswith('data: ')]
+            logger.debug(f"Found {len(data_lines)} data lines")
+            
+            if not data_lines:
+                # If no SSE format, try to parse as regular JSON
+                logger.info("No SSE data lines found, attempting to parse as regular JSON")
+                try:
+                    parsed_data = json.loads(text)
+                    logger.debug("Successfully parsed as regular JSON")
+                    return parsed_data
+                except json.JSONDecodeError:
+                    logger.warning("Content is neither valid SSE nor JSON")
+                    return {}
+            
+            # Process SSE data lines
+            parsed_responses = []
+            for i, line in enumerate(data_lines):
+                try:
+                    data_content = line[6:].strip()  # Remove "data: " prefix
+                    if data_content:
+                        parsed_data = json.loads(data_content)
+                        parsed_responses.append(parsed_data)
+                        logger.debug(f"Successfully parsed SSE data line {i+1}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse SSE data line {i+1}: {e}")
+                    logger.debug(f"Raw data line {i+1}: {line}")
+                    continue
+            
+            if not parsed_responses:
+                logger.warning("No valid JSON found in SSE data lines")
+                return {}
+            
+            # Return the last valid response (most recent)
+            logger.debug(f"Returning last of {len(parsed_responses)} parsed responses")
+            return parsed_responses[-1]
+            
+        except Exception as e:
+            logger.error(f"Failed to parse SSE response: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            return {}
+    
+    async def health_check(self) -> bool:
+        """Perform health check via HTTP."""
+        try:
+            if not self.session:
+                return False
+            async with self.session.get(self.config.server_url) as response:
+                return response.status == 200
+        except:
+            return False
 
 
 class MCPClient:
-    """Individual MCP client for communicating with a specific MCP server."""
+    """Production-ready MCP client with robust error handling and connection management."""
     
-    def __init__(self, server_url: str, config: MCPConnectionConfig):
-        self.server_url = server_url
+    def __init__(self, config: MCPConnectionConfig):
         self.config = config
-        self.session: Optional[aiohttp.ClientSession] = None
-        self._connection_established = False
+        self.transport: Optional[MCPTransport] = None
+        self.connection_lock = asyncio.Lock()
+        
+        # Caching
+        self.tool_cache: List[Dict[str, Any]] = []
+        self.tool_cache_time: Optional[datetime] = None
+        
+        # Monitoring
+        self.connection_attempts = 0
+        self.successful_requests = 0
+        self.failed_requests = 0
+        self.last_heartbeat: Optional[datetime] = None
+        
+        # Health monitoring
+        self.health_monitor_task: Optional[asyncio.Task] = None
+        
+        logger.info(f"MCP Client initialized for {config.server_name}")
+    
+    def _create_transport(self) -> MCPTransport:
+        """Create appropriate transport based on configuration."""
+        if self.config.transport_type == MCPTransportType.STDIO:
+            return StdioTransport(self.config)
+        elif self.config.transport_type == MCPTransportType.HTTP:
+            return HTTPTransport(self.config)
+        else:
+            raise ValueError(f"Unsupported transport type: {self.config.transport_type}")
+    
+    async def connect(self) -> bool:
+        """Connect to MCP server with retry logic."""
+        async with self.connection_lock:
+            if self.is_connected():
+                return True
+            
+            for attempt in range(self.config.max_retries):
+                try:
+                    self.connection_attempts += 1
+                    logger.info(f"Connection attempt {attempt + 1}/{self.config.max_retries} to {self.config.server_name}")
+                    
+                    # Create transport
+                    self.transport = self._create_transport()
+                    
+                    # Attempt connection
+                    if await self.transport.connect():
+                        # Start health monitoring
+                        await self._start_health_monitoring()
+                        logger.info(f"Successfully connected to {self.config.server_name}")
+                        return True
+                    else:
+                        logger.warning(f"Connection attempt {attempt + 1} failed")
+                        if attempt < self.config.max_retries - 1:
+                            await asyncio.sleep(self.config.retry_delay)
+                
+                except Exception as e:
+                    logger.error(f"Connection attempt {attempt + 1} failed: {e}")
+                    if attempt < self.config.max_retries - 1:
+                        await asyncio.sleep(self.config.retry_delay)
+            
+            logger.error(f"Failed to connect to {self.config.server_name} after {self.config.max_retries} attempts")
+            return False
+    
+    async def disconnect(self) -> None:
+        """Disconnect from MCP server."""
+        async with self.connection_lock:
+            # Stop health monitoring
+            if self.health_monitor_task and not self.health_monitor_task.done():
+                self.health_monitor_task.cancel()
+                try:
+                    await self.health_monitor_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Disconnect transport
+            if self.transport:
+                await self.transport.disconnect()
+                self.transport = None
+            
+            logger.info(f"Disconnected from {self.config.server_name}")
+    
+    def is_connected(self) -> bool:
+        """Check if client is connected."""
+        return self.transport is not None and self.transport.is_connected()
+    
+    async def discover_tools(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+        """Discover available tools with proper MCP lifecycle and caching."""
+        # Check cache first
+        if not force_refresh and self._is_tool_cache_valid():
+            logger.debug(f"Returning cached tools for {self.config.server_name}")
+            return self.tool_cache.copy()
+        
+        if not self.is_connected():
+            logger.info(f"Not connected to {self.config.server_name}, connecting first...")
+            if not await self.connect():
+                logger.error(f"Failed to connect to {self.config.server_name}")
+                return []
+        
+        try:
+            logger.info(f"Discovering tools from {self.config.server_name}")
+            response = await self.transport.send_request("tools/list")
+            
+            if "result" in response and "tools" in response["result"]:
+                tools = response["result"]["tools"]
+                
+                # Update cache
+                self.tool_cache = tools
+                self.tool_cache_time = datetime.now()
+                
+                self.successful_requests += 1
+                logger.info(f"Successfully discovered {len(tools)} tools from {self.config.server_name}")
+                
+                # Log tool details for debugging
+                for tool in tools:
+                    logger.debug(f"Tool: {tool.get('name', 'Unknown')} - {tool.get('description', 'No description')[:50]}...")
+                
+                return tools
+            else:
+                logger.warning(f"Invalid tools list response from {self.config.server_name}: {response}")
+                return []
+                
+        except Exception as e:
+            self.failed_requests += 1
+            logger.error(f"Tool discovery failed for {self.config.server_name}: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            return []
+    
+    async def execute_tool(self, tool_name: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Execute a tool with error handling."""
+        if not self.is_connected():
+            raise MCPConnectionError("Not connected to server")
+        
+        if parameters is None:
+            parameters = {}
+        
+        try:
+            logger.info(f"Executing tool '{tool_name}' on {self.config.server_name}")
+            start_time = time.time()
+            
+            response = await self.transport.send_request("tools/call", {
+                "name": tool_name,
+                "arguments": parameters
+            })
+            
+            execution_time = time.time() - start_time
+            
+            if "result" in response:
+                self.successful_requests += 1
+                logger.info(f"Tool '{tool_name}' executed successfully in {execution_time:.2f}s")
+                return response["result"]
+            else:
+                raise MCPProtocolError("Invalid tool execution response")
+                
+        except Exception as e:
+            self.failed_requests += 1
+            logger.error(f"Tool execution failed for '{tool_name}' on {self.config.server_name}: {e}")
+            raise MCPToolError(f"Tool execution failed: {e}")
+    
+    async def health_check(self) -> bool:
+        """Perform a health check."""
+        try:
+            if not self.transport:
+                return False
+            return await self.transport.health_check()
+        except:
+            return False
+    
+    def _is_tool_cache_valid(self) -> bool:
+        """Check if tool cache is still valid."""
+        if not self.tool_cache or not self.tool_cache_time:
+            return False
+        
+        cache_age = datetime.now() - self.tool_cache_time
+        return cache_age < timedelta(seconds=self.config.tool_cache_ttl)
+    
+    async def _start_health_monitoring(self):
+        """Start periodic health monitoring."""
+        if self.health_monitor_task:
+            return
+        
+        async def health_monitor():
+            while self.is_connected():
+                try:
+                    await asyncio.sleep(self.config.health_check_interval)
+                    
+                    if await self.health_check():
+                        self.last_heartbeat = datetime.now()
+                    else:
+                        logger.warning(f"Health check failed for {self.config.server_name}")
+                        break
+                        
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.error(f"Health monitoring error for {self.config.server_name}: {e}")
+                    break
+        
+        self.health_monitor_task = asyncio.create_task(health_monitor())
+    
+    def get_connection_status(self) -> Dict[str, Any]:
+        """Get comprehensive connection status."""
+        return {
+            "server_name": self.config.server_name,
+            "connection_id": self.transport.connection_id if self.transport else None,
+            "state": self.transport.state.value if self.transport else "no_transport",
+            "is_connected": self.is_connected(),
+            "transport_type": self.config.transport_type.value,
+            "connection_attempts": self.connection_attempts,
+            "successful_requests": self.successful_requests,
+            "failed_requests": self.failed_requests,
+            "last_heartbeat": self.last_heartbeat.isoformat() if self.last_heartbeat else None,
+            "tool_cache_size": len(self.tool_cache),
+            "connection_time": self.transport.connection_time.isoformat() if self.transport and self.transport.connection_time else None,
+            "last_error": self.transport.last_error if self.transport else None
+        }
     
     async def __aenter__(self):
         """Async context manager entry."""
@@ -207,162 +699,31 @@ class MCPClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.disconnect()
-    
-    async def connect(self):
-        """Establish connection to MCP server."""
-        if self._connection_established:
-            return
-        
-        try:
-            self.session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout)
-            )
-            
-            # Test connection
-            async with self.session.get(f"{self.server_url}/health") as response:
-                if response.status == 200:
-                    self._connection_established = True
-                    logger.info("MCP client connected", server_url=self.server_url)
-                else:
-                    raise ConnectionError(f"Failed to connect: HTTP {response.status}")
-                    
-        except Exception as e:
-            logger.error("MCP client connection failed", server_url=self.server_url, error=str(e))
-            raise
-    
-    async def disconnect(self):
-        """Disconnect from MCP server."""
-        if self.session:
-            await self.session.close()
-            self.session = None
-        
-        self._connection_established = False
-        logger.info("MCP client disconnected", server_url=self.server_url)
-    
-    async def call_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Call an MCP tool on the server."""
-        if not self._connection_established:
-            raise ConnectionError("Client not connected")
-        
-        try:
-            payload = {
-                "jsonrpc": "2.0",
-                "id": f"call_{int(time.time() * 1000)}",
-                "method": "tools/call",
-                "params": {
-                    "name": tool_name,
-                    "arguments": parameters
-                }
-            }
-            
-            async with self.session.post(
-                f"{self.server_url}/jsonrpc",
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            ) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return result.get("result", {})
-                else:
-                    error_text = await response.text()
-                    raise RuntimeError(f"Tool call failed: HTTP {response.status} - {error_text}")
-                    
-        except Exception as e:
-            logger.error("MCP tool call failed", 
-                        server_url=self.server_url, 
-                        tool_name=tool_name, 
-                        error=str(e))
-            raise
-    
-    async def list_tools(self) -> List[Dict[str, Any]]:
-        """List available tools on the MCP server."""
-        if not self._connection_established:
-            raise ConnectionError("Client not connected")
-        
-        try:
-            payload = {
-                "jsonrpc": "2.0",
-                "id": f"list_{int(time.time() * 1000)}",
-                "method": "tools/list",
-                "params": {}
-            }
-            
-            async with self.session.post(
-                f"{self.server_url}/jsonrpc",
-                json=payload,
-                headers={"Content-Type": "application/json"}
-            ) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return result.get("result", {}).get("tools", [])
-                else:
-                    error_text = await response.text()
-                    raise RuntimeError(f"Tool listing failed: HTTP {response.status} - {error_text}")
-                    
-        except Exception as e:
-            logger.error("MCP tool listing failed", 
-                        server_url=self.server_url, 
-                        error=str(e))
-            raise
-    
-    async def get_server_info(self) -> Dict[str, Any]:
-        """Get MCP server information and capabilities."""
-        if not self._connection_established:
-            raise ConnectionError("Client not connected")
-        
-        try:
-            async with self.session.get(f"{self.server_url}/health") as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    raise RuntimeError(f"Server info failed: HTTP {response.status}")
-                    
-        except Exception as e:
-            logger.error("MCP server info failed", 
-                        server_url=self.server_url, 
-                        error=str(e))
-            raise
 
 
-class MCPClientManager:
-    """Manager for multiple MCP clients and connection pools."""
+class MCPClientFactory:
+    """Factory for creating MCP clients with different configurations."""
     
-    def __init__(self):
-        self.connection_pools: Dict[str, MCPConnectionPool] = {}
-        self._shutdown = False
+    @staticmethod
+    def create_http_client(server_url: str, server_name: str = None, timeout: int = 30) -> MCPClient:
+        """Create an HTTP-based MCP client."""
+        config = MCPConnectionConfig(
+            server_name=server_name or server_url,
+            server_url=server_url,
+            transport_type=MCPTransportType.HTTP,
+            timeout=timeout
+        )
+        return MCPClient(config)
     
-    async def create_connection_pool(self, config: MCPConnectionConfig) -> MCPConnectionPool:
-        """Create a new connection pool for MCP servers."""
-        pool = MCPConnectionPool(config)
-        self.connection_pools[config.server_url] = pool
-        
-        # Start health monitoring
-        await pool.start_health_monitoring()
-        
-        logger.info("MCP connection pool created", server_url=config.server_url)
-        return pool
-    
-    async def get_client(self, server_url: str) -> Optional[MCPClient]:
-        """Get an MCP client for a specific server."""
-        for pool in self.connection_pools.values():
-            if pool.config.server_url == server_url:
-                return await pool.get_connection(server_url)
-        return None
-    
-    async def shutdown(self):
-        """Shutdown all connection pools."""
-        self._shutdown = True
-        
-        shutdown_tasks = []
-        for pool in self.connection_pools.values():
-            shutdown_tasks.append(pool.shutdown())
-        
-        if shutdown_tasks:
-            await asyncio.gather(*shutdown_tasks, return_exceptions=True)
-        
-        self.connection_pools.clear()
-        logger.info("MCP client manager shutdown complete")
+    @staticmethod
+    def create_stdio_client(server_command: List[str], server_name: str = None, timeout: int = 30) -> MCPClient:
+        """Create a STDIO-based MCP client."""
+        config = MCPConnectionConfig(
+            server_name=server_name or " ".join(server_command),
+            server_command=server_command,
+            transport_type=MCPTransportType.STDIO,
+            timeout=timeout
+        )
+        return MCPClient(config)
 
 
-# Global instance for application-wide use
-mcp_client_manager = MCPClientManager()
