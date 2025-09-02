@@ -59,6 +59,7 @@ const useStyles = makeStyles({
       padding: '16px',
     },
   },
+
   headerTitle: {
     fontSize: '20px', // Reduced from 24px for mobile
     fontWeight: '700',
@@ -197,6 +198,66 @@ const MCPToolManager: React.FC = () => {
 
   // Using mcpToolService directly
   
+  // Background auto-refresh functionality (always on)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Complete data refresh - load both tools and servers
+      const refreshData = async () => {
+        try {
+          // Load tools first
+          const toolsResponse = await fetch('https://localhost:9000/api/v1/mcp/tools');
+          if (toolsResponse.ok) {
+            const toolsData = await toolsResponse.json();
+            if (toolsData.tools) {
+              setTools(toolsData.tools);
+            }
+          }
+
+          // Add internal server
+          const internalServer = {
+            id: 'internal',
+            name: 'Internal Server',
+            url: 'localhost:9000',
+            status: 'healthy',
+            connected: true,
+            toolCount: 0
+          };
+
+          // Load external servers
+          const serversResponse = await fetch('https://localhost:9000/api/v1/mcp/external/servers');
+          if (serversResponse.ok) {
+            const serversData = await serversResponse.json();
+            if (serversData.servers) {
+              const externalServers = serversData.servers.map((serverInfo: any) => ({
+                id: serverInfo.server_id,
+                name: serverInfo.name,
+                url: serverInfo.url,
+                status: serverInfo.status,
+                connected: serverInfo.connected,
+                toolCount: 0
+              }));
+              setServers([internalServer, ...externalServers]);
+            } else {
+              setServers([internalServer]);
+            }
+          } else {
+            setServers([internalServer]);
+          }
+
+          // Also refresh connection status
+          checkConnection(mcpToolService);
+        } catch (error) {
+          console.error('Background auto-refresh failed:', error);
+        }
+      };
+      refreshData();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []); // Run once on mount, no dependencies
+
   useEffect(() => {
     // Initialize with mcpToolService
     mcpToolService.setBaseUrl('https://localhost:9000');
@@ -458,6 +519,54 @@ const MCPToolManager: React.FC = () => {
         toolCount: 0,
         lastSeen: new Date().toISOString()
       }]);
+      
+      // Immediately refresh data to get updated tool counts and server status
+      const refreshData = async () => {
+        try {
+          // Load tools first
+          const toolsResponse = await fetch('https://localhost:9000/api/v1/mcp/tools');
+          if (toolsResponse.ok) {
+            const toolsData = await toolsResponse.json();
+            if (toolsData.tools) {
+              setTools(toolsData.tools);
+            }
+          }
+
+          // Add internal server
+          const internalServer = {
+            id: 'internal',
+            name: 'Internal Server',
+            url: 'localhost:9000',
+            status: 'healthy',
+            connected: true,
+            toolCount: 0
+          };
+
+          // Load external servers
+          const serversResponse = await fetch('https://localhost:9000/api/v1/mcp/external/servers');
+          if (serversResponse.ok) {
+            const serversData = await serversResponse.json();
+            if (serversData.servers) {
+              const externalServers = serversData.servers.map((serverInfo: any) => ({
+                id: serverInfo.server_id,
+                name: serverInfo.name,
+                url: serverInfo.url,
+                status: serverInfo.status,
+                connected: serverInfo.connected,
+                toolCount: 0
+              }));
+              setServers([internalServer, ...externalServers]);
+            } else {
+              setServers([internalServer]);
+            }
+          } else {
+            setServers([internalServer]);
+          }
+        } catch (error) {
+          console.error('Post-add refresh failed:', error);
+        }
+      };
+      refreshData();
       
       setShowAddModal(false);
       

@@ -6,7 +6,7 @@ import { ChatMessage } from './MessageBubble';
 import { MCPTool } from '../../services/types';
 import { documentContextService } from '../../services/documentContextService';
 import { officeIntegrationService } from '../../services/officeIntegrationService';
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { getApiUrl } from '../../../config/backend';
 import mcpToolService from '../../services/mcpToolService';
 
@@ -59,6 +59,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   
+  // Request debouncing
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   const messages = externalMessages.length > 0 ? externalMessages : internalMessages;
   const loading = externalLoading || internalLoading;
   
@@ -92,8 +96,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  const debouncedRequest = useCallback(async (requestFn: () => Promise<any>, delay: number = 500) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    return new Promise((resolve) => {
+      timeoutRef.current = setTimeout(async () => {
+        setIsProcessing(true);
+        try {
+          const result = await requestFn();
+          resolve(result);
+        } finally {
+          setIsProcessing(false);
+        }
+      }, delay);
+    });
+  }, []);
+
   const handleSendMessage = async (content: string) => {
-    if (!content.trim()) return;
+    if (!content.trim() || isProcessing) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -115,7 +137,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
 
     try {
-      await handleUserIntentWithAgent(content.trim());
+      // Use debounced request for intent detection
+      await debouncedRequest(async () => {
+        await handleUserIntentWithAgent(content.trim());
+      }, 300); // 300ms debounce delay
     } catch (error) {
       console.error('💥 Error handling user message:', error);
       const errorMessage: ChatMessage = {
