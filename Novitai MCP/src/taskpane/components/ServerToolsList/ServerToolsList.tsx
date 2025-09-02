@@ -38,28 +38,38 @@ const ServerToolsList: React.FC<ServerToolsListProps> = ({ server, tools, isLast
       {/* Server Header */}
       <div 
         style={{
-          padding: '16px 20px',
+          padding: '12px 16px',
           cursor: 'pointer',
           backgroundColor: isExpanded ? tokens.colorNeutralBackground1 : 'transparent',
           transition: 'background-color 0.2s ease',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          gap: '12px',
+          borderRadius: '6px',
+          margin: '2px',
+          minHeight: '48px' // Much more compact height
         }}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
-          flex: 1
+          gap: '10px',
+          flex: 1,
+          minHeight: '24px' // Much more compact
         }}>
-          <Server24Regular />
-          <div style={{ flex: 1 }}>
-            <Text size={400} style={{ fontWeight: '600', marginBottom: '2px' }}>
+          <Server24Regular style={{ fontSize: '18px', color: tokens.colorBrandForeground1 }} />
+          <div style={{ 
+            flex: 1, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '2px',
+            justifyContent: 'center'
+          }}>
+            <Text size={400} style={{ fontWeight: '600', color: tokens.colorNeutralForeground1, lineHeight: '1.2' }}>
               {server.name}
             </Text>
-            <Text size={200} style={{ color: tokens.colorNeutralForeground2 }}>
+            <Text size={200} style={{ color: tokens.colorNeutralForeground2, lineHeight: '1.2' }}>
               {server.url}
             </Text>
           </div>
@@ -68,11 +78,19 @@ const ServerToolsList: React.FC<ServerToolsListProps> = ({ server, tools, isLast
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          gap: '8px',
+          height: '24px' // Fixed height for perfect alignment
         }}>
           <Badge 
             appearance="filled" 
             color={getStatusColor(server.status, server.connected)}
+            size="small"
+            style={{ 
+              height: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '12px'
+            }}
           >
             {getStatusText(server.status, server.connected)}
           </Badge>
@@ -81,13 +99,20 @@ const ServerToolsList: React.FC<ServerToolsListProps> = ({ server, tools, isLast
             display: 'flex',
             alignItems: 'center',
             gap: '4px',
-            color: tokens.colorNeutralForeground2
+            color: tokens.colorNeutralForeground2,
+            height: '20px'
           }}>
-            <Toolbox24Regular />
-            <Text size={200}>{tools.length}</Text>
+            <Toolbox24Regular style={{ fontSize: '14px' }} />
+            <Text size={200} style={{ fontWeight: '600', lineHeight: '1' }}>{tools.length}</Text>
           </div>
           
-          {isExpanded ? <ChevronDown24Regular /> : <ChevronRight24Regular />}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center',
+            height: '20px'
+          }}>
+            {isExpanded ? <ChevronDown24Regular style={{ fontSize: '14px', color: tokens.colorNeutralForeground2 }} /> : <ChevronRight24Regular style={{ fontSize: '14px', color: tokens.colorNeutralForeground2 }} />}
+          </div>
         </div>
       </div>
 

@@ -32,10 +32,10 @@ const useStyles = makeStyles({
   messagesContainer: {
     flex: 1,
     overflow: 'hidden',
-    padding: '8px',
+    padding: '8px 0px', // Remove horizontal padding to maximize width
     minHeight: 0,
     '@media (min-width: 768px)': {
-      padding: '12px',
+      padding: '12px 0px',
     },
   },
   inputContainer: {

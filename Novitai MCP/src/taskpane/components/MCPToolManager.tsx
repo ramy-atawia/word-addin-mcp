@@ -31,7 +31,7 @@ import { getApiUrl } from '../../config/backend';
 
 const useStyles = makeStyles({
   root: {
-    padding: '12px', // Reduced from 16px for mobile
+    padding: '12px 4px', // Minimal horizontal padding to maximize width
     maxWidth: '100%',
     height: '100vh', // Fixed height for proper containment
     backgroundColor: tokens.colorNeutralBackground1,
@@ -41,10 +41,10 @@ const useStyles = makeStyles({
     minHeight: 0, // Allow container to shrink
     // Responsive design
     '@media (min-width: 768px)': {
-      padding: '16px',
+      padding: '16px 8px',
     },
     '@media (min-width: 1024px)': {
-      padding: '20px',
+      padding: '20px 12px',
     },
   },
   header: {
@@ -577,15 +577,15 @@ const MCPToolManager: React.FC = () => {
   };
 
   const renderSettingsTab = () => (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '20px' }}>
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
-        gap: '12px', 
-        marginBottom: '24px' 
+        gap: '16px', 
+        marginBottom: '32px' 
       }}>
-        <Settings24Regular />
-        <Text size={500} style={{ fontWeight: '600' }}>
+        <Settings24Regular style={{ fontSize: '24px', color: tokens.colorBrandForeground1 }} />
+        <Text size={600} style={{ fontWeight: '700', color: tokens.colorNeutralForeground1 }}>
           MCP Servers & Tools
         </Text>
       </div>
@@ -607,11 +607,12 @@ const MCPToolManager: React.FC = () => {
           backgroundColor: tokens.colorNeutralBackground2,
           borderRadius: tokens.borderRadiusMedium,
           border: `1px solid ${tokens.colorNeutralStroke1}`,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          marginBottom: '16px'
         }}>
         {/* Header */}
         <div style={{
-          padding: '20px',
+          padding: '24px',
           borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
           backgroundColor: tokens.colorNeutralBackground1
         }}>
@@ -620,17 +621,26 @@ const MCPToolManager: React.FC = () => {
             justifyContent: 'space-between',
             alignItems: 'center'
           }}>
-            <div>
-              <Text size={400} style={{ fontWeight: '600', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Text size={500} style={{ fontWeight: '700', color: tokens.colorNeutralForeground1 }}>
                 Connected MCP Servers
               </Text>
-              <Text size={200} style={{ color: tokens.colorNeutralForeground2 }}>
+              <Text size={300} style={{ color: tokens.colorNeutralForeground2, lineHeight: '1.4' }}>
                 {servers.length} servers • {tools.length} total tools
               </Text>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
               <Button 
                 appearance="outline"
+                size="medium"
+                style={{
+                  minWidth: '100px',
+                  height: '36px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  borderRadius: '6px',
+                  padding: '0 16px'
+                }}
                 onClick={() => {
                   // Refresh data
                   setTools([]);
@@ -689,7 +699,16 @@ const MCPToolManager: React.FC = () => {
                 Refresh
               </Button>
               <Button 
-                appearance="outline"
+                appearance="primary"
+                size="medium"
+                style={{
+                  minWidth: '120px',
+                  height: '36px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  borderRadius: '6px',
+                  padding: '0 16px'
+                }}
                 onClick={() => setShowAddModal(true)}
                 icon={<Add24Regular />}
               >
@@ -700,17 +719,17 @@ const MCPToolManager: React.FC = () => {
         </div>
 
         {/* Server List */}
-        <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+        <div style={{ maxHeight: '500px', overflowY: 'auto', padding: '8px' }}>
           {servers.length === 0 ? (
             <div style={{
-              padding: '40px 20px',
+              padding: '48px 24px',
               textAlign: 'center',
               color: tokens.colorNeutralForeground3
             }}>
-              <Text size={300} style={{ marginBottom: '8px' }}>
+              <Text size={400} style={{ marginBottom: '12px', fontWeight: '600' }}>
                 No MCP servers connected
               </Text>
-              <Text size={200}>
+              <Text size={300} style={{ lineHeight: '1.5' }}>
                 Add your first MCP server to get started
               </Text>
             </div>

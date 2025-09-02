@@ -12,7 +12,7 @@ This service uses Azure OpenAI LLM for:
 
 import structlog
 import time
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 from datetime import datetime
 from enum import Enum
 import json
@@ -28,15 +28,12 @@ class IntentType(Enum):
     UNKNOWN = "unknown"
 
 
-
-
-
 class ConversationMemory:
     """Simple conversation memory management."""
     
     def __init__(self):
         self.messages = []
-        self.max_messages = 50  # Keep last 50 messages
+        self.max_messages = 50
     
     def add_message(self, role: str, content: str):
         """Add a message to conversation history."""
@@ -47,7 +44,6 @@ class ConversationMemory:
         }
         self.messages.append(message)
         
-        # Keep only recent messages
         if len(self.messages) > self.max_messages:
             self.messages = self.messages[-self.max_messages:]
     
@@ -58,12 +54,12 @@ class ConversationMemory:
     def get_conversation_history_string(self) -> str:
         """Get conversation history as formatted string."""
         if not self.messages:
-            return "No conversation history"
+            return ""
         
         history_lines = []
-        for msg in self.messages[-10:]:  # Last 10 messages
+        for msg in self.messages[-10:]:
             role = msg.get('role', 'unknown')
-            content = msg.get('content', '')[:100]  # Truncate long messages
+            content = msg.get('content', '')[:100]
             history_lines.append(f"{role}: {content}")
         
         return "\n".join(history_lines)
@@ -84,40 +80,9 @@ class AgentService:
         """Initialize the agent service."""
         self.llm_client = None
         self.conversation_memory = ConversationMemory()
-        self.mcp_orchestrator = None  # Add MCP orchestrator
-        
-        # Intent detection caching
+        self.mcp_orchestrator = None
         self._intent_cache = {}
-        self._cache_ttl = 60  # 1 minute cache TTL
-        
-        # Clear cache method for debugging
-        self._clear_intent_cache = lambda: self._intent_cache.clear()
-        
-        # LLM client will be initialized lazily when needed
-        # MCP orchestrator will be initialized lazily when needed
-    
-    def _initialize_llm_client(self):
-        """Initialize the LLM client."""
-        try:
-            # Use relative imports for consistency
-            try:
-                from .llm_client import get_llm_client
-                from ..core.config import is_azure_openai_configured
-                logger.info("Using relative import path")
-            except ImportError:
-                logger.error("Failed to import LLM client")
-                self.llm_client = None
-                return
-            
-            if is_azure_openai_configured():
-                self.llm_client = get_llm_client()
-                logger.info("Agent service initialized with Azure OpenAI LLM")
-            else:
-                logger.warning("Azure OpenAI not configured - agent will use fallback logic")
-                self.llm_client = None
-        except Exception as e:
-            logger.error(f"Failed to initialize LLM client: {str(e)}")
-            self.llm_client = None
+        self._cache_ttl = 60
     
     def _get_llm_client(self):
         """Get LLM client with lazy initialization."""
@@ -125,17 +90,13 @@ class AgentService:
             try:
                 from .llm_client import get_llm_client
                 from ..core.config import is_azure_openai_configured
-                logger.info("Initializing LLM client...")
             except ImportError:
-                logger.error("Failed to import LLM client")
                 self.llm_client = None
                 return None
             
             if is_azure_openai_configured():
                 self.llm_client = get_llm_client()
-                logger.info("Agent service initialized with Azure OpenAI LLM")
             else:
-                logger.warning("Azure OpenAI not configured - agent will use fallback logic")
                 self.llm_client = None
         return self.llm_client
     
@@ -145,12 +106,9 @@ class AgentService:
             try:
                 from .mcp.orchestrator import get_initialized_mcp_orchestrator
                 self.mcp_orchestrator = get_initialized_mcp_orchestrator()
-                logger.info("Agent service initialized with MCP orchestrator")
             except RuntimeError as e:
-                logger.error(f"MCP Orchestrator not initialized: {str(e)}")
                 raise RuntimeError("AgentService requires initialized MCP Orchestrator")
             except Exception as e:
-                logger.error(f"Failed to initialize MCP orchestrator: {str(e)}")
                 raise RuntimeError(f"Failed to initialize MCP orchestrator: {str(e)}")
         return self.mcp_orchestrator
     
@@ -159,11 +117,10 @@ class AgentService:
         """Generate a cache key for intent detection."""
         import hashlib
         
-        # Create a hash of the key components
         key_components = [
             user_input.lower().strip(),
             str(len(conversation_history)),
-            document_content[:100] if document_content else "",  # First 100 chars of doc
+            document_content[:100] if document_content else "",
             str(len(available_tools)) if available_tools else "0"
         ]
         
@@ -178,25 +135,13 @@ class AgentService:
     ) -> Dict[str, Any]:
         """
         Main method to process user message end-to-end.
-        
-        Args:
-            user_message: Current user message
-            document_content: Current Word document content (if any)
-            available_tools: List of available MCP tools
-            
-        Returns:
-            Complete response with intent, routing, execution result, and metrics
         """
         start_time = time.time()
         
         try:
-            # Add user message to memory
             self.conversation_memory.add_message("user", user_message)
-            
-            # Get conversation history
             conversation_history = self.conversation_memory.get_recent_messages()
             
-            # Step 1: Detect intent and get tool name and parameters from LLM
             action_result = await self.detect_intent_and_route(
                 user_input=user_message,
                 conversation_history=conversation_history,
@@ -205,45 +150,34 @@ class AgentService:
             )
 
             intent_type, tool_name, parameters, reasoning = action_result
-
             final_response = ""
             execution_result = {}
-            tools_used = ["llm_chat"] # Default to LLM chat
+            tools_used = ["llm_chat"]
 
-            if action_result[0] == IntentType.CONVERSATION: # IntentType.CONVERSATION
-                final_response = reasoning  # In this case, reasoning is the conversational response
-                logger.info(f"Agent decided on conversational response: {final_response[:100]}...")
-
-            elif action_result[0] == IntentType.TOOL_EXECUTION:
-                # This is a tool call, execute the tool
+            if intent_type == IntentType.CONVERSATION:
+                final_response = reasoning
+            elif intent_type == IntentType.TOOL_EXECUTION:
                 try:
                     orchestrator = self._get_mcp_orchestrator()
                     if not orchestrator:
                         raise RuntimeError("MCP Orchestrator not initialized.")
 
-                    logger.info(f"Agent decided to call tool: {tool_name} with parameters: {parameters}")
                     execution_result = await orchestrator.execute_tool(tool_name, parameters)
-                    final_response = await self._format_tool_response(execution_result, user_message)
-                    tools_used.append(tool_name)
-                    logger.info(f"Tool {tool_name} executed successfully. Response: {final_response[:100]}...")
+                    final_response = await self._format_tool_response(execution_result, user_message, tool_name)
+                    tools_used = ["llm_chat", tool_name]
 
                 except Exception as e:
-                    logger.error(f"Tool execution failed for {tool_name}: {str(e)}")
-                    final_response = f"I tried to use the {tool_name} tool, but it encountered an error: {str(e)}. Please try again."
-                    tools_used.append(f"{tool_name}_failed")
-                    intent_type = IntentType.TOOL_EXECUTION # Keep as tool execution even if failed
+                    final_response = f"Tool execution failed: {str(e)}"
+                    tools_used = ["llm_chat", f"{tool_name}_failed"]
+                    intent_type = IntentType.TOOL_EXECUTION
             else:
-                final_response = "I'm having trouble processing your request. Please try again or ask me to help with a specific task."
+                final_response = "Unable to process request."
                 intent_type = IntentType.UNKNOWN
-                logger.warning(f"Unknown action result from LLM: {action_result}. Defaulting to conversational fallback.")
 
-            # Add AI response to memory
             self.conversation_memory.add_message("assistant", final_response)
-            
             execution_time = time.time() - start_time
             
-            # Prepare comprehensive response
-            response = {
+            return {
                 "response": final_response,
                 "intent_type": intent_type.value,
                 "tool_name": tool_name,
@@ -254,16 +188,9 @@ class AgentService:
                 "conversation_memory_size": self.conversation_memory.get_memory_size()
             }
             
-            logger.info(f"Message processed successfully - intent: {intent_type.value}, tool_name: {tool_name}, execution_time: {execution_time}")
-            
-            return response
-            
         except Exception as e:
             execution_time = time.time() - start_time
-            logger.error(f"Failed to process user message: {str(e)}")
-            
-            # Add error response to memory
-            error_response = f"I encountered an error while processing your request: {str(e)}"
+            error_response = f"Error processing request: {str(e)}"
             self.conversation_memory.add_message("assistant", error_response)
             
             return {
@@ -286,41 +213,23 @@ class AgentService:
     ) -> Tuple[IntentType, str, Dict[str, Any], str]:
         """
         Detect user intent and determine routing using LLM.
-        
-        Args:
-            user_input: Current user message
-            conversation_history: Previous conversation messages
-            document_content: Current Word document content (if any)
-            available_tools: List of available MCP tools
-            
-        Returns:
-            Tuple of (intent_type, tool_name, parameters, reasoning)
         """
         try:
-            # Check cache first
             cache_key = self._get_intent_cache_key(user_input, conversation_history, document_content, available_tools)
             current_time = time.time()
             
             if cache_key in self._intent_cache:
                 cached_result = self._intent_cache[cache_key]
                 if current_time - cached_result['timestamp'] < self._cache_ttl:
-                    logger.info(f"Returning cached intent detection result (cache hit)")
                     return cached_result['result']
             
             llm_client = self._get_llm_client()
-            logger.info(f"Agent service: LLM client available: {llm_client is not None}")
             if not llm_client:
-                logger.warning("Using fallback intent detection - no LLM client")
-                return await self._fallback_intent_detection(user_input)
+                return await self._fallback_intent_detection(user_input, available_tools)
             
-            # Prepare context for LLM
             context = self._prepare_context(user_input, conversation_history, document_content, available_tools)
-            logger.info(f"Prepared context: {context[:200]}...")
-            
-            # Use LLM for intent detection and routing
             result = await self._llm_intent_detection(context, llm_client)
             
-            # Cache the result
             self._intent_cache[cache_key] = {
                 'result': result,
                 'timestamp': current_time
@@ -329,12 +238,10 @@ class AgentService:
             return result
             
         except Exception as e:
-            logger.error(f"Intent detection failed: {str(e)}")
-            return await self._fallback_intent_detection(user_input)
+            return await self._fallback_intent_detection(user_input, available_tools)
     
     def _get_generic_intent_type(self, tool_name: str) -> IntentType:
         """Get generic intent type for any tool - no hardcoded mapping."""
-        # All tool executions are treated the same way
         return IntentType.TOOL_EXECUTION
 
     def _prepare_context(self,
@@ -343,13 +250,12 @@ class AgentService:
         document_content: Optional[str] = None,
         available_tools: List[Dict[str, Any]] = None
     ) -> str:
-        """Prepare context information for LLM analysis, including full tool schemas."""
+        """Prepare context information for LLM analysis."""
         context_parts = []
-
         context_parts.append(f"User Input: {user_input}")
 
         if conversation_history:
-            recent_history = conversation_history[-5:]  # Last 5 messages
+            recent_history = conversation_history[-5:]
             history_text = "\n".join([
                 f"{msg.get('role', 'user')}: {msg.get('content', '')}"
                 for msg in recent_history
@@ -360,86 +266,55 @@ class AgentService:
             doc_preview = document_content[:1000] + "..." if len(document_content) > 1000 else document_content
             context_parts.append(f"Current Document Content:\n\'\'\'\n{doc_preview}\n\'\'\'")
 
-        # Crucially, include full tool schemas for the LLM with enhanced descriptions
         if available_tools:
             tool_descriptions = []
             for tool in available_tools:
-                # Create enhanced tool description for LLM decision making
                 tool_info = {
                     "name": tool.get("name"),
                     "description": tool.get("description"),
-                    "when_to_use": self._generate_tool_usage_guidance(tool),
+                    "usage": self._generate_tool_usage_guidance(tool),
                     "parameters": tool.get("input_schema")
                 }
                 tool_descriptions.append(json.dumps(tool_info, indent=2))
-            context_parts.append(f"Available Tools (use these when appropriate):\n\'\'\'\n{'\n'.join(tool_descriptions)}\n\'\'\'")
-        else:
-            context_parts.append("No tools are currently available.")
+            context_parts.append(f"Available Tools:\n\'\'\'\n{'\n'.join(tool_descriptions)}\n\'\'\'")
 
         return "\n\n".join(context_parts)
 
     async def _llm_intent_detection(self, context: str, llm_client) -> Tuple[IntentType, str, Dict[str, Any], str]:
-        """Use LLM to detect intent and return actual MCP tool names - pure MCP approach."""
+        """Use LLM to detect intent and return actual MCP tool names."""
 
-        logger.info("Starting LLM intent detection with pure MCP approach")
-
-        # Dynamically create the system prompt based on available tools
-        # The prompt will guide the LLM to output JSON with tool_name and parameters or a conversational_response
         system_prompt = f'''
-        You are a highly intelligent agent that can analyze user input, conversation history, and document context to determine the most appropriate action.
-        Your primary goal is to decide between calling an available tool or providing a direct conversational response.
-
-        Available tools are described below. Each tool has a `name`, `description`, and `parameters`.
-        `parameters` is a JSON schema for the tool's inputs.
+        Analyze user input and determine whether to call a tool or provide a conversational response.
 
         {context}
 
-        **CRITICAL TOOL USAGE RULES:**
-        - ALWAYS use the appropriate tool when the user's request matches a tool's purpose
-        - Look at each tool's description to understand when to use it
-        - If the user explicitly asks for a tool by name, you MUST use that tool
-        - ONLY provide conversational responses for simple greetings like "hello" or "hi"
-        - When in doubt, prefer using a tool over conversational response
+        Respond with JSON in one of two formats:
 
-        Based on the user's intent, respond with a JSON object in one of two formats:
-
-        **Format 1: Tool Call**
-        If you determine a tool is necessary, provide the `tool_name` and a `parameters` object matching the tool's JSON schema.
-        
-        Example for tool call:
-        ```json
+        Tool Call:
         {{
             "action": "tool_call",
-            "tool_name": "actual_tool_name_from_available_tools",
+            "tool_name": "exact_tool_name_from_available_tools",
             "parameters": {{
-                "parameter1": "value1",
-                "parameter2": "value2"
+                "param1": "value1"
             }}
         }}
-        ```
 
-        **Format 2: Conversational Response**
-        If no tool is suitable or if a direct answer is possible, provide a `conversational_response`.
-        Example:
-        ```json
+        Conversational Response:
         {{
             "action": "conversational_response",
-            "response": "Hello! How can I help you today?"
+            "response": "Your response text"
         }}
-        ```
 
-        Ensure your JSON output is valid and directly parsable. Only output the JSON object.
-        Do not include any other text or explanation outside the JSON.
+        Only output valid JSON.
         '''
 
-        user_prompt = f"""Determine the user's intent and provide the appropriate JSON response based on the context.
+        user_prompt = f"""Analyze the request and provide appropriate JSON response.
 
-IMPORTANT: The user said: "{context.split('User Input: ')[1].split('\n\n')[0]}"
+User said: "{context.split('User Input: ')[1].split('\n\n')[0]}"
 
-Analyze the available tools and their descriptions to determine the best tool to use, or provide a conversational response if no tool is appropriate."""
+Choose the most appropriate tool or provide a conversational response."""
 
         try:
-            logger.info("Calling LLM client for intent detection")
             raw_llm_response = llm_client.generate_text(
                 prompt=user_prompt,
                 max_tokens=800,
@@ -447,28 +322,21 @@ Analyze the available tools and their descriptions to determine the best tool to
                 system_message=system_prompt
             )
 
-            logger.info(f"LLM Raw Response: {raw_llm_response}")
-
-            # Extract the actual text content from the LLM's response structure
             if isinstance(raw_llm_response, dict) and "text" in raw_llm_response:
                 llm_response_text = raw_llm_response["text"]
             else:
                 llm_response_text = str(raw_llm_response)
 
-            # Attempt to extract JSON from markdown code block if present
             json_match = re.search(r'```json\s*\n(?P<json_content>.*?)\n\s*```', llm_response_text, re.DOTALL)
             if json_match:
                 json_str = json_match.group("json_content")
             else:
-                # If not in markdown, assume the entire text content is JSON
                 json_str = llm_response_text
 
-            # Attempt to parse the extracted string as JSON
             try:
                 parsed_response = json.loads(json_str)
             except json.JSONDecodeError:
-                logger.error(f"Extracted text is not valid JSON: {json_str}")
-                return IntentType.UNKNOWN, None, {}, f"LLM returned invalid JSON: {json_str}"
+                return IntentType.UNKNOWN, None, {}, f"Invalid JSON: {json_str}"
 
             action = parsed_response.get("action")
 
@@ -476,415 +344,284 @@ Analyze the available tools and their descriptions to determine the best tool to
                 tool_name = parsed_response.get("tool_name")
                 parameters = parsed_response.get("parameters", {})
                 if not tool_name or not isinstance(parameters, dict):
-                    logger.warning(f"Invalid tool_call format from LLM: {parsed_response}")
-                    return IntentType.UNKNOWN, None, {}, "LLM returned malformed tool call"
-                # Use generic intent type for any tool
+                    return IntentType.UNKNOWN, None, {}, "Malformed tool call"
+                
                 intent_type = self._get_generic_intent_type(tool_name)
-                reasoning = f"LLM decided to call tool: {tool_name}"
+                reasoning = f"Tool call: {tool_name}"
                 return intent_type, tool_name, parameters, reasoning
 
             elif action == "conversational_response":
                 response_text = parsed_response.get("response")
                 if not response_text:
-                    logger.warning(f"Invalid conversational_response format from LLM: {parsed_response}")
-                    return IntentType.UNKNOWN, None, {}, "LLM returned empty conversational response"
+                    return IntentType.UNKNOWN, None, {}, "Empty conversational response"
                 return IntentType.CONVERSATION, None, {}, response_text
 
             else:
-                logger.warning(f"Unknown action type from LLM: {action} - {parsed_response}")
-                return IntentType.UNKNOWN, None, {}, f"LLM returned unknown action: {action}"
+                return IntentType.UNKNOWN, None, {}, f"Unknown action: {action}"
 
         except Exception as e:
-            logger.error(f"Error in LLM intent detection: {str(e)}")
             return IntentType.UNKNOWN, None, {}, f"LLM processing failed: {str(e)}"
     
-    def _parse_llm_response(self, response_text: str) -> Optional[Dict[str, Any]]:
-        """Parse the LLM response to extract intent and routing information."""
-        try:
-            # Try to extract JSON from the response
-            import json
-            import re
-            
-            # Find JSON pattern in the response
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(0)
-                return json.loads(json_str)
-            
-            # If no JSON found, try to extract key information
-            return self._extract_info_from_text(response_text)
-            
-        except Exception as e:
-            logger.error(f"Failed to parse LLM response: {str(e)}")
-            return None
-    
-    def _extract_info_from_text(self, text: str) -> Dict[str, Any]:
-        """Extract intent and tool information from text when JSON parsing fails."""
-        # Default to conversation when we can't parse the LLM response
-        return {
-            "intent_type": "conversation",
-            "tool_name": None,
-            "parameters": {},
-            "reasoning": "JSON parsing failed, defaulting to conversational AI",
-            "confidence": 0.3
-        }
-    
-    async def _fallback_intent_detection(self, user_input: str) -> Tuple[IntentType, str, Dict[str, Any], str]:
-        """Fallback intent detection when LLM is not available."""
-        # No pattern matching - default to conversation
-        return IntentType.CONVERSATION, None, {}, "Fallback: LLM unavailable, defaulting to conversational AI"
-    
-    async def _execute_web_search(self, parameters: Dict[str, Any], user_message: str) -> str:
-        """Execute web search operation."""
-        try:
-            # Import web search service
-            from app.services.web_search_service import WebSearchService
-            
-            async with WebSearchService() as web_search:
-                # Extract search query from user message or parameters
-                search_query = parameters.get('query') or user_message
-                
-                # Perform search
-                results = await web_search.search_google(search_query, max_results=5)
-                
-                if results:
-                    # Format results
-                    formatted_results = []
-                    for i, result in enumerate(results[:3], 1):
-                        title = result.get('title', 'No title')
-                        snippet = result.get('snippet', 'No description')
-                        formatted_results.append(f"{i}. **{title}**\n   {snippet}")
-                    
-                    return f"Here's what I found for '{search_query}':\n\n" + "\n\n".join(formatted_results)
-                else:
-                    return f"I couldn't find any results for '{search_query}'. Please try a different search term."
-                    
-        except Exception as e:
-            logger.error(f"Web search execution failed: {str(e)}")
-            return f"I encountered an error while searching: {str(e)}"
-    
-    async def _execute_text_processing(
-        self, 
-        parameters: Dict[str, Any], 
-        user_message: str, 
-        document_content: Optional[str] = None
-    ) -> str:
-        """Execute text processing operation."""
-        try:
-            # Import LLM client for text processing
-            if not self.llm_client:
-                return "Text processing is not available at the moment."
-            
-            # Determine operation type
-            operation = parameters.get('operation', 'analyze')
-            text_to_process = document_content or user_message
-            
-            if operation == 'summarize':
-                system_prompt = "You are a text summarization expert. Provide a concise summary of the given text."
-            elif operation == 'analyze':
-                system_prompt = "You are a text analysis expert. Analyze the given text and provide insights about its content, structure, and key points."
-            else:
-                system_prompt = "You are a text processing expert. Process the given text according to the user's request."
-            
-            result = self.llm_client.generate_text(
-                prompt=text_to_process,
-                max_tokens=300,
-                temperature=0.3,
-                system_message=system_prompt
-            )
-            
-            if result.get("success"):
-                return result["text"]
-            else:
-                return "I encountered an error while processing the text. Please try again."
-                
-        except Exception as e:
-            logger.error(f"Text processing execution failed: {str(e)}")
-            return f"I encountered an error while processing the text: {str(e)}"
-    
-    async def _execute_document_analysis(self, parameters: Dict[str, Any], document_content: Optional[str] = None) -> str:
-        """Execute document analysis operation."""
-        if not document_content:
-            return "No document content available for analysis. Please open a Word document first."
+    async def _fallback_intent_detection(self, user_input: str, available_tools: List[Dict[str, Any]] = None) -> Tuple[IntentType, str, Dict[str, Any], str]:
+        """Fallback intent detection without hardcoded patterns."""
         
-        try:
-            # Use LLM for document analysis
-            if not self.llm_client:
-                return "Document analysis is not available at the moment."
-            
-            system_prompt = """You are a document analysis expert. Analyze the given document content and provide insights about:
-1. Document structure and organization
-2. Key topics and themes
-3. Writing style and tone
-4. Potential improvements or suggestions
-5. Summary of main points
-
-Be concise but comprehensive in your analysis."""
-            
-            result = self.llm_client.generate_text(
-                prompt=document_content,
-                max_tokens=400,
-                temperature=0.3,
-                system_message=system_prompt
-            )
-            
-            if result.get("success"):
-                return result["text"]
-            else:
-                return "I encountered an error while analyzing the document. Please try again."
-                
-        except Exception as e:
-            logger.error(f"Document analysis execution failed: {str(e)}")
-            return f"I encountered an error while analyzing the document: {str(e)}"
+        user_input_lower = user_input.lower().strip()
+        
+        # Simple conversational patterns
+        simple_greetings = ['hi', 'hello', 'hey', 'thanks', 'thank you', 'bye', 'goodbye']
+        if user_input_lower in simple_greetings:
+            return IntentType.CONVERSATION, None, {}, "Simple interaction detected"
+        
+        # Try to match available tools
+        if available_tools:
+            best_match = self._find_best_tool_match(user_input, available_tools)
+            if best_match:
+                tool_name, confidence, suggested_params = best_match
+                if confidence > 0.6:
+                    return IntentType.TOOL_EXECUTION, tool_name, suggested_params, f"Tool matched: {tool_name}"
+        
+        # Default to conversation
+        return IntentType.CONVERSATION, None, {}, "Defaulting to conversation"
     
-    async def _format_tool_response(self, tool_result: Any, user_message: str) -> str:
-        """Format tool execution result into a user-friendly response, handling different tool outputs."""
-        # Handle empty dict case first
+    def _find_best_tool_match(self, user_input: str, available_tools: List[Dict[str, Any]]) -> Optional[Tuple[str, float, Dict[str, Any]]]:
+        """Find best matching tool based on word overlap."""
+        
+        user_words = set(user_input.lower().split())
+        best_match = None
+        best_score = 0.0
+        
+        for tool in available_tools:
+            tool_name = tool.get("name", "").lower()
+            description = tool.get("description", "").lower()
+            tool_words = set((tool_name + " " + description).split())
+            common_words = user_words.intersection(tool_words)
+            
+            if common_words:
+                score = len(common_words) / len(user_words.union(tool_words))
+                
+                if score > best_score:
+                    best_score = score
+                    suggested_params = self._extract_basic_parameters(user_input, tool)
+                    best_match = (tool.get("name"), score, suggested_params)
+        
+        return best_match
+    
+    def _extract_basic_parameters(self, user_input: str, tool: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract basic parameters from user input based on tool schema."""
+        
+        params = {}
+        input_schema = tool.get("input_schema", {})
+        properties = input_schema.get("properties", {})
+        
+        for param_name, param_info in properties.items():
+            param_type = param_info.get("type", "string")
+            
+            if param_type == "string":
+                if param_name.lower() in ["query", "text", "input", "content"]:
+                    params[param_name] = user_input
+                elif param_name.lower() in ["url", "path", "file"]:
+                    url_match = re.search(r'https?://\S+', user_input)
+                    if url_match:
+                        params[param_name] = url_match.group()
+        
+        return params
+    
+    async def _format_tool_response(self, tool_result: Any, user_message: str, tool_name: str = None) -> str:
+        """Format tool execution result into user-friendly response using LLM."""
+        
+        if tool_result is None:
+            return f"The {tool_name or 'tool'} executed but returned no results."
+        
         if isinstance(tool_result, dict) and len(tool_result) == 0:
-            return f"The tool executed successfully but provided no detailed output."
+            return f"The {tool_name or 'tool'} executed successfully."
         
-        # Don't treat error responses as failures - let the generic formatter handle them
-        if not tool_result:
-            return f"The requested operation for '{user_message}' returned no results."
-
-        formatted_output_parts = []
-        formatted_output_parts.append(f"Here's what I found for your request '{user_message}':")
-
-        # Generic tool response formatting - no hardcoded tool handling
-        # All tool responses are handled generically below
-
-        # Handle tool results - check both direct result and nested result field
-        result_content = None
-        
-        # Always use the tool_result directly for generic formatting
-        # The generic formatter will handle all types intelligently
-        result_content = tool_result
-
-        if result_content is not None:
-            # Generic intelligent formatting for any tool response
-            formatted_content = self._format_any_tool_response(result_content)
-            if formatted_content:
-                formatted_output_parts.append(formatted_content)
-            else:
-                formatted_output_parts.append("The tool executed successfully but provided no detailed output.")
-        else:
-            formatted_output_parts.append("The tool executed successfully but provided no detailed output.")
-
-        return "\n\n".join(formatted_output_parts)
+        # Use LLM to format the tool output
+        formatted_response = await self.format_tool_output_with_llm(tool_result, user_message, tool_name)
+        return formatted_response
     
-    def _format_any_tool_response(self, result_content: Any) -> str:
-        """
-        Generic intelligent formatting for any tool response.
-        Automatically detects and formats different response types without hardcoding specific tools.
-        """
-        try:
-            # Handle string responses
-            if isinstance(result_content, str):
-                # Check if it's JSON that can be parsed and formatted
-                if result_content.strip().startswith('{') or result_content.strip().startswith('['):
-                    try:
-                        import json
-                        parsed = json.loads(result_content)
-                        return self._format_structured_data(parsed)
-                    except:
-                        # Not valid JSON, return as-is
-                        return result_content
-                else:
-                    return result_content
+    def _format_mcp_content_response(self, content_list: List[Dict[str, Any]], user_message: str, tool_name: str = None) -> str:
+        """Format MCP content response."""
+        
+        if not content_list:
+            return f"The {tool_name or 'tool'} returned no content."
+        
+        formatted_parts = []
+        
+        for i, content_item in enumerate(content_list):
+            if not isinstance(content_item, dict):
+                formatted_parts.append(str(content_item))
+                continue
             
-            # Handle list responses (common in MCP)
-            elif isinstance(result_content, list):
-                return self._format_list_response(result_content)
+            content_type = content_item.get("type", "unknown")
             
-            # Handle dict responses
-            elif isinstance(result_content, dict):
-                return self._format_structured_data(result_content)
+            if content_type == "text":
+                text_content = content_item.get("text", "")
+                if text_content:
+                    if text_content.strip().startswith('{') or text_content.strip().startswith('['):
+                        try:
+                            parsed_json = json.loads(text_content)
+                            formatted_content = self._format_json_content(parsed_json)
+                            formatted_parts.append(formatted_content)
+                        except json.JSONDecodeError:
+                            formatted_parts.append(text_content)
+                    else:
+                        formatted_parts.append(text_content)
             
-            # Handle other types
-            else:
-                return str(result_content)
+            elif content_type == "resource":
+                uri = content_item.get("uri", "Unknown resource")
+                name = content_item.get("name", "")
+                formatted_parts.append(f"Resource: {name or uri}")
                 
-        except Exception as e:
-            # Fallback to string representation
-            return str(result_content)
+                resource_text = content_item.get("text", "")
+                if resource_text:
+                    display_text = resource_text[:500] + "..." if len(resource_text) > 500 else resource_text
+                    formatted_parts.append(display_text)
+            
+            else:
+                formatted_parts.append(json.dumps(content_item, indent=2))
+        
+        return "\n\n".join(formatted_parts)
     
-    def _format_list_response(self, data: list) -> str:
-        """Format list responses intelligently."""
+    def _format_json_content(self, json_data: Union[Dict[str, Any], List[Any]]) -> str:
+        """Format JSON content."""
+        
+        if isinstance(json_data, dict):
+            return self._format_structured_response(json_data, "", "")
+        elif isinstance(json_data, list):
+            if not json_data:
+                return "Empty list"
+            
+            formatted_items = []
+            for i, item in enumerate(json_data):
+                if isinstance(item, dict):
+                    formatted_items.append(f"Item {i+1}: {self._format_structured_response(item, '', '')}")
+                else:
+                    formatted_items.append(f"Item {i+1}: {str(item)}")
+            
+            return "\n".join(formatted_items)
+        else:
+            return str(json_data)
+    
+    def _format_text_response(self, text_content: str, user_message: str, tool_name: str = None) -> str:
+        """Format plain text response."""
+        
+        if not text_content or not text_content.strip():
+            return f"The {tool_name or 'tool'} returned empty response."
+        
+        return text_content
+    
+    def _format_structured_response(self, data: Dict[str, Any], user_message: str, tool_name: str = None) -> str:
+        """Format structured data response dynamically."""
+        
         if not data:
-            return "No results found."
+            return f"The {tool_name or 'tool'} returned no data."
+        
+        formatted_parts = []
+        sorted_items = self._sort_response_fields(list(data.items()))
+        
+        for key, value in sorted_items:
+            formatted_field = self._format_field_dynamically(key, value)
+            if formatted_field:
+                formatted_parts.append(formatted_field)
+        
+        return "\n".join(formatted_parts) if formatted_parts else "No data to display"
+    
+    def _sort_response_fields(self, items: List[Tuple[str, Any]]) -> List[Tuple[str, Any]]:
+        """Sort response fields by likely importance."""
+        
+        def field_importance(item):
+            key, value = item
+            key_lower = key.lower()
+            
+            if any(word in key_lower for word in ['result', 'output', 'response', 'answer']):
+                return 0
+            elif any(word in key_lower for word in ['status', 'state', 'success', 'error']):
+                return 1
+            elif any(word in key_lower for word in ['content', 'text', 'message', 'data']):
+                return 2
+            elif any(word in key_lower for word in ['id', 'timestamp', 'version', 'metadata']):
+                return 4
+            else:
+                return 3
+        
+        return sorted(items, key=field_importance)
+    
+    def _format_field_dynamically(self, key: str, value: Any) -> str:
+        """Format individual field without hardcoded mappings."""
+        
+        formatted_key = key.replace('_', ' ').title()
+        
+        if isinstance(value, bool):
+            formatted_value = "Yes" if value else "No"
+        elif isinstance(value, dict):
+            if len(str(value)) > 200:
+                formatted_value = f"{len(value)} fields"
+            else:
+                formatted_value = json.dumps(value, indent=2)
+        elif isinstance(value, list):
+            if len(value) == 0:
+                formatted_value = "Empty list"
+            elif len(str(value)) > 200:
+                formatted_value = f"{len(value)} items"
+            else:
+                formatted_value = ", ".join(str(item) for item in value[:5])
+                if len(value) > 5:
+                    formatted_value += f" ... and {len(value) - 5} more"
+        else:
+            formatted_value = str(value)
+        
+        return f"{formatted_key}: {formatted_value}"
+    
+    def _format_list_response(self, data: list, user_message: str, tool_name: str = None) -> str:
+        """Format list responses."""
+        
+        if not data:
+            return f"The {tool_name or 'tool'} returned empty list."
         
         formatted_parts = []
         
         for i, item in enumerate(data, 1):
             if isinstance(item, dict):
-                # Check for common MCP response patterns
-                if item.get("type") == "text" and "text" in item:
-                    text_content = item["text"]
-                    # Try to parse JSON content for better formatting
-                    if isinstance(text_content, str) and (text_content.strip().startswith('{') or text_content.strip().startswith('[')):
-                        try:
-                            import json
-                            parsed = json.loads(text_content)
-                            formatted_parts.append(f"**Result {i}:**\n{self._format_structured_data(parsed)}")
-                        except:
-                            formatted_parts.append(f"**Result {i}:** {text_content}")
-                    else:
-                        formatted_parts.append(f"**Result {i}:** {text_content}")
-                else:
-                    formatted_parts.append(f"**Result {i}:**\n{self._format_structured_data(item)}")
+                formatted_item = self._format_structured_response(item, user_message, tool_name)
+                formatted_parts.append(f"Result {i}: {formatted_item}")
+            elif isinstance(item, str):
+                display_item = item[:200] + "..." if len(item) > 200 else item
+                formatted_parts.append(f"Result {i}: {display_item}")
             else:
-                formatted_parts.append(f"**Result {i}:** {str(item)}")
+                formatted_parts.append(f"Result {i}: {str(item)}")
         
-        return "\n\n".join(formatted_parts)
+        return "\n".join(formatted_parts)
     
-    def _format_structured_data(self, data: dict) -> str:
-        """Format structured data (dict) intelligently with emojis and user-friendly presentation."""
-        if not data:
-            return "No data available."
+    def _generate_tool_usage_guidance(self, tool: Dict[str, Any]) -> str:
+        """Generate usage guidance dynamically based on tool schema."""
         
-        formatted_parts = []
+        description = tool.get("description", "").strip()
+        input_schema = tool.get("input_schema", {})
         
-        # Special handling for MCP response format with nested JSON content
-        content_parsed = False
-        if "content" in data and isinstance(data["content"], list):
-            for item in data["content"]:
-                if isinstance(item, dict) and item.get("type") == "text" and "text" in item:
-                    text_content = item["text"]
-                    # Try to parse JSON content for better formatting
-                    if isinstance(text_content, str) and (text_content.strip().startswith('{') or text_content.strip().startswith('[')):
-                        try:
-                            import json
-                            parsed = json.loads(text_content)
-                            formatted_parts.append(self._format_structured_data(parsed))
-                            content_parsed = True
-                            break  # Only parse the first valid JSON content
-                        except:
-                            pass  # Fall back to generic formatting
-                    else:
-                        # Simple text content - display directly
-                        formatted_parts.append(text_content)
-                        content_parsed = True
-                        break
+        guidance_parts = []
         
-        # Look for common patterns and format them nicely
-        for key, value in data.items():
-            # Skip content field if we already parsed it
-            if key.lower() == "content" and content_parsed:
-                continue
-                
-            if key.lower() in ["status", "state"]:
-                if value == "success" or value == "completed":
-                    formatted_parts.append(f"✅ **Status**: {value}")
-                elif value == "error" or value == "failed":
-                    formatted_parts.append(f"❌ **Status**: {value}")
-                else:
-                    formatted_parts.append(f"📊 **Status**: {value}")
-            
-            elif key.lower() in ["progress", "thoughtnumber", "current"]:
-                if isinstance(value, (int, float)):
-                    formatted_parts.append(f"📊 **Progress**: {value}")
-                else:
-                    formatted_parts.append(f"📊 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["total", "totalthoughts", "max"]:
-                if isinstance(value, (int, float)):
-                    formatted_parts.append(f"🎯 **Total**: {value}")
-                else:
-                    formatted_parts.append(f"🎯 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["next", "nextthoughtneeded", "continue"]:
-                if isinstance(value, bool):
-                    if value:
-                        formatted_parts.append(f"⏭️ **Next Step**: More processing needed")
-                    else:
-                        formatted_parts.append(f"✅ **Status**: Process complete")
-                else:
-                    formatted_parts.append(f"⏭️ **{key.title()}**: {value}")
-            
-            elif key.lower() in ["thought", "content", "message", "result"]:
-                formatted_parts.append(f"💭 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["history", "thoughthistorylength", "count"]:
-                formatted_parts.append(f"📚 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["branches", "alternatives", "options"]:
-                if isinstance(value, list):
-                    formatted_parts.append(f"🌿 **{key.title()}**: {len(value)} alternatives")
-                else:
-                    formatted_parts.append(f"🌿 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["confidence", "accuracy", "score"]:
-                if isinstance(value, (int, float)):
-                    formatted_parts.append(f"📊 **{key.title()}**: {value}")
-                else:
-                    formatted_parts.append(f"📊 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["error", "error_message", "details"]:
-                formatted_parts.append(f"⚠️ **{key.title()}**: {value}")
-            
-            elif key.lower() in ["url", "link", "href"]:
-                formatted_parts.append(f"🔗 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["title", "name", "label"]:
-                formatted_parts.append(f"📝 **{key.title()}**: {value}")
-            
-            elif key.lower() in ["snippet", "description", "summary"]:
-                formatted_parts.append(f"📄 **{key.title()}**: {value}")
-            
-            else:
-                # Generic formatting for unknown keys
-                formatted_parts.append(f"📋 **{key.title()}**: {value}")
+        if description:
+            clean_description = description.rstrip('.')
+            guidance_parts.append(f"Use when: {clean_description}")
         
-        return "\n\n".join(formatted_parts)
+        properties = input_schema.get("properties", {})
+        if properties:
+            param_hints = []
+            for param_name, param_info in properties.items():
+                param_desc = param_info.get("description", "")
+                if param_desc:
+                    param_hints.append(f"{param_name}: {param_desc}")
+            
+            if param_hints:
+                guidance_parts.append(f"Parameters: {'; '.join(param_hints[:3])}")
+        
+        if not guidance_parts:
+            tool_name = tool.get("name", "")
+            guidance_parts.append(f"Use the {tool_name} tool when appropriate")
+        
+        return " | ".join(guidance_parts)
     
-    async def generate_conversational_response(
-        self,
-        user_input: str,
-        intent_type: IntentType,
-        conversation_history: List[Dict[str, Any]],
-        document_context: Optional[str] = None
-    ) -> str:
-        """Generate conversational response using LLM."""
-        try:
-            if not self.llm_client:
-                return self._get_fallback_response(intent_type)
-            
-            # Create context-aware system prompt
-            system_prompt = self._get_system_prompt_for_intent(intent_type, document_context)
-            
-            # Generate response
-            result = self.llm_client.generate_text(
-                prompt=user_input,
-                max_tokens=200,
-                temperature=0.7,
-                system_message=system_prompt
-            )
-            
-            if result.get("success"):
-                return result["text"]
-            else:
-                return self._get_fallback_response(intent_type)
-                
-        except Exception as e:
-            logger.error(f"Failed to generate conversational response: {str(e)}")
-            return self._get_fallback_response(intent_type)
-    
-    def _get_system_prompt_for_intent(self, intent_type: IntentType, document_context: Optional[str] = None) -> str:
-        """Get generic system prompt for any intent type."""
-        base_prompt = "You are a helpful AI assistant for document analysis and text processing."
-        
-        if intent_type == IntentType.CONVERSATION:
-            return f"{base_prompt} Respond naturally and conversationally to general questions and social interactions. Be warm, helpful, and guide the conversation toward how you can assist with document work."
-        elif intent_type == IntentType.TOOL_EXECUTION:
-            return f"{base_prompt} Execute tools and provide helpful responses based on the results."
-        else:
-            return f"{base_prompt} Be conversational, friendly, and helpful."
-    
-    def _get_fallback_response(self, intent_type: IntentType) -> str:
-        """Get generic fallback response when LLM is not available."""
-        return "I'm having trouble processing your request. Please try again or ask me to help with a specific task."
-    
-    # Conversation memory management methods
+    # Memory management methods
     def add_message(self, role: str, content: str):
         """Add a message to conversation memory."""
         self.conversation_memory.add_message(role, content)
@@ -906,53 +643,82 @@ Be concise but comprehensive in your analysis."""
         return self.conversation_memory.get_memory_size()
     
     def clear_intent_cache(self):
-        """Clear the intent detection cache for debugging."""
+        """Clear the intent detection cache."""
         self._intent_cache.clear()
-        logger.info("Intent detection cache cleared")
     
-    def _generate_tool_usage_guidance(self, tool: Dict[str, Any]) -> str:
-        """Generate usage guidance for a tool based on its name and description."""
-        tool_name = tool.get("name", "").lower()
-        description = tool.get("description", "").lower()
+    async def format_tool_output_with_llm(self, tool_output: Any, user_query: str, tool_name: str = None) -> str:
+        """
+        Use LLM to format tool output into user-friendly markdown/HTML.
         
-        # Generate dynamic usage guidance based on tool characteristics
-        guidance_parts = []
+        Args:
+            tool_output: Raw output from the tool
+            user_query: Original user query
+            tool_name: Name of the tool that produced the output
+            
+        Returns:
+            Formatted response as markdown/HTML
+        """
+        llm_client = self._get_llm_client()
+        if not llm_client:
+            raise RuntimeError("LLM client not available for formatting tool output")
         
-        # Check for common patterns in tool names and descriptions
-        if "search" in tool_name or "search" in description:
-            guidance_parts.append("Use when user asks for web search, information lookup, or finding content online")
+        # Convert tool output to string for LLM processing
+        if isinstance(tool_output, dict):
+            tool_output_str = json.dumps(tool_output, indent=2)
+        elif isinstance(tool_output, list):
+            tool_output_str = json.dumps(tool_output, indent=2)
+        else:
+            tool_output_str = str(tool_output)
         
-        if "sequential" in tool_name or "thinking" in tool_name or "sequential" in description or "thinking" in description:
-            guidance_parts.append("Use when user asks for sequential thinking, step-by-step analysis, problem breakdown, or detailed planning")
+        # Create system prompt for formatting
+        system_prompt = f"""You are a helpful assistant that formats tool outputs into user-friendly responses.
+
+Your task is to take raw tool output and format it into clean, readable markdown that answers the user's query.
+
+Guidelines:
+1. Parse and structure the data intelligently
+2. Use proper markdown formatting (headings, lists, links, etc.)
+3. Make the content easy to read and understand
+4. Include relevant links and references
+5. Focus on answering the user's specific question
+6. If the data contains search results, format them as a structured list
+7. Clean up any escaped characters or formatting issues
+8. Keep the response concise but comprehensive
+
+Tool used: {tool_name or 'Unknown tool'}
+User query: {user_query}
+
+Format the following tool output into a clean, user-friendly response:"""
+
+        user_prompt = f"""Please format this tool output to answer the user's query: "{user_query}"
+
+Tool Output:
+{tool_output_str}
+
+Provide a well-formatted markdown response that directly answers the user's question."""
+
+        # Get formatted response from LLM
+        result = llm_client.generate_text(
+            prompt=user_prompt,
+            max_tokens=1500,
+            temperature=0.3,
+            system_message=system_prompt
+        )
         
-        if "analysis" in tool_name or "analyze" in tool_name or "analysis" in description:
-            guidance_parts.append("Use when user asks for text analysis, document analysis, or content analysis")
-        
-        if "document" in tool_name or "document" in description:
-            guidance_parts.append("Use when user asks for document processing, document analysis, or document-related tasks")
-        
-        if "file" in tool_name or "read" in tool_name or "file" in description:
-            guidance_parts.append("Use when user asks for file reading, file processing, or file-related operations")
-        
-        if "text" in tool_name or "text" in description:
-            guidance_parts.append("Use when user asks for text processing, text analysis, or text-related operations")
-        
-        # If no specific patterns found, use the description
-        if not guidance_parts:
-            guidance_parts.append(f"Use when user's request matches: {description[:100]}...")
-        
-        return "; ".join(guidance_parts)
+        if result.get("success") and result.get("text"):
+            return result["text"]
+        else:
+            raise RuntimeError(f"LLM formatting failed: {result.get('error', 'Unknown error')}")
 
 
-# Lazy-loaded global instance
+# Global instance
 _agent_service_instance = None
 
 def get_agent_service():
-    """Get the agent service instance, creating it if necessary."""
+    """Get the agent service instance."""
     global _agent_service_instance
     if _agent_service_instance is None:
         _agent_service_instance = AgentService()
     return _agent_service_instance
 
-# For backward compatibility
 agent_service = get_agent_service()
