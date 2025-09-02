@@ -68,9 +68,9 @@ class MCPConnectionConfig:
     client_name: str = "Word-Addin-MCP-Client"
     client_version: str = "1.0.0"
     
-    # Health monitoring
-    health_check_interval: int = 60
-    heartbeat_interval: int = 30
+    # Health monitoring (disabled for external servers to prevent constant reconnection)
+    health_check_interval: int = 60    # Default: 1 minute
+    heartbeat_interval: int = 30       # Default: 30 seconds
     
     # Tool caching
     tool_cache_ttl: int = 300  # 5 minutes
@@ -229,6 +229,8 @@ class HTTPTransport(MCPTransport):
         self.session: Optional[Any] = None  # aiohttp.ClientSession
         self.request_id = 0
         self.session_id: Optional[str] = None  # MCP session ID from server
+        self.server_capabilities: Dict[str, Any] = {}  # Server capabilities from initialize
+        self.server_info: Dict[str, Any] = {}  # Server info from initialize
         
     async def connect(self) -> bool:
         """Connect to MCP server via HTTP with complete MCP lifecycle."""
@@ -244,20 +246,25 @@ class HTTPTransport(MCPTransport):
                 "Accept": "application/json, text/event-stream",
                 "Content-Type": "application/json"
             }
-            self.session = aiohttp.ClientSession(timeout=timeout, headers=headers)
             
-            # STEP 1: Initialize MCP connection
+            # Create session and ensure cleanup on failure
+            session = None
             try:
+                session = aiohttp.ClientSession(timeout=timeout, headers=headers)
+                self.session = session
+                
+                # STEP 1: Initialize MCP connection
                 logger.info(f"Step 1: Sending initialize request to {self.config.server_url}")
                 init_response = await self.send_request("initialize", {
-                    "protocolVersion": "2024-11-05",  # Use server's supported version
+                    "protocolVersion": "2025-06-18",  # Use latest MCP protocol version
                     "capabilities": {
-                        "tools": {"listChanged": True},
-                        "resources": {"listChanged": True},
-                        "prompts": {"listChanged": True}
+                        "roots": {"listChanged": True},      # Client supports roots
+                        "sampling": {},                      # Client supports sampling
+                        "elicitation": {}                    # Client supports elicitation
                     },
                     "clientInfo": {
                         "name": self.config.client_name,
+                        "title": f"{self.config.client_name} Client",  # Human-readable title
                         "version": self.config.client_version
                     }
                 })
@@ -267,20 +274,17 @@ class HTTPTransport(MCPTransport):
                     self.last_error = "MCP initialization failed - no result"
                     logger.error(f"Initialize failed: {init_response}")
                     return False
-                
-                # STEP 2: Extract session ID from response headers
+
+                # Check if this server requires session IDs
                 if not self.session_id:
-                    self.state = MCPConnectionState.FAILED
-                    self.last_error = "No session ID received from server"
-                    logger.error("No session ID in initialize response")
-                    return False
-                
-                logger.info(f"Step 2: Received session ID: {self.session_id}")
+                    logger.warning("No session ID received - server may require it for subsequent requests")
+                else:
+                    logger.info(f"MCP initialization successful with session ID: {self.session_id}")
                 
                 # STEP 3: Send initialized notification (OPTIONAL in MCP spec)
                 try:
                     logger.info(f"Step 3: Sending initialized notification")
-                    await self.send_request("notifications/initialized", {})
+                    await self.send_request("notifications/initialized")  # No params needed per MCP spec
                     logger.info("Initialized notification sent successfully")
                 except Exception as e:
                     logger.info(f"Initialized notification not supported by server: {e}, continuing...")
@@ -289,20 +293,18 @@ class HTTPTransport(MCPTransport):
                 # STEP 4: Test tool discovery to verify connection (with timeout handling)
                 try:
                     logger.info(f"Step 4: Testing tool discovery")
-                    # Use a shorter timeout for tool discovery test
-                    tools_response = await asyncio.wait_for(
-                        self.send_request("tools/list", {}), 
-                        timeout=15.0  # 15 second timeout for tool discovery
-                    )
+                    # Use HTTP-level timeout, not async timeout per MCP spec
+                    tools_response = await self.send_request("tools/list")  # No params needed per MCP spec
+                    
                     if tools_response.get("result", {}).get("tools"):
                         tool_count = len(tools_response["result"]["tools"])
                         logger.info(f"Successfully discovered {tool_count} tools")
                     else:
                         logger.info("No tools discovered (server may not support tools)")
-                except asyncio.TimeoutError:
-                    logger.info("Tool discovery test timed out, but connection established - server may be slow")
+                        
                 except Exception as e:
                     logger.info(f"Tool discovery test failed: {e}, but connection established")
+                    # Don't fail the connection for tool discovery issues
                 
                 # Connection successful
                 self.state = MCPConnectionState.CONNECTED
@@ -321,6 +323,15 @@ class HTTPTransport(MCPTransport):
                 self.last_error = f"Connection error: {e}"
                 logger.error(f"Connection failed: {e}")
                 return False
+            finally:
+                # Clean up session if connection failed
+                if session and self.state != MCPConnectionState.CONNECTED:
+                    try:
+                        await session.close()
+                        logger.info("Cleaned up failed connection session")
+                    except Exception as cleanup_error:
+                        logger.error(f"Error cleaning up session: {cleanup_error}")
+                    self.session = None
                 
         except ImportError:
             self.state = MCPConnectionState.FAILED
@@ -353,9 +364,12 @@ class HTTPTransport(MCPTransport):
         request = {
             "jsonrpc": "2.0",
             "id": self.request_id,
-            "method": method,
-            "params": params or {}
+            "method": method
         }
+        
+        # Only add params if they exist (MCP spec allows no params)
+        if params:
+            request["params"] = params
         
         try:
             # Build headers
@@ -380,23 +394,34 @@ class HTTPTransport(MCPTransport):
                     logger.error(f"HTTP {response.status} error: {response_text}")
                     raise MCPConnectionError(f"HTTP {response.status}: {response_text}")
                 
-                # Extract session ID from response headers for initialize request
-                if method == "initialize":
-                    if "mcp-session-id" in response.headers:
-                        self.session_id = response.headers["mcp-session-id"]
-                        logger.info(f"Received MCP Session ID: {self.session_id}")
-                    else:
-                        logger.warning("No session ID in initialize response headers")
-                
-                # Handle SSE response
+                # Handle SSE response FIRST
                 if response.headers.get("content-type", "").startswith("text/event-stream"):
                     response_data = await self._parse_sse_response(response)
                 else:
                     response_data = await response.json()
                 
+                # Check for errors in response
                 if "error" in response_data:
                     logger.error(f"Server error in {method}: {response_data['error']}")
                     raise MCPProtocolError(f"Server error: {response_data['error']}")
+                
+                # Extract session ID from response headers for initialize request
+                if method == "initialize":
+                    # MCP spec: Check for protocol version in response
+                    if "result" in response_data:
+                        result = response_data["result"]
+                        # Store server capabilities and info
+                        self.server_capabilities = result.get("capabilities", {})
+                        self.server_info = result.get("serverInfo", {})
+                        logger.info(f"Server capabilities: {self.server_capabilities}")
+                        logger.info(f"Server info: {self.server_info}")
+                    
+                    # Check for session ID in response headers (some servers require it)
+                    if "mcp-session-id" in response.headers:
+                        self.session_id = response.headers["mcp-session-id"]
+                        logger.info(f"Received MCP Session ID: {self.session_id}")
+                    else:
+                        logger.warning("No session ID in initialize response headers")
                 
                 logger.debug(f"Successfully received response for {method}")
                 return response_data
@@ -406,61 +431,45 @@ class HTTPTransport(MCPTransport):
             raise MCPConnectionError(f"Request failed: {e}")
     
     async def _parse_sse_response(self, response) -> Dict[str, Any]:
-        """Parse Server-Sent Events response with robust error handling."""
+        """Parse Server-Sent Events response with proper streaming."""
         try:
-            text = await response.text()
-            logger.debug(f"Raw SSE content length: {len(text)} characters")
-            logger.debug(f"Raw SSE content preview: {text[:200]}...")
-            
-            # Handle empty responses
-            if not text.strip():
-                logger.warning("Empty SSE response received")
-                return {}
-            
-            lines = text.strip().split('\n')
-            logger.debug(f"SSE response has {len(lines)} lines")
-            
-            # Look for "data: " lines in SSE format
-            data_lines = [line for line in lines if line.startswith('data: ')]
-            logger.debug(f"Found {len(data_lines)} data lines")
-            
-            if not data_lines:
-                # If no SSE format, try to parse as regular JSON
-                logger.info("No SSE data lines found, attempting to parse as regular JSON")
-                try:
-                    parsed_data = json.loads(text)
-                    logger.debug("Successfully parsed as regular JSON")
-                    return parsed_data
-                except json.JSONDecodeError:
-                    logger.warning("Content is neither valid SSE nor JSON")
-                    return {}
-            
-            # Process SSE data lines
-            parsed_responses = []
-            for i, line in enumerate(data_lines):
-                try:
-                    data_content = line[6:].strip()  # Remove "data: " prefix
+            # Read SSE stream line by line instead of consuming all at once
+            async for line in response.content:
+                line_text = line.decode('utf-8').strip()
+                
+                if line_text.startswith('data: '):
+                    data_content = line_text[6:].strip()
                     if data_content:
-                        parsed_data = json.loads(data_content)
-                        parsed_responses.append(parsed_data)
-                        logger.debug(f"Successfully parsed SSE data line {i+1}")
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse SSE data line {i+1}: {e}")
-                    logger.debug(f"Raw data line {i+1}: {line}")
+                        try:
+                            parsed_data = json.loads(data_content)
+                            logger.debug(f"Successfully parsed SSE data: {parsed_data}")
+                            return parsed_data
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"Invalid JSON in SSE data: {e}")
+                            continue
+                
+                elif line_text.startswith('event: '):
+                    event_type = line_text[7:].strip()
+                    logger.debug(f"SSE event: {event_type}")
+                
+                elif line_text == '':
+                    # Empty line - end of SSE message
                     continue
+                
+                else:
+                    logger.debug(f"SSE line: {line_text}")
             
-            if not parsed_responses:
-                logger.warning("No valid JSON found in SSE data lines")
-                return {}
-            
-            # Return the last valid response (most recent)
-            logger.debug(f"Returning last of {len(parsed_responses)} parsed responses")
-            return parsed_responses[-1]
-            
-        except Exception as e:
-            logger.error(f"Failed to parse SSE response: {e}")
-            logger.error(f"Error type: {type(e).__name__}")
+            # If we get here, no valid data was found
+            logger.warning("No valid data found in SSE stream")
             return {}
+            
+        except asyncio.TimeoutError:
+            logger.error("SSE parsing timed out")
+            raise
+        except Exception as e:
+            logger.error(f"SSE parsing failed: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            raise MCPProtocolError(f"SSE parsing failed: {e}")
     
     async def health_check(self) -> bool:
         """Perform health check via HTTP."""
@@ -512,26 +521,38 @@ class MCPClient:
                 return True
             
             for attempt in range(self.config.max_retries):
+                transport = None
                 try:
                     self.connection_attempts += 1
                     logger.info(f"Connection attempt {attempt + 1}/{self.config.max_retries} to {self.config.server_name}")
                     
                     # Create transport
-                    self.transport = self._create_transport()
+                    transport = self._create_transport()
                     
                     # Attempt connection
-                    if await self.transport.connect():
+                    if await transport.connect():
+                        # Connection successful, assign to self.transport
+                        self.transport = transport
                         # Start health monitoring
                         await self._start_health_monitoring()
                         logger.info(f"Successfully connected to {self.config.server_name}")
                         return True
                     else:
                         logger.warning(f"Connection attempt {attempt + 1} failed")
+                        # Clean up failed transport
+                        if transport:
+                            await transport.disconnect()
                         if attempt < self.config.max_retries - 1:
                             await asyncio.sleep(self.config.retry_delay)
                 
                 except Exception as e:
                     logger.error(f"Connection attempt {attempt + 1} failed: {e}")
+                    # Clean up failed transport
+                    if transport:
+                        try:
+                            await transport.disconnect()
+                        except Exception as cleanup_error:
+                            logger.error(f"Error cleaning up transport: {cleanup_error}")
                     if attempt < self.config.max_retries - 1:
                         await asyncio.sleep(self.config.retry_delay)
             
@@ -655,6 +676,11 @@ class MCPClient:
         if self.health_monitor_task:
             return
         
+        # Skip health monitoring for external servers to prevent constant reconnection
+        if self.config.server_url and "remote.mcpservers.org" in self.config.server_url:
+            logger.info(f"Health monitoring disabled for external server: {self.config.server_name}")
+            return
+        
         async def health_monitor():
             while self.is_connected():
                 try:
@@ -707,11 +733,17 @@ class MCPClientFactory:
     @staticmethod
     def create_http_client(server_url: str, server_name: str = None, timeout: int = 30) -> MCPClient:
         """Create an HTTP-based MCP client."""
+        # Set longer health check intervals for external servers to prevent constant reconnection
+        health_check_interval = 3600 if "remote.mcpservers.org" in server_url else 60
+        heartbeat_interval = 1800 if "remote.mcpservers.org" in server_url else 30
+        
         config = MCPConnectionConfig(
             server_name=server_name or server_url,
             server_url=server_url,
             transport_type=MCPTransportType.HTTP,
-            timeout=timeout
+            timeout=timeout,
+            health_check_interval=health_check_interval,
+            heartbeat_interval=heartbeat_interval
         )
         return MCPClient(config)
     

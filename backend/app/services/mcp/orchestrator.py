@@ -75,7 +75,18 @@ class MCPOrchestrator:
         self.error_count = 0
         self.total_execution_time = 0.0
         
+        # Tool discovery caching
+        self._tool_cache = {}
+        self._cache_timestamp = 0
+        self._cache_ttl = 300  # 5 minutes cache TTL
+        
         logger.info("MCP Orchestrator initialized successfully")
+    
+    def _clear_tool_cache(self) -> None:
+        """Clear the tool discovery cache."""
+        self._tool_cache = {}
+        self._cache_timestamp = 0
+        logger.info("Tool discovery cache cleared")
     
     async def initialize(self) -> None:
         """Initialize all MCP components."""
@@ -115,7 +126,16 @@ class MCPOrchestrator:
         self.request_count += 1
         
         try:
-            logger.info("Listing all available tools from all MCP servers")
+            # Check cache first
+            current_time = time.time()
+            if (current_time - self._cache_timestamp) < self._cache_ttl and self._tool_cache:
+                logger.info("Returning cached tools (cache hit)")
+                cached_result = self._tool_cache.copy()
+                cached_result["cache_hit"] = True
+                cached_result["execution_time"] = time.time() - start_time
+                return cached_result
+            
+            logger.info("Listing all available tools from all MCP servers (cache miss)")
             
             # Get tools from all servers (unified)
             all_tools = await self.server_registry.list_all_tools()
@@ -127,20 +147,27 @@ class MCPOrchestrator:
             execution_time = time.time() - start_time
             self.total_execution_time += execution_time
             
+            # Cache the result
+            result = {
+                "tools": [tool.__dict__ for tool in all_tools],
+                "total_count": len(all_tools),
+                "built_in_count": internal_count,
+                "external_count": external_count,
+                "timestamp": current_time,
+                "execution_time": execution_time,
+                "cache_hit": False
+            }
+            
+            self._tool_cache = result
+            self._cache_timestamp = current_time
+            
             logger.info(f"Successfully listed {len(all_tools)} tools", 
                        total_tools=len(all_tools),
                        internal_count=internal_count,
                        external_count=external_count,
                        execution_time=execution_time)
             
-            return {
-                "tools": [tool.__dict__ for tool in all_tools],
-                "total_count": len(all_tools),
-                "built_in_count": internal_count,
-                "external_count": external_count,
-                "timestamp": time.time(),
-                "execution_time": execution_time
-            }
+            return result
             
         except Exception as e:
             self.error_count += 1
@@ -251,6 +278,10 @@ class MCPOrchestrator:
             # Ensure config has external type
             config["type"] = "external"
             server_id = await self.server_registry.add_server(config)
+            
+            # Clear tool cache since we added a new server
+            self._clear_tool_cache()
+            
             logger.info(f"External MCP server added successfully with ID: {server_id}")
             return server_id
             
@@ -271,6 +302,8 @@ class MCPOrchestrator:
         try:
             success = await self.server_registry.remove_server(server_id)
             if success:
+                # Clear tool cache since we removed a server
+                self._clear_tool_cache()
                 logger.info(f"External MCP server {server_id} removed successfully")
             else:
                 logger.warning(f"External MCP server {server_id} not found for removal")

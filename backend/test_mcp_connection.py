@@ -13,7 +13,7 @@ import os
 # Add the backend directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from app.core.mcp_client import MCPClientFactory
+from app.core.fastmcp_client import FastMCPClientFactory
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -29,7 +29,7 @@ async def test_sequential_thinking_server():
     
     try:
         # Create HTTP client
-        client = MCPClientFactory.create_http_client(
+        client = FastMCPClientFactory.create_http_client(
             server_url=server_url,
             server_name="Sequential Thinking",
             timeout=30
@@ -43,7 +43,7 @@ async def test_sequential_thinking_server():
             print(f"✅ Connected successfully!")
             
             # Get connection status
-            status = client.get_connection_status()
+            status = client.get_stats()
             print(f"📊 Connection Status:")
             for key, value in status.items():
                 print(f"   {key}: {value}")
@@ -55,7 +55,7 @@ async def test_sequential_thinking_server():
             
             # Discover tools
             print(f"\n🔍 Discovering tools...")
-            tools = await client.discover_tools()
+            tools = await client.list_tools()
             print(f"✅ Found {len(tools)} tool(s):")
             
             for i, tool in enumerate(tools, 1):
@@ -111,14 +111,14 @@ async def test_basic_functionality():
     
     try:
         # Test client creation
-        client = MCPClientFactory.create_http_client(
+        client = FastMCPClientFactory.create_http_client(
             "https://httpbin.org/get",
             "Test Server"
         )
         print(f"✅ HTTP client creation successful")
         
         # Test connection status before connection
-        status = client.get_connection_status()
+        status = client.get_stats()
         print(f"📊 Status before connection: {status['state']}")
         
         print(f"✅ Basic functionality test passed")

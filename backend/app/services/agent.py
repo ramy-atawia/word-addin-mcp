@@ -22,20 +22,9 @@ logger = structlog.get_logger()
 
 
 class IntentType(Enum):
-    """Types of user intents."""
-    GREETING = "greeting"
-    HELP = "help"
+    """Generic intent types - no hardcoded tool mapping."""
     CONVERSATION = "conversation"
-    DOCUMENT_ANALYSIS = "document_analysis"
-    TEXT_PROCESSING = "text_processing"
-    WEB_CONTENT = "web_content"
-    FILE_OPERATIONS = "file_operations"
-    SEARCH_REQUEST = "search_request"
-    SEARCH_INFORMATION = "search_information"
-    WEB_SEARCH = "web_search"
-    TEXT_ANALYSIS = "text_analysis"
-    DOCUMENT_PROCESSING = "document_processing"
-    FILE_READING = "file_reading"
+    TOOL_EXECUTION = "tool_execution"
     UNKNOWN = "unknown"
 
 
@@ -96,6 +85,14 @@ class AgentService:
         self.llm_client = None
         self.conversation_memory = ConversationMemory()
         self.mcp_orchestrator = None  # Add MCP orchestrator
+        
+        # Intent detection caching
+        self._intent_cache = {}
+        self._cache_ttl = 60  # 1 minute cache TTL
+        
+        # Clear cache method for debugging
+        self._clear_intent_cache = lambda: self._intent_cache.clear()
+        
         # LLM client will be initialized lazily when needed
         # MCP orchestrator will be initialized lazily when needed
     
@@ -157,6 +154,22 @@ class AgentService:
                 raise RuntimeError(f"Failed to initialize MCP orchestrator: {str(e)}")
         return self.mcp_orchestrator
     
+    def _get_intent_cache_key(self, user_input: str, conversation_history: List[Dict[str, Any]], 
+                             document_content: Optional[str] = None, available_tools: List[Dict[str, Any]] = None) -> str:
+        """Generate a cache key for intent detection."""
+        import hashlib
+        
+        # Create a hash of the key components
+        key_components = [
+            user_input.lower().strip(),
+            str(len(conversation_history)),
+            document_content[:100] if document_content else "",  # First 100 chars of doc
+            str(len(available_tools)) if available_tools else "0"
+        ]
+        
+        key_string = "|".join(key_components)
+        return hashlib.md5(key_string.encode()).hexdigest()
+    
     async def process_user_message(
         self,
         user_message: str,
@@ -201,7 +214,7 @@ class AgentService:
                 final_response = reasoning  # In this case, reasoning is the conversational response
                 logger.info(f"Agent decided on conversational response: {final_response[:100]}...")
 
-            elif action_result[0] in [IntentType.WEB_SEARCH, IntentType.TEXT_ANALYSIS, IntentType.DOCUMENT_ANALYSIS, IntentType.FILE_READING, IntentType.UNKNOWN]:
+            elif action_result[0] == IntentType.TOOL_EXECUTION:
                 # This is a tool call, execute the tool
                 try:
                     orchestrator = self._get_mcp_orchestrator()
@@ -218,7 +231,7 @@ class AgentService:
                     logger.error(f"Tool execution failed for {tool_name}: {str(e)}")
                     final_response = f"I tried to use the {tool_name} tool, but it encountered an error: {str(e)}. Please try again."
                     tools_used.append(f"{tool_name}_failed")
-                    intent_type = IntentType.UNKNOWN # Mark as unknown if tool failed
+                    intent_type = IntentType.TOOL_EXECUTION # Keep as tool execution even if failed
             else:
                 final_response = "I'm having trouble processing your request. Please try again or ask me to help with a specific task."
                 intent_type = IntentType.UNKNOWN
@@ -284,6 +297,16 @@ class AgentService:
             Tuple of (intent_type, tool_name, parameters, reasoning)
         """
         try:
+            # Check cache first
+            cache_key = self._get_intent_cache_key(user_input, conversation_history, document_content, available_tools)
+            current_time = time.time()
+            
+            if cache_key in self._intent_cache:
+                cached_result = self._intent_cache[cache_key]
+                if current_time - cached_result['timestamp'] < self._cache_ttl:
+                    logger.info(f"Returning cached intent detection result (cache hit)")
+                    return cached_result['result']
+            
             llm_client = self._get_llm_client()
             logger.info(f"Agent service: LLM client available: {llm_client is not None}")
             if not llm_client:
@@ -297,24 +320,22 @@ class AgentService:
             # Use LLM for intent detection and routing
             result = await self._llm_intent_detection(context, llm_client)
             
+            # Cache the result
+            self._intent_cache[cache_key] = {
+                'result': result,
+                'timestamp': current_time
+            }
+            
             return result
             
         except Exception as e:
             logger.error(f"Intent detection failed: {str(e)}")
             return await self._fallback_intent_detection(user_input)
     
-    def _map_tool_to_intent_type(self, tool_name: str) -> IntentType:
-        """Helper to map tool names to a general IntentType for classification/logging."""
-        if "search" in tool_name:
-            return IntentType.WEB_SEARCH
-        elif "text_analysis" in tool_name:
-            return IntentType.TEXT_ANALYSIS
-        elif "document_analysis" in tool_name:
-            return IntentType.DOCUMENT_ANALYSIS
-        elif "file_reader" in tool_name:
-            return IntentType.FILE_READING
-        else:
-            return IntentType.UNKNOWN
+    def _get_generic_intent_type(self, tool_name: str) -> IntentType:
+        """Get generic intent type for any tool - no hardcoded mapping."""
+        # All tool executions are treated the same way
+        return IntentType.TOOL_EXECUTION
 
     def _prepare_context(self,
         user_input: str,
@@ -337,20 +358,21 @@ class AgentService:
 
         if document_content:
             doc_preview = document_content[:1000] + "..." if len(document_content) > 1000 else document_content
-            context_parts.append(f"Current Document Content:\n\'\'\'\n{{doc_preview}}\n\'\'\'")
+            context_parts.append(f"Current Document Content:\n\'\'\'\n{doc_preview}\n\'\'\'")
 
-        # Crucially, include full tool schemas for the LLM
+        # Crucially, include full tool schemas for the LLM with enhanced descriptions
         if available_tools:
             tool_descriptions = []
             for tool in available_tools:
-                # Only include essential fields for LLM to understand
-                tool_schema = {
+                # Create enhanced tool description for LLM decision making
+                tool_info = {
                     "name": tool.get("name"),
                     "description": tool.get("description"),
+                    "when_to_use": self._generate_tool_usage_guidance(tool),
                     "parameters": tool.get("input_schema")
                 }
-                tool_descriptions.append(json.dumps(tool_schema, indent=2))
-            context_parts.append(f"Tools Available:\n\'\'\'\n{{'\n'.join(tool_descriptions)}}\n\'\'\'")
+                tool_descriptions.append(json.dumps(tool_info, indent=2))
+            context_parts.append(f"Available Tools (use these when appropriate):\n\'\'\'\n{'\n'.join(tool_descriptions)}\n\'\'\'")
         else:
             context_parts.append("No tools are currently available.")
 
@@ -372,17 +394,26 @@ class AgentService:
 
         {context}
 
+        **CRITICAL TOOL USAGE RULES:**
+        - ALWAYS use the appropriate tool when the user's request matches a tool's purpose
+        - Look at each tool's description to understand when to use it
+        - If the user explicitly asks for a tool by name, you MUST use that tool
+        - ONLY provide conversational responses for simple greetings like "hello" or "hi"
+        - When in doubt, prefer using a tool over conversational response
+
         Based on the user's intent, respond with a JSON object in one of two formats:
 
         **Format 1: Tool Call**
         If you determine a tool is necessary, provide the `tool_name` and a `parameters` object matching the tool's JSON schema.
-        Example:
+        
+        Example for tool call:
         ```json
         {{
             "action": "tool_call",
-            "tool_name": "web_search_tool",
+            "tool_name": "actual_tool_name_from_available_tools",
             "parameters": {{
-                "query": "latest AI developments"
+                "parameter1": "value1",
+                "parameter2": "value2"
             }}
         }}
         ```
@@ -401,7 +432,11 @@ class AgentService:
         Do not include any other text or explanation outside the JSON.
         '''
 
-        user_prompt = "Determine the user's intent and provide the appropriate JSON response based on the context."
+        user_prompt = f"""Determine the user's intent and provide the appropriate JSON response based on the context.
+
+IMPORTANT: The user said: "{context.split('User Input: ')[1].split('\n\n')[0]}"
+
+Analyze the available tools and their descriptions to determine the best tool to use, or provide a conversational response if no tool is appropriate."""
 
         try:
             logger.info("Calling LLM client for intent detection")
@@ -443,9 +478,8 @@ class AgentService:
                 if not tool_name or not isinstance(parameters, dict):
                     logger.warning(f"Invalid tool_call format from LLM: {parsed_response}")
                     return IntentType.UNKNOWN, None, {}, "LLM returned malformed tool call"
-                # We don't use IntentType directly for routing anymore, but keeping it for a general classification
-                # For now, we'll map tool names to a general intent type if possible, or UNKNOWN
-                intent_type = self._map_tool_to_intent_type(tool_name)
+                # Use generic intent type for any tool
+                intent_type = self._get_generic_intent_type(tool_name)
                 reasoning = f"LLM decided to call tool: {tool_name}"
                 return intent_type, tool_name, parameters, reasoning
 
@@ -603,47 +637,205 @@ Be concise but comprehensive in your analysis."""
             logger.error(f"Document analysis execution failed: {str(e)}")
             return f"I encountered an error while analyzing the document: {str(e)}"
     
-    async def _format_tool_response(self, tool_result: Dict[str, Any], user_message: str) -> str:
+    async def _format_tool_response(self, tool_result: Any, user_message: str) -> str:
         """Format tool execution result into a user-friendly response, handling different tool outputs."""
-        if not tool_result or tool_result.get("status") == "error":
-            return f"The requested operation for '{user_message}' failed or returned no results."
+        # Handle empty dict case first
+        if isinstance(tool_result, dict) and len(tool_result) == 0:
+            return f"The tool executed successfully but provided no detailed output."
+        
+        # Don't treat error responses as failures - let the generic formatter handle them
+        if not tool_result:
+            return f"The requested operation for '{user_message}' returned no results."
 
         formatted_output_parts = []
         formatted_output_parts.append(f"Here's what I found for your request '{user_message}':")
 
-        # Handle web_search_tool results specifically
-        if tool_result.get("tool_name") == "web_search_tool" and tool_result.get("result"):
-            search_data = tool_result["result"]
-            if search_data.get("status") == "success" and search_data.get("results"):
-                results = search_data["results"]
-                if results:
-                    for i, item in enumerate(results[:5], 1): # Limit to top 5 results for brevity
-                        title = item.get("title", "No Title")
-                        url = item.get("url", "No URL")
-                        snippet = item.get("snippet", "No Snippet")
-                        formatted_output_parts.append(f"{i}. **{title}**\n   URL: {url}\n   Snippet: {snippet}")
-                else:
-                    formatted_output_parts.append("No specific web search results found.")
-            else:
-                formatted_output_parts.append("Web search tool returned an empty or unsuccessful result.")
+        # Generic tool response formatting - no hardcoded tool handling
+        # All tool responses are handled generically below
 
-        # Handle generic tool results (e.g., text analysis, document analysis, file reader)
-        elif tool_result.get("result"):
-            # If the result is a string, use it directly. Otherwise, try to pretty-print JSON.
-            result_content = tool_result["result"]
-            if isinstance(result_content, str):
-                formatted_output_parts.append(result_content)
-            elif isinstance(result_content, dict) or isinstance(result_content, list):
-                try:
-                    formatted_output_parts.append("```json\n" + json.dumps(result_content, indent=2) + "\n```")
-                except TypeError:
-                    formatted_output_parts.append(f"Raw result: {str(result_content)}")
+        # Handle tool results - check both direct result and nested result field
+        result_content = None
+        
+        # Always use the tool_result directly for generic formatting
+        # The generic formatter will handle all types intelligently
+        result_content = tool_result
+
+        if result_content is not None:
+            # Generic intelligent formatting for any tool response
+            formatted_content = self._format_any_tool_response(result_content)
+            if formatted_content:
+                formatted_output_parts.append(formatted_content)
             else:
-                formatted_output_parts.append(f"Raw result: {str(result_content)}")
+                formatted_output_parts.append("The tool executed successfully but provided no detailed output.")
         else:
             formatted_output_parts.append("The tool executed successfully but provided no detailed output.")
 
         return "\n\n".join(formatted_output_parts)
+    
+    def _format_any_tool_response(self, result_content: Any) -> str:
+        """
+        Generic intelligent formatting for any tool response.
+        Automatically detects and formats different response types without hardcoding specific tools.
+        """
+        try:
+            # Handle string responses
+            if isinstance(result_content, str):
+                # Check if it's JSON that can be parsed and formatted
+                if result_content.strip().startswith('{') or result_content.strip().startswith('['):
+                    try:
+                        import json
+                        parsed = json.loads(result_content)
+                        return self._format_structured_data(parsed)
+                    except:
+                        # Not valid JSON, return as-is
+                        return result_content
+                else:
+                    return result_content
+            
+            # Handle list responses (common in MCP)
+            elif isinstance(result_content, list):
+                return self._format_list_response(result_content)
+            
+            # Handle dict responses
+            elif isinstance(result_content, dict):
+                return self._format_structured_data(result_content)
+            
+            # Handle other types
+            else:
+                return str(result_content)
+                
+        except Exception as e:
+            # Fallback to string representation
+            return str(result_content)
+    
+    def _format_list_response(self, data: list) -> str:
+        """Format list responses intelligently."""
+        if not data:
+            return "No results found."
+        
+        formatted_parts = []
+        
+        for i, item in enumerate(data, 1):
+            if isinstance(item, dict):
+                # Check for common MCP response patterns
+                if item.get("type") == "text" and "text" in item:
+                    text_content = item["text"]
+                    # Try to parse JSON content for better formatting
+                    if isinstance(text_content, str) and (text_content.strip().startswith('{') or text_content.strip().startswith('[')):
+                        try:
+                            import json
+                            parsed = json.loads(text_content)
+                            formatted_parts.append(f"**Result {i}:**\n{self._format_structured_data(parsed)}")
+                        except:
+                            formatted_parts.append(f"**Result {i}:** {text_content}")
+                    else:
+                        formatted_parts.append(f"**Result {i}:** {text_content}")
+                else:
+                    formatted_parts.append(f"**Result {i}:**\n{self._format_structured_data(item)}")
+            else:
+                formatted_parts.append(f"**Result {i}:** {str(item)}")
+        
+        return "\n\n".join(formatted_parts)
+    
+    def _format_structured_data(self, data: dict) -> str:
+        """Format structured data (dict) intelligently with emojis and user-friendly presentation."""
+        if not data:
+            return "No data available."
+        
+        formatted_parts = []
+        
+        # Special handling for MCP response format with nested JSON content
+        content_parsed = False
+        if "content" in data and isinstance(data["content"], list):
+            for item in data["content"]:
+                if isinstance(item, dict) and item.get("type") == "text" and "text" in item:
+                    text_content = item["text"]
+                    # Try to parse JSON content for better formatting
+                    if isinstance(text_content, str) and (text_content.strip().startswith('{') or text_content.strip().startswith('[')):
+                        try:
+                            import json
+                            parsed = json.loads(text_content)
+                            formatted_parts.append(self._format_structured_data(parsed))
+                            content_parsed = True
+                            break  # Only parse the first valid JSON content
+                        except:
+                            pass  # Fall back to generic formatting
+                    else:
+                        # Simple text content - display directly
+                        formatted_parts.append(text_content)
+                        content_parsed = True
+                        break
+        
+        # Look for common patterns and format them nicely
+        for key, value in data.items():
+            # Skip content field if we already parsed it
+            if key.lower() == "content" and content_parsed:
+                continue
+                
+            if key.lower() in ["status", "state"]:
+                if value == "success" or value == "completed":
+                    formatted_parts.append(f"✅ **Status**: {value}")
+                elif value == "error" or value == "failed":
+                    formatted_parts.append(f"❌ **Status**: {value}")
+                else:
+                    formatted_parts.append(f"📊 **Status**: {value}")
+            
+            elif key.lower() in ["progress", "thoughtnumber", "current"]:
+                if isinstance(value, (int, float)):
+                    formatted_parts.append(f"📊 **Progress**: {value}")
+                else:
+                    formatted_parts.append(f"📊 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["total", "totalthoughts", "max"]:
+                if isinstance(value, (int, float)):
+                    formatted_parts.append(f"🎯 **Total**: {value}")
+                else:
+                    formatted_parts.append(f"🎯 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["next", "nextthoughtneeded", "continue"]:
+                if isinstance(value, bool):
+                    if value:
+                        formatted_parts.append(f"⏭️ **Next Step**: More processing needed")
+                    else:
+                        formatted_parts.append(f"✅ **Status**: Process complete")
+                else:
+                    formatted_parts.append(f"⏭️ **{key.title()}**: {value}")
+            
+            elif key.lower() in ["thought", "content", "message", "result"]:
+                formatted_parts.append(f"💭 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["history", "thoughthistorylength", "count"]:
+                formatted_parts.append(f"📚 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["branches", "alternatives", "options"]:
+                if isinstance(value, list):
+                    formatted_parts.append(f"🌿 **{key.title()}**: {len(value)} alternatives")
+                else:
+                    formatted_parts.append(f"🌿 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["confidence", "accuracy", "score"]:
+                if isinstance(value, (int, float)):
+                    formatted_parts.append(f"📊 **{key.title()}**: {value}")
+                else:
+                    formatted_parts.append(f"📊 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["error", "error_message", "details"]:
+                formatted_parts.append(f"⚠️ **{key.title()}**: {value}")
+            
+            elif key.lower() in ["url", "link", "href"]:
+                formatted_parts.append(f"🔗 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["title", "name", "label"]:
+                formatted_parts.append(f"📝 **{key.title()}**: {value}")
+            
+            elif key.lower() in ["snippet", "description", "summary"]:
+                formatted_parts.append(f"📄 **{key.title()}**: {value}")
+            
+            else:
+                # Generic formatting for unknown keys
+                formatted_parts.append(f"📋 **{key.title()}**: {value}")
+        
+        return "\n\n".join(formatted_parts)
     
     async def generate_conversational_response(
         self,
@@ -678,20 +870,18 @@ Be concise but comprehensive in your analysis."""
             return self._get_fallback_response(intent_type)
     
     def _get_system_prompt_for_intent(self, intent_type: IntentType, document_context: Optional[str] = None) -> str:
-        """Get appropriate system prompt based on intent type."""
+        """Get generic system prompt for any intent type."""
         base_prompt = "You are a helpful AI assistant for document analysis and text processing."
         
-        if intent_type == IntentType.GREETING:
-            return f"{base_prompt} Respond warmly and naturally to greetings, then briefly explain how you can help with document work."
-        elif intent_type == IntentType.HELP:
-            return f"{base_prompt} Explain your capabilities in a friendly, helpful way with specific examples of document analysis and text processing."
-        elif intent_type == IntentType.CONVERSATION:
+        if intent_type == IntentType.CONVERSATION:
             return f"{base_prompt} Respond naturally and conversationally to general questions and social interactions. Be warm, helpful, and guide the conversation toward how you can assist with document work."
+        elif intent_type == IntentType.TOOL_EXECUTION:
+            return f"{base_prompt} Execute tools and provide helpful responses based on the results."
         else:
             return f"{base_prompt} Be conversational, friendly, and helpful."
     
     def _get_fallback_response(self, intent_type: IntentType) -> str:
-        """Get minimal fallback response when LLM is not available."""
+        """Get generic fallback response when LLM is not available."""
         return "I'm having trouble processing your request. Please try again or ask me to help with a specific task."
     
     # Conversation memory management methods
@@ -714,6 +904,44 @@ Be concise but comprehensive in your analysis."""
     def get_memory_size(self) -> int:
         """Get current memory size."""
         return self.conversation_memory.get_memory_size()
+    
+    def clear_intent_cache(self):
+        """Clear the intent detection cache for debugging."""
+        self._intent_cache.clear()
+        logger.info("Intent detection cache cleared")
+    
+    def _generate_tool_usage_guidance(self, tool: Dict[str, Any]) -> str:
+        """Generate usage guidance for a tool based on its name and description."""
+        tool_name = tool.get("name", "").lower()
+        description = tool.get("description", "").lower()
+        
+        # Generate dynamic usage guidance based on tool characteristics
+        guidance_parts = []
+        
+        # Check for common patterns in tool names and descriptions
+        if "search" in tool_name or "search" in description:
+            guidance_parts.append("Use when user asks for web search, information lookup, or finding content online")
+        
+        if "sequential" in tool_name or "thinking" in tool_name or "sequential" in description or "thinking" in description:
+            guidance_parts.append("Use when user asks for sequential thinking, step-by-step analysis, problem breakdown, or detailed planning")
+        
+        if "analysis" in tool_name or "analyze" in tool_name or "analysis" in description:
+            guidance_parts.append("Use when user asks for text analysis, document analysis, or content analysis")
+        
+        if "document" in tool_name or "document" in description:
+            guidance_parts.append("Use when user asks for document processing, document analysis, or document-related tasks")
+        
+        if "file" in tool_name or "read" in tool_name or "file" in description:
+            guidance_parts.append("Use when user asks for file reading, file processing, or file-related operations")
+        
+        if "text" in tool_name or "text" in description:
+            guidance_parts.append("Use when user asks for text processing, text analysis, or text-related operations")
+        
+        # If no specific patterns found, use the description
+        if not guidance_parts:
+            guidance_parts.append(f"Use when user's request matches: {description[:100]}...")
+        
+        return "; ".join(guidance_parts)
 
 
 # Lazy-loaded global instance
