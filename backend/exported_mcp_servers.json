@@ -1,0 +1,186 @@
+{
+  "metadata": {
+    "exported_at": "2025-09-01T21:43:17.374935",
+    "source": "Running Word Add-in MCP Application API",
+    "api_base_url": "https://localhost:9000",
+    "version": "1.0.0",
+    "description": "Exported MCP servers and tools from running application"
+  },
+  "servers": {
+    "dsfeweqas": {
+      "name": "dsfeweqas",
+      "server_id": "baa6afdf-43ae-427a-ad4b-322b21ee7aa1",
+      "type": "external",
+      "url": "https://remote.mcpservers.org/sequentialthinking/mcp",
+      "status": "healthy",
+      "connected": true,
+      "last_health_check": 1756777396.0089269,
+      "authentication": {
+        "type": "none",
+        "required": false
+      },
+      "tools": [
+        {
+          "name": "sequentialthinking",
+          "description": "A detailed tool for dynamic and reflective problem-solving through thoughts.\nThis tool helps analyze problems through a flexible thinking process that can adapt and evolve.\nEach thought can build on, question, or revise previous insights as understanding deepens.\n\nWhen to use this tool:\n- Breaking down complex problems into steps\n- Planning and design with room for revision\n- Analysis that might need course correction\n- Problems where the full scope might not be clear initially\n- Problems that require a multi-step solution\n- Tasks that need to maintain context over multiple steps\n- Situations where irrelevant information needs to be filtered out\n\nKey features:\n- You can adjust total_thoughts up or down as you progress\n- You can question or revise previous thoughts\n- You can add more thoughts even after reaching what seemed like the end\n- You can express uncertainty and explore alternative approaches\n- Not every thought needs to build linearly - you can branch or backtrack\n- Generates a solution hypothesis\n- Verifies the hypothesis based on the Chain of Thought steps\n- Repeats the process until satisfied\n- Provides a correct answer\n\nParameters explained:\n- thought: Your current thinking step, which can include:\n* Regular analytical steps\n* Revisions of previous thoughts\n* Questions about previous decisions\n* Realizations about needing more analysis\n* Changes in approach\n* Hypothesis generation\n* Hypothesis verification\n- next_thought_needed: True if you need more thinking, even if at what seemed like the end\n- thought_number: Current number in sequence (can go beyond initial total if needed)\n- total_thoughts: Current estimate of thoughts needed (can be adjusted up/down)\n- is_revision: A boolean indicating if this thought revises previous thinking\n- revises_thought: If is_revision is true, which thought number is being reconsidered\n- branch_from_thought: If branching, which thought number is the branching point\n- branch_id: Identifier for the current branch (if any)\n- needs_more_thoughts: If reaching end but realizing more thoughts needed\n\nYou should:\n1. Start with an initial estimate of needed thoughts, but be ready to adjust\n2. Feel free to question or revise previous thoughts\n3. Don't hesitate to add more thoughts if needed, even at the \"end\"\n4. Express uncertainty when present\n5. Mark thoughts that revise previous thinking or branch into new paths\n6. Ignore information that is irrelevant to the current step\n7. Generate a solution hypothesis when appropriate\n8. Verify the hypothesis based on the Chain of Thought steps\n9. Repeat the process until satisfied with the solution\n10. Provide a single, ideally correct answer as the final output\n11. Only set next_thought_needed to false when truly done and a satisfactory answer is reached",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        }
+      ]
+    },
+    "poogle": {
+      "name": "poogle",
+      "server_id": "3bdfe9b9-e416-4cc5-8b68-1745cef70d16",
+      "type": "external",
+      "url": "https://mcp.mcpoogle.com/sse",
+      "status": "healthy",
+      "connected": true,
+      "last_health_check": 1756777396.99596,
+      "authentication": {
+        "type": "none",
+        "required": false
+      },
+      "tools": [
+        {
+          "name": "searchMcpServers",
+          "description": "Retrieve relevant MCP Servers and Tools from McPoogle search engine. Use this tool to find MCP Servers and Tools that match a given user prompt. The search results will include the name, description, and GitHub URL of each MCP Server.\n    Accepts an LLM user prompt for content retrieval. For best retrieval quality, provide only key words or phrases from the user prompt, which will be used to create text embeddings for a vector search query.\n    Returns the ranked content sources, including their content resource URI to retrieve the complete Markdown text.",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        }
+      ]
+    },
+    "cloudflare": {
+      "name": "cloudflare",
+      "server_id": "c0b14e96-f898-4fd0-87b7-af6b0c2c01d5",
+      "type": "external",
+      "url": "https://demo-day.mcp.cloudflare.com/sse",
+      "status": "healthy",
+      "connected": true,
+      "last_health_check": 1756777371.339394,
+      "authentication": {
+        "type": "none",
+        "required": false
+      },
+      "tools": [
+        {
+          "name": "mcp_demo_day_info",
+          "description": "Get information about Cloudflare's MCP Demo Day. Use this tool if the user asks about Cloudflare's MCP demo day",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        }
+      ]
+    },
+    "ms_learn": {
+      "name": "ms_learn",
+      "server_id": "fba4d3e6-7810-4404-8db7-00b48aab7e4f",
+      "type": "external",
+      "url": "https://learn.microsoft.com/api/mcp",
+      "status": "healthy",
+      "connected": true,
+      "last_health_check": 1756777372.162745,
+      "authentication": {
+        "type": "none",
+        "required": false
+      },
+      "tools": [
+        {
+          "name": "microsoft_docs_search",
+          "description": "Search official Microsoft/Azure documentation to find the most relevant and trustworthy content for a user's query. This tool returns up to 10 high-quality content chunks (each max 500 tokens), extracted from Microsoft Learn and other official sources. Each result includes the article title, URL, and a self-contained content excerpt optimized for fast retrieval and reasoning. Always use this tool to quickly ground your answers in accurate, first-party Microsoft/Azure knowledge.\n\nThe `question` parameter is no longer used, use `query` instead.\n\n## Follow-up Pattern\n- When search results provide incomplete information or truncated content\n- When you need troubleshooting sections, prerequisites, or detailed explanations\n- When search results reference a specific page that seems highly relevant\n- When you need complete step-by-step procedures or tutorials\n- When the information appears outdated and you need the most recent version\n\nTo ensure completeness, use microsoft_docs_fetch when high-value pages are identified by search. The fetch tool complements search by providing the full detail. This is a required step for comprehensive results.\n",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        },
+        {
+          "name": "microsoft_docs_fetch",
+          "description": "Fetch and convert a Microsoft Learn documentation page to markdown format. This tool retrieves the latest complete content of Microsoft documentation pages including Azure, .NET, Microsoft 365, and other Microsoft technologies.\n\n## When to Use This Tool\n- When search results provide incomplete information or truncated content\n- When you need complete step-by-step procedures or tutorials\n- When you need troubleshooting sections, prerequisites, or detailed explanations\n- When search results reference a specific page that seems highly relevant\n- For comprehensive guides that require full context\n\n## Usage Pattern\nUse this tool AFTER microsoft_docs_search when you identify specific high-value pages that need complete content. The search tool gives you an overview; this tool gives you the complete picture.\n\n## URL Requirements\n- The URL must be a valid Microsoft documentation link from the microsoft.com domain.\n\n## Output Format\nThe output is formatted as markdown with preserved headings, code blocks, tables, and links converted to markdown format.\n",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        }
+      ]
+    },
+    "internal": {
+      "name": "Internal MCP Server",
+      "server_id": "internal",
+      "type": "internal",
+      "url": "localhost:9000",
+      "status": "healthy",
+      "connected": true,
+      "tools": [
+        {
+          "name": "web_search_tool",
+          "description": "Search the web for information",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 1
+        },
+        {
+          "name": "text_analysis_tool",
+          "description": "Analyze and process text content",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        },
+        {
+          "name": "document_analysis_tool",
+          "description": "Analyze document content and structure",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        },
+        {
+          "name": "file_reader_tool",
+          "description": "Read and process files",
+          "category": "general",
+          "requires_auth": false,
+          "usage_count": 0
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_servers": 5,
+    "internal_servers": 1,
+    "external_servers": 4,
+    "total_tools": 9,
+    "internal_tools": 4,
+    "external_tools": 5,
+    "healthy_servers": 5,
+    "connected_servers": 5
+  },
+  "cursor_mcp_config": {
+    "mcpServers": {
+      "dsfeweqas": {
+        "transport": "http",
+        "url": "https://remote.mcpservers.org/sequentialthinking/mcp",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "poogle": {
+        "transport": "http",
+        "url": "https://mcp.mcpoogle.com/sse",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "cloudflare": {
+        "transport": "http",
+        "url": "https://demo-day.mcp.cloudflare.com/sse",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "ms_learn": {
+        "transport": "http",
+        "url": "https://learn.microsoft.com/api/mcp",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      }
+    }
+  }
+}

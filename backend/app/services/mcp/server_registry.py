@@ -1,8 +1,8 @@
 """
-Unified MCP Server Registry.
+Unified MCP Server Registry - Fixed Version.
 
 This registry manages all MCP servers (internal and external)
-through a unified interface.
+through a unified interface using the corrected FastMCP client.
 """
 
 import asyncio
@@ -269,29 +269,35 @@ class MCPServerRegistry:
             return []
     
     async def _discover_external_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
-        """Discover tools from external server."""
+        """Discover tools from external server using corrected FastMCP client."""
         try:
-            from app.core.mcp_client import MCPClientFactory
+            from app.core.fastmcp_client import FastMCPClientFactory
             
             client = None
             if server.url.startswith(('http://', 'https://')):
-                client = MCPClientFactory.create_http_client(server.url, timeout=30)
+                client = FastMCPClientFactory.create_http_client(
+                    server.url, 
+                    server.name, 
+                    timeout=30.0
+                )
             else:
-                server_command = server.url.split()
-                client = MCPClientFactory.create_stdio_client(server_command, timeout=30)
+                # Handle STDIO command
+                server_command = server.url.split() if isinstance(server.url, str) else server.url
+                client = FastMCPClientFactory.create_stdio_client(
+                    server_command, 
+                    server.name, 
+                    timeout=30.0
+                )
             
             async with client:
-                tools_data = await client.discover_tools()
+                # Use the corrected list_tools method
+                tools_data = await client.list_tools()
                 
                 unified_tools = []
                 for tool_data in tools_data:
-                    if hasattr(tool_data, 'dict'):
-                        tool_dict = tool_data.dict()
-                    else:
-                        tool_dict = tool_data
-                    
-                    if self._validate_tool_schema(tool_dict):
-                        unified_tool = self._create_unified_tool_from_mcp(tool_dict, server)
+                    # tool_data should already be a dict from the corrected implementation
+                    if self._validate_tool_schema(tool_data):
+                        unified_tool = self._create_unified_tool_from_mcp(tool_data, server)
                         unified_tools.append(unified_tool)
                 
                 return unified_tools
@@ -347,15 +353,23 @@ class MCPServerRegistry:
         )
     
     async def _execute_external_tool(self, server: MCPServerInfo, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool on external server."""
-        from app.core.mcp_client import MCPClientFactory
+        """Execute a tool on external server using corrected FastMCP client."""
+        from app.core.fastmcp_client import FastMCPClientFactory
         
         client = None
         if server.url.startswith(('http://', 'https://')):
-            client = MCPClientFactory.create_http_client(server.url, timeout=30)
+            client = FastMCPClientFactory.create_http_client(
+                server.url, 
+                server.name, 
+                timeout=30.0
+            )
         else:
-            server_command = server.url.split()
-            client = MCPClientFactory.create_stdio_client(server_command, timeout=30)
+            server_command = server.url.split() if isinstance(server.url, str) else server.url
+            client = FastMCPClientFactory.create_stdio_client(
+                server_command, 
+                server.name, 
+                timeout=30.0
+            )
         
         async with client:
             return await client.execute_tool(tool_info.name, parameters)
@@ -377,24 +391,36 @@ class MCPServerRegistry:
                 server.status = "failed"
                 return False
             else:
-                # External server connection test
-                from app.core.mcp_client import MCPClientFactory
+                # External server connection test using corrected FastMCP client
+                from app.core.fastmcp_client import FastMCPClientFactory
                 
                 client = None
                 if server.url.startswith(('http://', 'https://')):
-                    client = MCPClientFactory.create_http_client(server.url, timeout=10)
+                    client = FastMCPClientFactory.create_http_client(
+                        server.url, 
+                        server.name, 
+                        timeout=10.0
+                    )
                 else:
-                    server_command = server.url.split()
-                    client = MCPClientFactory.create_stdio_client(server_command, timeout=10)
+                    server_command = server.url.split() if isinstance(server.url, str) else server.url
+                    client = FastMCPClientFactory.create_stdio_client(
+                        server_command, 
+                        server.name, 
+                        timeout=10.0
+                    )
                 
                 async with client:
-                    # Test basic connectivity
-                    tools = await client.discover_tools()
+                    # Test basic connectivity with health check
+                    is_connected = await client.health_check()
                     
-                    server.connected = True
-                    server.status = "healthy"
+                    if is_connected:
+                        # Also try to list tools to ensure full functionality
+                        await client.list_tools()
+                    
+                    server.connected = is_connected
+                    server.status = "healthy" if is_connected else "failed"
                     server.last_health_check = time.time()
-                    return True
+                    return is_connected
                     
         except Exception as e:
             server.connected = False
@@ -428,31 +454,53 @@ class MCPServerRegistry:
                         "error": "Internal server not running"
                     }
             else:
-                # External server health check
+                # External server health check using corrected FastMCP client
                 try:
-                    from app.core.mcp_client import MCPClientFactory
+                    from app.core.fastmcp_client import FastMCPClientFactory
                     
                     client = None
                     if server.url.startswith(('http://', 'https://')):
-                        client = MCPClientFactory.create_http_client(server.url, timeout=10)
+                        client = FastMCPClientFactory.create_http_client(
+                            server.url, 
+                            server.name, 
+                            timeout=10.0
+                        )
                     else:
-                        server_command = server.url.split()
-                        client = MCPClientFactory.create_stdio_client(server_command, timeout=10)
+                        server_command = server.url.split() if isinstance(server.url, str) else server.url
+                        client = FastMCPClientFactory.create_stdio_client(
+                            server_command, 
+                            server.name, 
+                            timeout=10.0
+                        )
                     
                     async with client:
-                        # Simple health check via tool discovery
-                        await client.discover_tools()
+                        # Use health check method from corrected client
+                        is_healthy = await client.health_check()
                         
-                        server.last_health_check = time.time()
-                        server.status = "healthy"
-                        server.connected = True
-                        
-                        return {
-                            "status": "healthy",
-                            "server_id": server.server_id,
-                            "server_name": server.name,
-                            "type": "external"
-                        }
+                        if is_healthy:
+                            server.last_health_check = time.time()
+                            server.status = "healthy"
+                            server.connected = True
+                            
+                            return {
+                                "status": "healthy",
+                                "server_id": server.server_id,
+                                "server_name": server.name,
+                                "type": "external",
+                                "last_health_check": server.last_health_check
+                            }
+                        else:
+                            server.connection_errors += 1
+                            server.status = "unhealthy"
+                            server.connected = False
+                            
+                            return {
+                                "status": "unhealthy",
+                                "server_id": server.server_id,
+                                "server_name": server.name,
+                                "type": "external",
+                                "error": "Health check failed"
+                            }
                         
                 except Exception as e:
                     server.connection_errors += 1
@@ -481,17 +529,9 @@ class MCPServerRegistry:
             if server.type != "external":
                 return
             
-            from app.core.mcp_client import MCPClientFactory
-            
-            client = None
-            if server.url.startswith(('http://', 'https://')):
-                client = MCPClientFactory.create_http_client(server.url, timeout=5)
-            else:
-                server_command = server.url.split()
-                client = MCPClientFactory.create_stdio_client(server_command, timeout=5)
-            
-            if hasattr(client, 'disconnect'):
-                await client.disconnect()
+            # The corrected FastMCP client handles disconnection automatically
+            # through the async context manager, so no explicit disconnect needed
+            logger.debug(f"Disconnection handled by FastMCP client for {server.name}")
             
         except Exception as e:
             logger.debug(f"Error during server disconnection for {server.name}: {e}")
@@ -513,9 +553,16 @@ class MCPServerRegistry:
                             time.time() - server.last_health_check < 300):
                             continue
                         
+                        # Skip health checks for external servers that are working well
+                        if (server.type == "external" and 
+                            server.connected and 
+                            server.status == "healthy"):
+                            logger.debug(f"Skipping health check for healthy external server: {server.name}")
+                            continue
+                        
                         await self._get_server_health(server)
                     
-                    await asyncio.sleep(60)  # Check every minute
+                    await asyncio.sleep(300)  # Check every 5 minutes
                     
                 except asyncio.CancelledError:
                     break

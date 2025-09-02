@@ -1,17 +1,17 @@
 """
-External MCP Server Management API endpoints.
+External MCP Server Management API endpoints - Fixed Version.
 
 This module provides REST API endpoints for managing external MCP servers
-using the compliant MCP client implementation.
+using the corrected MCP client implementation and proper error handling.
 """
 
 import logging
+import asyncio
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
-# Removed old MCP schema import - defining locally
-from ...core.mcp_client import MCPConnectionError, MCPToolError
+from ...core.fastmcp_client import MCPConnectionError, MCPToolError
 from ...services.mcp.orchestrator import mcp_orchestrator
 from datetime import datetime
 
@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/external", tags=["external-mcp"])
 
-# Use the MCP orchestrator directly
 
 class ExternalMCPServerConfig(BaseModel):
     """Configuration for external MCP server."""
@@ -32,7 +31,7 @@ class ExternalMCPServerConfig(BaseModel):
     oauth_token: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    timeout: int = 30
+    timeout: float = 30.0  # Changed to float for consistency
     health_check_interval: int = 60
     max_retries: int = 3
     retry_delay: int = 5
@@ -49,7 +48,7 @@ class AddServerRequest(BaseModel):
     oauth_token: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
-    timeout: int = 30
+    timeout: float = 30.0  # Changed to float for consistency
     health_check_interval: int = 60
     max_retries: int = 3
     retry_delay: int = 5
@@ -90,6 +89,13 @@ class HealthStatusResponse(BaseModel):
     uptime: Optional[str] = None
 
 
+class ConnectionTestRequest(BaseModel):
+    """Request model for testing connections."""
+    name: str
+    server_url: str
+    timeout: float = 10.0
+
+
 @router.post("/servers", response_model=AddServerResponse, status_code=status.HTTP_201_CREATED)
 async def add_external_server(request: AddServerRequest):
     """
@@ -104,25 +110,39 @@ async def add_external_server(request: AddServerRequest):
     try:
         logger.info(f"Adding external MCP server: {request.name}")
         
-        # Convert request to ExternalMCPServerConfig
-        config = ExternalMCPServerConfig(
-            name=request.name,
-            description=request.description,
-            server_url=request.server_url,
-            server_type=request.server_type,
-            authentication_type=request.authentication_type,
-            api_key=request.api_key,
-            oauth_token=request.oauth_token,
-            username=request.username,
-            password=request.password,
-            timeout=request.timeout,
-            health_check_interval=request.health_check_interval,
-            max_retries=request.max_retries,
-            retry_delay=request.retry_delay
-        )
+        # Test connection first using the corrected client
+        try:
+            from ...core.fastmcp_client import FastMCPClientFactory
+            
+            # Create appropriate client based on URL
+            client = None
+            if request.server_url.startswith(('http://', 'https://')):
+                client = FastMCPClientFactory.create_http_client(
+                    request.server_url, 
+                    request.name, 
+                    timeout=request.timeout
+                )
+            else:
+                # Assume STDIO command
+                server_command = request.server_url.split()
+                client = FastMCPClientFactory.create_stdio_client(
+                    server_command, 
+                    request.name, 
+                    timeout=request.timeout
+                )
+            
+            # Test connection
+            async with client:
+                await client.health_check()
+                tools = await client.list_tools()
+                logger.info(f"Connection test successful. Found {len(tools)} tools.")
+                
+        except Exception as e:
+            logger.error(f"Connection test failed: {e}")
+            raise MCPConnectionError(f"Failed to connect to server: {e}")
         
-        # Add server using the orchestrator
-        server_id = await mcp_orchestrator.add_external_server({
+        # Add server using the orchestrator with proper configuration
+        server_config = {
             "name": request.name,
             "url": request.server_url,
             "type": "external",
@@ -139,18 +159,26 @@ async def add_external_server(request: AddServerRequest):
                 "max_retries": request.max_retries,
                 "retry_delay": request.retry_delay
             }
-        })
+        }
+        
+        server_id = await mcp_orchestrator.add_external_server(server_config)
         
         # Get server info for response
         servers = await mcp_orchestrator.get_external_servers()
-        server = next((s for s in servers if s["server_id"] == server_id), None)
-        if not server:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Server was added but could not be retrieved"
-            )
+        server = next((s for s in servers if s.get("server_id") == server_id), None)
         
-        server_info = server
+        if not server:
+            # Create basic server info if not found in orchestrator response
+            server = {
+                "server_id": server_id,
+                "name": request.name,
+                "description": request.description,
+                "server_url": request.server_url,
+                "status": "connected",
+                "tools_count": len(tools) if 'tools' in locals() else 0,
+                "total_requests": 0,
+                "avg_response_time": 0.0
+            }
         
         logger.info(f"External MCP server '{request.name}' added successfully with ID: {server_id}")
         
@@ -158,7 +186,7 @@ async def add_external_server(request: AddServerRequest):
             status="success",
             message=f"External MCP server '{request.name}' added successfully",
             server_id=server_id,
-            server_info=server_info
+            server_info=server
         )
         
     except MCPConnectionError as e:
@@ -183,7 +211,7 @@ async def add_external_server(request: AddServerRequest):
 
 
 @router.post("/servers/test-connection")
-async def test_external_server_connection(request: AddServerRequest):
+async def test_external_server_connection(request: ConnectionTestRequest):
     """
     Test connection to external MCP server before adding it.
     
@@ -196,39 +224,104 @@ async def test_external_server_connection(request: AddServerRequest):
     try:
         logger.info(f"Testing connection to external MCP server: {request.name}")
         
-        # Test basic HTTP connectivity first
+        # Import the corrected FastMCP client
+        from ...core.fastmcp_client import FastMCPClientFactory
+        
         try:
-            import aiohttp
+            # Create appropriate client based on URL
+            client = None
+            if request.server_url.startswith(('http://', 'https://')):
+                client = FastMCPClientFactory.create_http_client(
+                    request.server_url, 
+                    request.name, 
+                    timeout=request.timeout
+                )
+            else:
+                # Assume STDIO command
+                server_command = request.server_url.split()
+                client = FastMCPClientFactory.create_stdio_client(
+                    server_command, 
+                    request.name, 
+                    timeout=request.timeout
+                )
             
-            # Test basic HTTP connectivity
-            timeout = aiohttp.ClientTimeout(total=request.timeout)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(request.server_url) as response:
-                    if response.status == 200:
-                        return {
-                            "connection_test": "http_successful",
-                            "server_url": request.server_url,
-                            "server_name": request.name,
-                            "timestamp": datetime.now().isoformat(),
-                            "message": "HTTP connectivity successful - server is reachable"
-                        }
-                    else:
-                        return {
-                            "connection_test": "http_failed",
-                            "server_url": request.server_url,
-                            "server_name": request.name,
-                            "timestamp": datetime.now().isoformat(),
-                            "message": f"HTTP connectivity failed - status {response.status}"
-                        }
-                        
-        except Exception as e:
-            logger.error(f"HTTP connectivity test failed: {str(e)}")
+            # Test connection using the corrected client
+            start_time = datetime.now()
+            async with client:
+                # Perform health check
+                is_healthy = await client.health_check()
+                
+                if not is_healthy:
+                    return {
+                        "connection_test": "mcp_failed",
+                        "server_url": request.server_url,
+                        "server_name": request.name,
+                        "timestamp": datetime.now().isoformat(),
+                        "message": "MCP health check failed",
+                        "success": False
+                    }
+                
+                # Try to list tools to verify full functionality
+                try:
+                    tools = await client.list_tools()
+                    tools_count = len(tools)
+                except Exception as tool_error:
+                    logger.warning(f"Tool listing failed but connection is healthy: {tool_error}")
+                    tools_count = 0
+                
+                # Try to list resources if available
+                resources_count = 0
+                try:
+                    resources = await client.list_resources()
+                    resources_count = len(resources)
+                except Exception:
+                    # Resources might not be supported, that's okay
+                    pass
+                
+                response_time = (datetime.now() - start_time).total_seconds()
+                
+                return {
+                    "connection_test": "mcp_successful",
+                    "server_url": request.server_url,
+                    "server_name": request.name,
+                    "timestamp": datetime.now().isoformat(),
+                    "response_time_seconds": response_time,
+                    "tools_count": tools_count,
+                    "resources_count": resources_count,
+                    "success": True,
+                    "message": f"MCP connection successful. Found {tools_count} tools and {resources_count} resources."
+                }
+                
+        except MCPConnectionError as e:
             return {
-                "connection_test": "http_failed",
+                "connection_test": "mcp_connection_failed",
                 "server_url": request.server_url,
                 "server_name": request.name,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "success": False,
+                "message": f"MCP connection failed: {str(e)}"
+            }
+        except MCPToolError as e:
+            return {
+                "connection_test": "mcp_tool_error",
+                "server_url": request.server_url,
+                "server_name": request.name,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+                "success": False,
+                "message": f"MCP tool error: {str(e)}"
+            }
+        except Exception as e:
+            logger.error(f"MCP connection test failed: {str(e)}")
+            return {
+                "connection_test": "mcp_failed",
+                "server_url": request.server_url,
+                "server_name": request.name,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
+                "success": False,
+                "message": f"Connection test failed: {str(e)}"
             }
         
     except Exception as e:
@@ -255,11 +348,24 @@ async def list_external_servers():
         
         servers = await mcp_orchestrator.get_external_servers()
         
-        # Convert to response format
+        # Convert to response format and ensure proper structure
         server_responses = []
         for server in servers:
-            # The server info is already in the right format
-            server_responses.append(ServerInfoResponse(**server))
+            # Ensure all required fields are present with defaults
+            server_info = ServerInfoResponse(
+                server_id=server.get("server_id", ""),
+                name=server.get("name", "Unknown"),
+                description=server.get("description", ""),
+                server_url=server.get("server_url", ""),
+                status=server.get("status", "unknown"),
+                tools_count=server.get("tools_count", 0),
+                last_request=server.get("last_request"),
+                total_requests=server.get("total_requests", 0),
+                avg_response_time=server.get("avg_response_time", 0.0),
+                protocol_version=server.get("protocol_version"),
+                server_capabilities=server.get("server_capabilities")
+            )
+            server_responses.append(server_info)
         
         logger.info(f"Retrieved {len(server_responses)} external MCP servers")
         return server_responses
@@ -290,14 +396,30 @@ async def get_external_server(server_id: str):
         logger.info(f"Getting external MCP server info: {server_id}")
         
         servers = await mcp_orchestrator.get_external_servers()
-        server = next((s for s in servers if s["server_id"] == server_id), None)
+        server = next((s for s in servers if s.get("server_id") == server_id), None)
+        
         if not server:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"External MCP server with ID '{server_id}' not found"
             )
         
-        return ServerInfoResponse(**server)
+        # Ensure all required fields are present
+        server_info = ServerInfoResponse(
+            server_id=server.get("server_id", server_id),
+            name=server.get("name", "Unknown"),
+            description=server.get("description", ""),
+            server_url=server.get("server_url", ""),
+            status=server.get("status", "unknown"),
+            tools_count=server.get("tools_count", 0),
+            last_request=server.get("last_request"),
+            total_requests=server.get("total_requests", 0),
+            avg_response_time=server.get("avg_response_time", 0.0),
+            protocol_version=server.get("protocol_version"),
+            server_capabilities=server.get("server_capabilities")
+        )
+        
+        return server_info
         
     except HTTPException:
         raise
@@ -336,8 +458,8 @@ async def remove_external_server(server_id: str):
             }
         else:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to remove external MCP server {server_id}"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"External MCP server {server_id} not found or could not be removed"
             )
         
     except HTTPException:
@@ -369,13 +491,29 @@ async def list_server_tools(server_id: str):
         
         # Get tools from the orchestrator
         all_tools = await mcp_orchestrator.list_all_tools()
-        server_tools = [tool for tool in all_tools["tools"] if tool.get("server_id") == server_id]
+        server_tools = [
+            tool for tool in all_tools.get("tools", []) 
+            if tool.get("server_id") == server_id
+        ]
         
         if not server_tools:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"External MCP server with ID '{server_id}' not found or has no tools"
-            )
+            # Check if server exists first
+            servers = await mcp_orchestrator.get_external_servers()
+            server = next((s for s in servers if s.get("server_id") == server_id), None)
+            
+            if not server:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"External MCP server with ID '{server_id}' not found"
+                )
+            
+            # Server exists but has no tools
+            return {
+                "server_id": server_id,
+                "server_name": server.get("name", "Unknown"),
+                "tools": [],
+                "total_count": 0
+            }
         
         logger.info(f"Found {len(server_tools)} tools on external MCP server {server_id}")
         return {
@@ -414,12 +552,24 @@ async def execute_server_tool(server_id: str, tool_name: str, parameters: Dict[s
     try:
         logger.info(f"Executing tool '{tool_name}' on external MCP server: {server_id}")
         
+        # Verify server exists
+        servers = await mcp_orchestrator.get_external_servers()
+        server = next((s for s in servers if s.get("server_id") == server_id), None)
+        
+        if not server:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"External MCP server with ID '{server_id}' not found"
+            )
+        
         # Execute tool through the orchestrator
         result = await mcp_orchestrator.execute_tool(tool_name, parameters)
         
         logger.info(f"Tool '{tool_name}' executed successfully on external MCP server {server_id}")
         return result
         
+    except HTTPException:
+        raise
     except MCPToolError as e:
         logger.error(f"Tool execution error on external MCP server {server_id}: {str(e)}")
         raise HTTPException(
@@ -456,32 +606,79 @@ async def get_server_health(server_id: str):
     try:
         logger.info(f"Getting health status for external MCP server: {server_id}")
         
-        # Get server health from orchestrator
-        external_health = await mcp_orchestrator.get_external_server_health()
-        server_health = external_health.get("external_servers", {}).get(server_id)
+        # Verify server exists
+        servers = await mcp_orchestrator.get_external_servers()
+        server = next((s for s in servers if s.get("server_id") == server_id), None)
         
-        if not server_health:
+        if not server:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"External MCP server with ID '{server_id}' not found"
             )
         
-        # Test connection
-        connection_test = await mcp_orchestrator.test_external_server_connection(server_id)
-        is_healthy = connection_test.get("success", False)
+        # Test connection using the corrected FastMCP client
+        from ...core.fastmcp_client import FastMCPClientFactory
         
-        health_status = HealthStatusResponse(
-            server_id=server_id,
-            name=server_health.get("server_name", "Unknown"),
-            status="connected" if is_healthy else "disconnected",
-            last_check=datetime.now().isoformat(),
-            tools_count=0,  # Will need to implement tool counting
-            response_time=None,
-            error_message=None if is_healthy else "Connection test failed",
-            uptime=None  # Not implemented in current version
-        )
-        
-        return health_status
+        try:
+            # Create appropriate client
+            client = None
+            server_url = server.get("server_url", "")
+            
+            if server_url.startswith(('http://', 'https://')):
+                client = FastMCPClientFactory.create_http_client(
+                    server_url, 
+                    server.get("name", "Unknown"), 
+                    timeout=10.0
+                )
+            else:
+                server_command = server_url.split()
+                client = FastMCPClientFactory.create_stdio_client(
+                    server_command, 
+                    server.get("name", "Unknown"), 
+                    timeout=10.0
+                )
+            
+            # Test connection
+            start_time = datetime.now()
+            async with client:
+                is_healthy = await client.health_check()
+                response_time = (datetime.now() - start_time).total_seconds()
+                
+                # Get tool count
+                try:
+                    tools = await client.list_tools()
+                    tools_count = len(tools)
+                except Exception:
+                    tools_count = 0
+                
+                health_status = HealthStatusResponse(
+                    server_id=server_id,
+                    name=server.get("name", "Unknown"),
+                    status="healthy" if is_healthy else "unhealthy",
+                    last_check=datetime.now().isoformat(),
+                    tools_count=tools_count,
+                    response_time=response_time,
+                    error_message=None if is_healthy else "Health check failed",
+                    uptime=None  # Not implemented yet
+                )
+                
+                return health_status
+                
+        except Exception as e:
+            logger.error(f"Health check failed for server {server_id}: {e}")
+            
+            health_status = HealthStatusResponse(
+                server_id=server_id,
+                name=server.get("name", "Unknown"),
+                status="unhealthy",
+                last_check=datetime.now().isoformat(),
+                tools_count=0,
+                response_time=None,
+                error_message=str(e),
+                uptime=None
+            )
+            
+            return health_status
         
     except HTTPException:
         raise
@@ -510,25 +707,77 @@ async def test_server_connection(server_id: str):
     try:
         logger.info(f"Testing connection to external MCP server: {server_id}")
         
-        # Test connection using orchestrator
-        connection_test = await mcp_orchestrator.test_external_server_connection(server_id)
-        is_connected = connection_test.get("success", False)
+        # Get server info
+        servers = await mcp_orchestrator.get_external_servers()
+        server = next((s for s in servers if s.get("server_id") == server_id), None)
         
-        if is_connected:
-            logger.info(f"Connection test successful for external MCP server {server_id}")
-            return {
-                "status": "success",
-                "message": "Connection test successful",
-                "server_id": server_id,
-                "connected": True
-            }
-        else:
-            logger.warning(f"Connection test failed for external MCP server {server_id}")
+        if not server:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"External MCP server with ID '{server_id}' not found"
+            )
+        
+        # Test connection using the corrected FastMCP client
+        from ...core.fastmcp_client import FastMCPClientFactory
+        
+        try:
+            # Create appropriate client
+            client = None
+            server_url = server.get("server_url", "")
+            
+            if server_url.startswith(('http://', 'https://')):
+                client = FastMCPClientFactory.create_http_client(
+                    server_url, 
+                    server.get("name", "Unknown"), 
+                    timeout=10.0
+                )
+            else:
+                server_command = server_url.split()
+                client = FastMCPClientFactory.create_stdio_client(
+                    server_command, 
+                    server.get("name", "Unknown"), 
+                    timeout=10.0
+                )
+            
+            # Test connection
+            start_time = datetime.now()
+            async with client:
+                is_connected = await client.health_check()
+                response_time = (datetime.now() - start_time).total_seconds()
+                
+                if is_connected:
+                    logger.info(f"Connection test successful for external MCP server {server_id}")
+                    return {
+                        "status": "success",
+                        "message": "Connection test successful",
+                        "server_id": server_id,
+                        "server_name": server.get("name", "Unknown"),
+                        "connected": True,
+                        "response_time_seconds": response_time,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                else:
+                    logger.warning(f"Connection test failed for external MCP server {server_id}")
+                    return {
+                        "status": "error",
+                        "message": "Connection test failed - health check returned false",
+                        "server_id": server_id,
+                        "server_name": server.get("name", "Unknown"),
+                        "connected": False,
+                        "response_time_seconds": response_time,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Connection test exception for server {server_id}: {e}")
             return {
                 "status": "error",
-                "message": "Connection test failed",
+                "message": f"Connection test failed with exception: {str(e)}",
                 "server_id": server_id,
-                "connected": False
+                "server_name": server.get("name", "Unknown"),
+                "connected": False,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
             }
         
     except HTTPException:
@@ -560,30 +809,49 @@ async def refresh_all_connections():
         
         refresh_results = []
         for server in servers:
+            server_id = server.get("server_id", "")
+            server_name = server.get("name", "Unknown")
+            
             try:
-                # Test connection
-                connection_test = await mcp_orchestrator.test_external_server_connection(server["server_id"])
-                is_connected = connection_test.get("success", False)
-                refresh_results.append({
-                    "server_id": server["server_id"],
-                    "name": server["name"],
-                    "status": "connected" if is_connected else "disconnected",
-                    "success": is_connected
-                })
+                # Test connection for each server
+                connection_result = await test_server_connection(server_id)
+                
+                if isinstance(connection_result, dict):
+                    refresh_results.append({
+                        "server_id": server_id,
+                        "name": server_name,
+                        "status": "connected" if connection_result.get("connected", False) else "disconnected",
+                        "success": connection_result.get("connected", False),
+                        "response_time": connection_result.get("response_time_seconds"),
+                        "error": connection_result.get("error")
+                    })
+                else:
+                    refresh_results.append({
+                        "server_id": server_id,
+                        "name": server_name,
+                        "status": "error",
+                        "success": False,
+                        "error": "Unexpected response format"
+                    })
+                    
             except Exception as e:
-                logger.error(f"Failed to refresh connection for server {server['server_id']}: {str(e)}")
+                logger.error(f"Failed to refresh connection for server {server_id}: {str(e)}")
                 refresh_results.append({
-                    "server_id": server["server_id"],
-                    "name": server["name"],
+                    "server_id": server_id,
+                    "name": server_name,
                     "status": "error",
                     "success": False,
                     "error": str(e)
                 })
         
-        logger.info(f"Refreshed connections for {len(servers)} external MCP servers")
+        successful_connections = sum(1 for result in refresh_results if result.get("success", False))
+        
+        logger.info(f"Refreshed connections for {len(servers)} external MCP servers - {successful_connections} successful")
         return {
             "status": "success",
             "message": f"Refreshed connections for {len(servers)} external MCP servers",
+            "total_servers": len(servers),
+            "successful_connections": successful_connections,
             "results": refresh_results
         }
         
@@ -609,13 +877,43 @@ async def get_all_servers_health():
     try:
         logger.info("Getting health status for all external MCP servers")
         
-        health_status = await mcp_orchestrator.get_external_server_health()
+        # Get all servers
+        servers = await mcp_orchestrator.get_external_servers()
         
-        logger.info(f"Retrieved health status for {len(health_status)} external MCP servers")
+        server_healths = {}
+        for server in servers:
+            server_id = server.get("server_id", "")
+            try:
+                # Get health status for each server
+                health_response = await get_server_health(server_id)
+                server_healths[server_id] = {
+                    "server_id": health_response.server_id,
+                    "name": health_response.name,
+                    "status": health_response.status,
+                    "last_check": health_response.last_check,
+                    "tools_count": health_response.tools_count,
+                    "response_time": health_response.response_time,
+                    "error_message": health_response.error_message
+                }
+            except Exception as e:
+                logger.error(f"Failed to get health for server {server_id}: {e}")
+                server_healths[server_id] = {
+                    "server_id": server_id,
+                    "name": server.get("name", "Unknown"),
+                    "status": "error",
+                    "last_check": datetime.now().isoformat(),
+                    "tools_count": 0,
+                    "error_message": str(e)
+                }
+        
+        healthy_servers = sum(1 for health in server_healths.values() if health.get("status") == "healthy")
+        
+        logger.info(f"Retrieved health status for {len(server_healths)} external MCP servers - {healthy_servers} healthy")
         return {
             "status": "success",
-            "total_servers": len(health_status),
-            "servers": health_status
+            "total_servers": len(server_healths),
+            "healthy_servers": healthy_servers,
+            "servers": server_healths
         }
         
     except Exception as e:
@@ -643,29 +941,76 @@ async def refresh_server_tools(server_id: str):
     try:
         logger.info(f"Manually refreshing tools for external MCP server: {server_id}")
         
-        # Force tool discovery through orchestrator
-        logger.info(f"Starting manual tool discovery for server: {server_id}")
+        # Verify server exists
+        servers = await mcp_orchestrator.get_external_servers()
+        server = next((s for s in servers if s.get("server_id") == server_id), None)
         
-        # Get all tools and filter by server
-        all_tools = await mcp_orchestrator.list_all_tools()
-        server_tools = [tool for tool in all_tools["tools"] if tool.get("server_id") == server_id]
-        
-        if not server_tools:
+        if not server:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"External MCP server with ID '{server_id}' not found or has no tools"
+                detail=f"External MCP server with ID '{server_id}' not found"
             )
         
-        logger.info(f"Manual tool discovery completed: {len(server_tools)} tools found")
-        return {
-            "status": "success",
-            "message": f"Tools refreshed successfully. Found {len(server_tools)} tools.",
-            "server_id": server_id,
-            "server_name": server_tools[0].get("server_name", "Unknown"),
-            "tools_count": len(server_tools),
-            "tools": server_tools
-        }
+        # Force tool discovery using the corrected FastMCP client
+        from ...core.fastmcp_client import FastMCPClientFactory
         
+        try:
+            # Create appropriate client
+            client = None
+            server_url = server.get("server_url", "")
+            
+            if server_url.startswith(('http://', 'https://')):
+                client = FastMCPClientFactory.create_http_client(
+                    server_url, 
+                    server.get("name", "Unknown"), 
+                    timeout=30.0
+                )
+            else:
+                server_command = server_url.split()
+                client = FastMCPClientFactory.create_stdio_client(
+                    server_command, 
+                    server.get("name", "Unknown"), 
+                    timeout=30.0
+                )
+            
+            # Discover tools directly
+            async with client:
+                tools = await client.list_tools()
+                
+                # Also try to list resources
+                resources = []
+                try:
+                    resources = await client.list_resources()
+                except Exception:
+                    # Resources might not be supported
+                    pass
+                
+                logger.info(f"Manual tool discovery completed: {len(tools)} tools, {len(resources)} resources found")
+                return {
+                    "status": "success",
+                    "message": f"Tools refreshed successfully. Found {len(tools)} tools and {len(resources)} resources.",
+                    "server_id": server_id,
+                    "server_name": server.get("name", "Unknown"),
+                    "tools_count": len(tools),
+                    "resources_count": len(resources),
+                    "tools": tools,
+                    "resources": resources,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"Failed to refresh tools for server {server_id}: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to refresh tools: {str(e)}",
+                "server_id": server_id,
+                "server_name": server.get("name", "Unknown"),
+                "error": str(e),
+                "timestamp": datetime.now().isoformat()
+            }
+        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to refresh tools for external MCP server {server_id}: {str(e)}")
         raise HTTPException(
