@@ -1,216 +1,134 @@
 """
-Pytest configuration and fixtures for Word Add-in MCP Project.
+Test configuration and fixtures for Word Add-in MCP System
 """
-
 import pytest
+import pytest_asyncio
 import asyncio
-from typing import Generator, AsyncGenerator
-from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
-
-# Import the FastAPI app
-import sys
+import httpx
+import json
+import time
+from typing import Dict, Any, List
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
+import sys
 
-from app.main import app
-from app.core.config import settings
+# Add the backend directory to the path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
-# Configure pytest-asyncio
-pytest_plugins = ['pytest_asyncio']
+# Test configuration
+BASE_URL = "https://localhost:9000"
+API_BASE = f"{BASE_URL}/api/v1"
+HEALTH_URL = f"{BASE_URL}/health"
+TEST_TIMEOUT = 30
+
+# SSL configuration for localhost testing
+SSL_VERIFY = False  # For localhost with self-signed certs
 
 @pytest.fixture(scope="session")
-def event_loop() -> Generator:
+def event_loop():
     """Create an instance of the default event loop for the test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
+@pytest_asyncio.fixture(scope="function")
+async def http_client():
+    """Create an HTTP client for testing."""
+    async with httpx.AsyncClient(
+        verify=SSL_VERIFY,
+        timeout=TEST_TIMEOUT,
+        follow_redirects=True
+    ) as client:
+        yield client
 
 @pytest.fixture
-def test_client() -> TestClient:
-    """Create a test client for the FastAPI application."""
-    return TestClient(app)
-
-
-@pytest.fixture
-def mock_settings():
-    """Mock settings for testing."""
-    with patch('app.core.config.settings') as mock:
-        mock.APP_NAME = "Word Add-in MCP API Test"
-        mock.APP_VERSION = "1.0.0"
-        mock.ENVIRONMENT = "testing"
-        mock.DEBUG = True
-        mock.FASTAPI_HOST = "127.0.0.1"
-        mock.FASTAPI_PORT = 9000
-        mock.FASTAPI_RELOAD = False
-        mock.FASTAPI_LOG_LEVEL = "DEBUG"
-        mock.ENABLE_SWAGGER = True
-        mock.ENABLE_RELOAD = False
-        mock.SECRET_KEY = "test-secret-key-32-characters-minimum"
-        mock.ALGORITHM = "HS256"
-        mock.ACCESS_TOKEN_EXPIRE_MINUTES = 30
-        mock.REFRESH_TOKEN_EXPIRE_DAYS = 7
-        mock.ALLOWED_ORIGINS = ["http://localhost:3001"]
-        mock.ALLOWED_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-        mock.ALLOWED_HEADERS = ["*"]
-        mock.RATE_LIMIT_PER_MINUTE = 1000
-        mock.RATE_LIMIT_PER_HOUR = 10000
-        mock.DATABASE_URL = "sqlite:///./test.db"
-        mock.REDIS_URL = "redis://localhost:6379"
-        mock.CACHE_TTL = 3600
-        mock.AZURE_OPENAI_API_KEY = "test-api-key"
-        mock.AZURE_OPENAI_ENDPOINT = "https://test.openai.azure.com/"
-        mock.AZURE_OPENAI_API_VERSION = "2024-02-15-preview"
-        mock.AZURE_OPENAI_DEPLOYMENT_NAME = "test-deployment"
-        mock.AZURE_OPENAI_MODEL_NAME = "gpt-4"
-        mock.MCP_SERVER_URL = "http://localhost:9001"
-        mock.MCP_SERVER_TOKEN = "test-token"
-        mock.MCP_SERVER_TIMEOUT = 30
-        mock.MCP_SERVER_MAX_RETRIES = 3
-        mock.MAX_FILE_SIZE = 1048576
-        mock.ALLOWED_FILE_TYPES = ["txt", "json", "csv", "xml", "md"]
-        mock.UPLOAD_DIR = "./test_uploads"
-        mock.LOG_LEVEL = "DEBUG"
-        mock.LOG_FORMAT = "json"
-        mock.LOG_FILE = "./test_logs/app.log"
-        mock.LOG_MAX_SIZE = 1048576
-        mock.LOG_BACKUP_COUNT = 1
-        mock.PROMETHEUS_ENABLED = False
-        mock.HEALTH_CHECK_INTERVAL = 30
-        mock.OFFICE_JS_VERSION = "1.1.0"
-        mock.OFFICE_JS_CDN = "https://appsforoffice.microsoft.com/lib/1.1/hosted/"
-        mock.FRONTEND_URL = "http://localhost:3001"
-        mock.FRONTEND_BUILD_DIR = "./test_dist"
-        mock.FRONTEND_PUBLIC_PATH = "/"
-        mock.TESTING = True
-        mock.TEST_DATABASE_URL = "sqlite:///./test.db"
-        yield mock
-
+def sample_document():
+    """Sample document content for testing."""
+    return """
+    This is a comprehensive business report covering Q3 2025 financial results.
+    
+    Executive Summary:
+    - Revenue increased by 15% compared to the previous quarter
+    - Net profit margin improved to 12.5%
+    - Customer acquisition cost decreased by 8%
+    
+    Key Highlights:
+    1. New product launches in the AI/ML space
+    2. Market expansion into European markets
+    3. Strategic partnerships with major technology companies
+    4. Investment in research and development increased by 25%
+    
+    Financial Performance:
+    - Total Revenue: $2.5M (Q3 2025)
+    - Operating Expenses: $1.8M
+    - Net Income: $312K
+    - Cash Flow: $450K positive
+    
+    Future Outlook:
+    The company is well-positioned for continued growth in Q4 2025 and beyond.
+    Key focus areas include product innovation, market expansion, and operational efficiency.
+    """
 
 @pytest.fixture
-def sample_mcp_tool_request():
-    """Sample MCP tool execution request for testing."""
-    return {
-        "tool_name": "file_reader",
-        "parameters": {
-            "path": "./test_files/sample.txt",
-            "encoding": "utf-8"
-        },
-        "session_id": "test-session-123",
-        "request_id": "test-request-456",
-        "timeout": 30,
-        "priority": "normal"
-    }
-
-
-@pytest.fixture
-def sample_chat_request():
-    """Sample chat request for testing."""
-    return {
-        "message": "Hello, how can you help me with my document?",
-        "session_id": "test-session-123",
-        "user_id": "test-user-456",
-        "context": {
-            "document_title": "Test Document",
-            "current_section": "Introduction"
-        },
-        "options": {
-            "model": "gpt-4",
-            "temperature": 0.7
-        }
-    }
-
-
-@pytest.fixture
-def sample_document_info():
-    """Sample document information for testing."""
-    return {
-        "title": "Test Document.docx",
-        "author": "Test Author",
-        "created_date": 1640995200.0,  # 2022-01-01
-        "modified_date": 1640995200.0,
-        "word_count": 100,
-        "character_count": 500,
-        "page_count": 1,
-        "language": "en-US",
-        "template": "Normal.dotm",
-        "path": "C:\\Test\\Test Document.docx"
-    }
-
-
-@pytest.fixture
-def mock_mcp_server():
-    """Mock MCP server for testing."""
-    mock_server = Mock()
-    mock_server.url = "http://localhost:9001"
-    mock_server.token = "test-token"
-    mock_server.is_connected.return_value = True
-    mock_server.get_tools.return_value = [
+def sample_conversation():
+    """Sample conversation history for testing."""
+    return [
         {
-            "name": "file_reader",
-            "description": "Read file contents",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "encoding": {"type": "string"}
-                },
-                "required": ["path"]
-            }
+            "role": "user",
+            "content": "Hello, I need help analyzing a business report.",
+            "timestamp": time.time() - 300
+        },
+        {
+            "role": "assistant", 
+            "content": "I'd be happy to help you analyze your business report. Please share the document content and let me know what specific analysis you'd like me to perform.",
+            "timestamp": time.time() - 240
+        },
+        {
+            "role": "user",
+            "content": "Can you summarize the key financial metrics?",
+            "timestamp": time.time() - 180
         }
     ]
-    mock_server.execute_tool.return_value = {
-        "success": True,
-        "result": "File content here",
-        "execution_time": 0.1
-    }
-    return mock_server
-
 
 @pytest.fixture
-def mock_azure_openai():
-    """Mock Azure OpenAI client for testing."""
-    mock_client = Mock()
-    mock_client.chat.completions.create.return_value = Mock(
-        choices=[
-            Mock(
-                message=Mock(
-                    content="This is a test response from Azure OpenAI"
-                )
-            )
-        ],
-        usage=Mock(
-            total_tokens=50,
-            prompt_tokens=20,
-            completion_tokens=30
-        )
-    )
-    return mock_client
+def test_tools():
+    """Available tools for testing."""
+    return [
+        "web_search_tool",
+        "text_analysis_tool", 
+        "document_analysis_tool",
+        "file_reader_tool"
+    ]
 
+class TestResult:
+    """Helper class to track test results."""
+    def __init__(self):
+        self.results = []
+        self.start_time = time.time()
+    
+    def add_result(self, test_id: str, status: str, details: Dict[str, Any]):
+        """Add a test result."""
+        self.results.append({
+            "test_id": test_id,
+            "status": status,
+            "details": details,
+            "timestamp": time.time()
+        })
+    
+    def get_summary(self):
+        """Get test summary."""
+        total = len(self.results)
+        passed = len([r for r in self.results if r["status"] == "PASS"])
+        failed = len([r for r in self.results if r["status"] == "FAIL"])
+        
+        return {
+            "total": total,
+            "passed": passed,
+            "failed": failed,
+            "pass_rate": (passed / total * 100) if total > 0 else 0,
+            "execution_time": time.time() - self.start_time
+        }
 
-@pytest.fixture(autouse=True)
-def setup_test_environment():
-    """Set up test environment before each test."""
-    # Create test directories
-    os.makedirs("./test_logs", exist_ok=True)
-    os.makedirs("./test_uploads", exist_ok=True)
-    os.makedirs("./test_dist", exist_ok=True)
-    os.makedirs("./test_files", exist_ok=True)
-    
-    # Create test files
-    with open("./test_files/sample.txt", "w") as f:
-        f.write("This is a test file for unit testing.")
-    
-    yield
-    
-    # Cleanup test files
-    import shutil
-    if os.path.exists("./test_logs"):
-        shutil.rmtree("./test_logs")
-    if os.path.exists("./test_uploads"):
-        shutil.rmtree("./test_uploads")
-    if os.path.exists("./test_dist"):
-        shutil.rmtree("./test_dist")
-    if os.path.exists("./test_files"):
-        shutil.rmtree("./test_files")
+@pytest.fixture
+def test_result():
+    """Test result tracker."""
+    return TestResult()
