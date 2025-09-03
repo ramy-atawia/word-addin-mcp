@@ -187,14 +187,23 @@ class FastMCPClient:
             # Use FastMCP's list_tools method
             tools_response = await self.client.list_tools()
             
-            # Convert to standard format
+            # Convert to standard format - handle both dict and object formats
             tool_list = []
             for tool in tools_response:
-                tool_dict = {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "inputSchema": tool.inputSchema
-                }
+                # Handle both dictionary and object formats
+                if isinstance(tool, dict):
+                    tool_dict = {
+                        "name": tool.get("name", ""),
+                        "description": tool.get("description", ""),
+                        "inputSchema": tool.get("inputSchema", {})
+                    }
+                else:
+                    # Handle object format (with attributes)
+                    tool_dict = {
+                        "name": getattr(tool, "name", ""),
+                        "description": getattr(tool, "description", ""),
+                        "inputSchema": getattr(tool, "inputSchema", {})
+                    }
                 tool_list.append(tool_dict)
             
             logger.info(f"Retrieved {len(tool_list)} tools from {self.config.server_url}")

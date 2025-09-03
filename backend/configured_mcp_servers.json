@@ -75,28 +75,7 @@
         }
       ]
     },
-    "poogle": {
-      "name": "McPoogle Search Server",
-      "server_id": "3bdfe9b9-e416-4cc5-8b68-1745cef70d16",
-      "type": "external",
-      "url": "https://mcp.mcpoogle.com/sse",
-      "status": "healthy",
-      "connected": true,
-      "last_health_check": 1756777219.0489118,
-      "authentication": {
-        "type": "none",
-        "required": false
-      },
-      "tools": [
-        {
-          "name": "searchMcpServers",
-          "description": "Retrieve relevant MCP Servers and Tools from McPoogle search engine. Use this tool to find MCP Servers and Tools that match a given user prompt. The search results will include the name, description, and GitHub URL of each MCP Server.",
-          "category": "general",
-          "requires_auth": false,
-          "usage_count": 0
-        }
-      ]
-    },
+
     "cloudflare": {
       "name": "Cloudflare MCP Demo Server",
       "server_id": "c0b14e96-f898-4fd0-87b7-af6b0c2c01d5",
@@ -147,6 +126,28 @@
           "usage_count": 0
         }
       ]
+    },
+    "fetch": {
+      "name": "Fetch MCP Server",
+      "server_id": "d86687ad-42ff-4086-8bf9-0f196c005d69",
+      "type": "external",
+      "url": "https://remote.mcpservers.org/fetch/mcp",
+      "status": "healthy",
+      "connected": true,
+      "last_health_check": 1756829321.549504,
+      "authentication": {
+        "type": "none",
+        "required": false
+      },
+      "tools": [
+        {
+          "name": "fetch",
+          "description": null,
+          "category": "utility",
+          "requires_auth": false,
+          "usage_count": 0
+        }
+      ]
     }
   },
   "summary": {
@@ -168,13 +169,7 @@
           "Content-Type": "application/json"
         }
       },
-      "poogle": {
-        "transport": "http",
-        "url": "https://mcp.mcpoogle.com/sse",
-        "headers": {
-          "Content-Type": "application/json"
-        }
-      },
+
       "cloudflare": {
         "transport": "http",
         "url": "https://demo-day.mcp.cloudflare.com/sse",
@@ -185,6 +180,13 @@
       "ms_learn": {
         "transport": "http",
         "url": "https://learn.microsoft.com/api/mcp",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "fetch": {
+        "transport": "http",
+        "url": "https://remote.mcpservers.org/fetch/mcp",
         "headers": {
           "Content-Type": "application/json"
         }

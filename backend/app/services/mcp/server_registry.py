@@ -6,6 +6,8 @@ through a unified interface using the corrected FastMCP client.
 """
 
 import asyncio
+import json
+import os
 import time
 import uuid
 from typing import Dict, List, Any, Optional
@@ -68,9 +70,28 @@ class MCPServerRegistry:
         
         logger.info("MCP Server Registry initialized")
     
+    async def _load_servers_from_config(self) -> None:
+        """Load external servers from configuration file."""
+        try:
+            config_file = os.path.join(os.path.dirname(__file__), "..", "..", "..", "configured_mcp_servers.json")
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    config_data = json.load(f)
+                
+                servers_config = config_data.get("servers", {})
+                for server_id, server_config in servers_config.items():
+                    if server_config.get("type") == "external":
+                        await self.add_server(server_config)
+                        logger.info(f"Loaded external server from config: {server_config.get('name', server_id)}")
+            else:
+                logger.warning(f"Configuration file not found: {config_file}")
+        except Exception as e:
+            logger.error(f"Failed to load servers from config: {e}")
+    
     async def initialize(self) -> None:
         """Initialize the MCP server registry."""
         try:
+            await self._load_servers_from_config()
             await self._start_health_monitor()
             logger.info("MCP Server Registry initialized successfully")
         except Exception as e:
@@ -294,12 +315,16 @@ class MCPServerRegistry:
                 tools_data = await client.list_tools()
                 
                 unified_tools = []
+                logger.debug(f"Processing {len(tools_data)} tools from {server.name}")
                 for tool_data in tools_data:
-                    # tool_data should already be a dict from the corrected implementation
                     if self._validate_tool_schema(tool_data):
                         unified_tool = self._create_unified_tool_from_mcp(tool_data, server)
                         unified_tools.append(unified_tool)
+                        logger.debug(f"Created tool: {unified_tool.name}")
+                    else:
+                        logger.warning(f"Tool validation failed: {tool_data.get('name', 'unknown')}")
                 
+                logger.debug(f"Returned {len(unified_tools)} tools from {server.name}")
                 return unified_tools
             
         except Exception as e:
@@ -308,10 +333,13 @@ class MCPServerRegistry:
     
     def _validate_tool_schema(self, tool_data: Dict[str, Any]) -> bool:
         """Validate basic tool schema."""
-        required_fields = ["name", "description"]
+        # Only name is required, description can be None
+        if "name" not in tool_data or not isinstance(tool_data["name"], str):
+            return False
         
-        for field in required_fields:
-            if field not in tool_data or not isinstance(tool_data[field], str):
+        # Description is optional, but if present should be a string
+        if "description" in tool_data and tool_data["description"] is not None:
+            if not isinstance(tool_data["description"], str):
                 return False
         
         return bool(tool_data["name"].strip())

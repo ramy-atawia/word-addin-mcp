@@ -186,8 +186,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // Step 2: Send to backend agent for intent detection
       console.log('🚀 Calling intent detection API...');
       
-      // Get conversation history from current messages
-      const conversationHistory = messages.slice(-5).map(msg => ({
+      // Get conversation history from current messages (up to 50 messages to match backend limit)
+      const conversationHistory = messages.slice(-50).map(msg => ({
         role: msg.type === 'user' ? 'user' : 'assistant',
         content: msg.content,
         timestamp: msg.timestamp
@@ -199,10 +199,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         documentContent = await officeIntegrationService.getDocumentContent();
         console.log('Document content length:', documentContent.length);
         
-        // Truncate if too long (backend has limits)
-        if (documentContent.length > 5000) {
-          documentContent = documentContent.substring(0, 5000) + '... [truncated]';
-          console.log('Document content truncated to 5000 chars');
+        // Truncate if too long (backend can handle up to 10000 chars)
+        if (documentContent.length > 10000) {
+          documentContent = documentContent.substring(0, 10000) + '... [truncated]';
+          console.log('Document content truncated to 10000 chars');
         }
       } catch (error) {
         console.warn('Failed to get document content:', error);
@@ -462,8 +462,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }
 
       // Truncate document content if too long
-      if (documentContent.length > 5000) {
-        documentContent = documentContent.substring(0, 5000) + '...';
+      if (documentContent.length > 10000) {
+        documentContent = documentContent.substring(0, 10000) + '...';
       }
 
       // Format chat history as string

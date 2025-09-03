@@ -5,6 +5,7 @@ This module provides REST API endpoints for MCP tools using the compliant
 MCP hub implementation.
 """
 
+import json
 import logging
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, status
@@ -47,12 +48,22 @@ async def agent_chat(request: AgentChatRequest):
         Complete response with intent, routing, execution result, and metrics
     """
     try:
-        logger.info(f"Processing agent chat request - Message length: {len(request.message)}")
-        
+        logger.info(f"Processing chat request: '{request.message[:50]}...' ({len(request.message)} chars)")
+
         # Extract context information (all as strings)
         document_content = request.context.get("document_content", "")
         chat_history = request.context.get("chat_history", "")
         available_tools_string = request.context.get("available_tools", "")
+        
+        # Parse chat history from frontend
+        parsed_chat_history = []
+        if chat_history:
+            try:
+                parsed_chat_history = json.loads(chat_history)
+                logger.debug(f"Parsed {len(parsed_chat_history)} messages from frontend chat history")
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse chat history: {str(e)}")
+                parsed_chat_history = []
         
         # Get available tools from MCP orchestrator (backend handles this dynamically)
         available_tools = []
@@ -60,17 +71,19 @@ async def agent_chat(request: AgentChatRequest):
             mcp_orchestrator = get_initialized_mcp_orchestrator()
             tools_data = await mcp_orchestrator.list_all_tools()
             available_tools = tools_data.get("tools", [])
+            logger.debug(f"Retrieved {len(available_tools)} available tools")
         except Exception as e:
             logger.warning(f"Failed to get available tools: {str(e)}")
         
-        # Process message through agent service
+        # Process message through agent service with frontend chat history
         response = await agent_service.process_user_message(
             user_message=request.message,
             document_content=document_content,
-            available_tools=available_tools
+            available_tools=available_tools,
+            frontend_chat_history=parsed_chat_history
         )
-        
-        logger.info(f"Agent chat request processed successfully - intent: {response.get('intent_type')}, tool_name: {response.get('tool_name')}, execution_time: {response.get('execution_time')}")
+
+        logger.info(f"Chat processed - intent: {response.get('intent_type')}, tool: {response.get('tool_name')}, time: {response.get('execution_time', 0):.2f}s")
         
         return AgentChatResponse(**response)
         

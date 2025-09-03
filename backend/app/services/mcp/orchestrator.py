@@ -8,13 +8,11 @@ This module provides a single, unified interface for all MCP operations includin
 - Health monitoring
 """
 
-import asyncio
 import time
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
 import structlog
-from fastapi import HTTPException, status
 
 from app.core.exceptions import (
     ToolNotFoundError, 
@@ -36,21 +34,9 @@ class UnifiedTool:
     description: str
     source: str  # 'internal' or 'external'
     server_id: Optional[str] = None
-    capabilities: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    version: str = "1.0.0"
-    author: str = "Word Add-in MCP Project"
-    tags: List[str] = field(default_factory=list)
-    category: str = "general"
+    # Removed unused fields: capabilities, metadata, version, author, tags, category
     input_schema: Dict[str, Any] = field(default_factory=dict)
-    output_schema: Dict[str, Any] = field(default_factory=dict)
-    examples: List[Dict[str, Any]] = field(default_factory=list)
-    rate_limit: Optional[Dict[str, Any]] = None
-    timeout: Optional[int] = None
-    requires_auth: bool = False
-    deprecated: bool = False
-    status: str = "available"
-    usage_count: int = 0
+    # Removed unused fields: output_schema, examples, rate_limit, timeout, requires_auth, deprecated, status, usage_count
 
 
 class MCPOrchestrator:
@@ -78,7 +64,7 @@ class MCPOrchestrator:
         # Tool discovery caching
         self._tool_cache = {}
         self._cache_timestamp = 0
-        self._cache_ttl = 300  # 5 minutes cache TTL
+        self._cache_ttl = 60  # 5 seconds cache TTL for testing
         
         logger.info("MCP Orchestrator initialized successfully")
     
@@ -139,10 +125,12 @@ class MCPOrchestrator:
             
             # Get tools from all servers (unified)
             all_tools = await self.server_registry.list_all_tools()
+            logger.info(f"Orchestrator received {len(all_tools)} tools from server registry")
             
             # Count tools by source
             internal_count = sum(1 for tool in all_tools if tool.source == "internal")
             external_count = sum(1 for tool in all_tools if tool.source == "external")
+            logger.info(f"Tool counts - Internal: {internal_count}, External: {external_count}")
             
             execution_time = time.time() - start_time
             self.total_execution_time += execution_time
@@ -459,14 +447,7 @@ class MCPOrchestrator:
                 "timestamp": time.time()
             }
     
-    async def get_hub_status(self) -> Dict[str, Any]:
-        """
-        Get hub status information (compatibility method).
-        
-        Returns:
-            Hub status dictionary
-        """
-        return await self.get_server_health()
+    # Removed get_hub_status - redundant wrapper around get_server_health
     
     async def get_external_servers(self) -> List[Dict[str, Any]]:
         """
@@ -615,27 +596,9 @@ class MCPOrchestrator:
             logger.error(f"Error during MCP Orchestrator shutdown: {str(e)}")
             # Don't re-raise - shutdown should be best-effort
     
-    async def get_internal_tools(self) -> List[Dict[str, Any]]:
-        """Get tools from internal server only."""
-        try:
-            if self.internal_server:
-                return await self.internal_server.list_available_tools()
-            return []
-        except Exception as e:
-            logger.error(f"Failed to get internal tools: {str(e)}")
-            return []
+    # Removed get_internal_tools - functionality available through list_all_tools
     
-    async def execute_internal_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """Execute a tool directly on the internal server."""
-        try:
-            if not self.internal_server:
-                raise ToolNotFoundError("Internal server not available")
-            
-            return await self.internal_server.execute_tool_direct(tool_name, arguments)
-            
-        except Exception as e:
-            logger.error(f"Failed to execute internal tool {tool_name}: {str(e)}")
-            raise ToolExecutionError(f"Internal tool execution failed: {str(e)}")
+    # Removed execute_internal_tool - functionality available through execute_tool
 
 
 # Global instance with proper singleton pattern
