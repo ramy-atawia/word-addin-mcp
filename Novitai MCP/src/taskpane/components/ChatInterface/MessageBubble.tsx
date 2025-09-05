@@ -398,7 +398,12 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     }
     
     // Check if content looks like markdown (has markdown syntax)
-    const isMarkdown = /^#\s|^\*\*|^\* |^\- |^\d+\. |\[.*\]\(.*\)|`.*`/.test(content.trim());
+    // For assistant messages, always treat as markdown if it has structured content
+    const hasMarkdownSyntax = /#\s|\*\*.*\*\*|\*.*\*|^\- |^\d+\. |\[.*\]\(.*\)|`.*`|^##|^###|^####|^#####|^######/.test(content);
+    const hasStructuredContent = /^Query:|^Results Found:|^Summary|^Notable|^Additional|^Error:|^Search|^Patent|^Inventors?:|^Abstract:|^Patent ID:|^Patent Date:|Prior Art Search Report|Claim Drafting Report|Claim Analysis Report/m.test(content);
+    
+    // For assistant messages, always render as markdown if it has structure or markdown syntax
+    const isMarkdown = hasMarkdownSyntax || (message.type === 'assistant' && hasStructuredContent);
     
     if (isMarkdown) {
       return (
