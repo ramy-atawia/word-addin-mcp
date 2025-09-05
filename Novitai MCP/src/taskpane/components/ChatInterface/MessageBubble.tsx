@@ -321,8 +321,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         return;
       }
 
-      // Insert the formatted markdown content at the cursor position
-      await officeIntegrationService.insertFormattedMarkdown(message.content, {
+      // Convert markdown to HTML first (same as bubble chat)
+      const htmlContent = convertMarkdownToHTML(message.content);
+      
+      // Insert the HTML content at the cursor position
+      await officeIntegrationService.insertHTML(htmlContent, {
         location: 'cursor'
       });
       
@@ -335,6 +338,37 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     } finally {
       setIsInserting(false);
     }
+  };
+
+  const convertMarkdownToHTML = (markdown: string): string => {
+    // Simple markdown to HTML conversion (same logic as ReactMarkdown)
+    return markdown
+      // Headers
+      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+      .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
+      .replace(/^##### (.*$)/gm, '<h5>$1</h5>')
+      .replace(/^###### (.*$)/gm, '<h6>$1</h6>')
+      // Bold text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Italic text
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      // Inline code
+      .replace(/`(.*?)`/g, '<code>$1</code>')
+      // Links
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+      // Lists
+      .replace(/^\s*[-*+]\s/gm, '• ')
+      .replace(/^\s*\d+\.\s/gm, '')
+      // Line breaks
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      // Wrap in paragraphs
+      .replace(/^(.*)$/gm, '<p>$1</p>')
+      // Clean up empty paragraphs
+      .replace(/<p><\/p>/g, '')
+      .replace(/<p>(<h[1-6]>.*<\/h[1-6]>)<\/p>/g, '$1');
   };
 
 
@@ -397,13 +431,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       content = String(content || '');
     }
     
-    // Check if content looks like markdown (has markdown syntax)
-    // For assistant messages, always treat as markdown if it has structured content
+    // For assistant messages, always treat as markdown since they come from our tools
+    // For other message types, check for markdown syntax
     const hasMarkdownSyntax = /#\s|\*\*.*\*\*|\*.*\*|^\- |^\d+\. |\[.*\]\(.*\)|`.*`|^##|^###|^####|^#####|^######/.test(content);
-    const hasStructuredContent = /^Query:|^Results Found:|^Summary|^Notable|^Additional|^Error:|^Search|^Patent|^Inventors?:|^Abstract:|^Patent ID:|^Patent Date:|Prior Art Search Report|Claim Drafting Report|Claim Analysis Report/m.test(content);
     
-    // For assistant messages, always render as markdown if it has structure or markdown syntax
-    const isMarkdown = hasMarkdownSyntax || (message.type === 'assistant' && hasStructuredContent);
+    // Assistant messages are always markdown (they come from our tools)
+    // Other messages only if they have markdown syntax
+    const isMarkdown = message.type === 'assistant' || hasMarkdownSyntax;
     
     if (isMarkdown) {
       return (

@@ -255,6 +255,46 @@ export class OfficeIntegrationService {
   }
 
   /**
+   * Insert HTML content at specified location
+   */
+  async insertHTML(htmlContent: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+    if (!this.isOfficeReady) {
+      console.warn('Office.js not available, cannot insert HTML content');
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      Word.run(async (context) => {
+        try {
+          const { location } = options;
+          
+          // Get the insertion point and insert HTML content
+          switch (location) {
+            case 'cursor':
+            case 'selection':
+              const selectionRange = context.document.getSelection();
+              selectionRange.insertHtml(htmlContent, 'After');
+              break;
+            case 'end':
+            case 'newParagraph':
+              const body = context.document.body;
+              body.insertHtml(htmlContent, 'End');
+              break;
+            default:
+              const defaultRange = context.document.getSelection();
+              defaultRange.insertHtml(htmlContent, 'After');
+          }
+          
+          await context.sync();
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      }).catch(reject);
+    });
+  }
+
+  /**
    * Replace selected text with new content
    */
   async replaceSelectedText(text: string, options: Partial<InsertionOptions> = {}): Promise<void> {
