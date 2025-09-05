@@ -83,11 +83,11 @@ class PriorArtSearchTool(BaseInternalTool):
         
         self.examples = [
             {
-                "name": "5G Technology Search",
-                "description": "Search for 5G wireless communication patents",
+                "name": "Machine Learning Search",
+                "description": "Search for machine learning patents",
                 "input": {
-                    "query": "5G wireless communication technology",
-                    "context": "Document discusses 5G network implementation",
+                    "query": "machine learning optimization",
+                    "context": "Document discusses ML optimization techniques",
                     "max_results": 10
                 }
             },

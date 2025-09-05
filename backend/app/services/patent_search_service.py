@@ -10,7 +10,7 @@ Flow:
 
 import json
 import asyncio
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 import httpx
 import structlog
 from app.core.config import settings
@@ -35,8 +35,8 @@ class PatentSearchService:
     async def search_patents(
         self, 
         query: str, 
-        context: str = None, 
-        conversation_history: str = None,
+        context: Optional[str] = None, 
+        conversation_history: Optional[str] = None,
         max_results: int = 20
     ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         """
@@ -67,12 +67,16 @@ class PatentSearchService:
             all_patents = []
             query_results = []  # Track results per query
             for i, search_query in enumerate(search_queries):
-                patents = await self._search_patents_api(search_query["search_query"])
+                # Handle both 'query' and 'search_query' fields
+                query_field = "query" if "query" in search_query else "search_query"
+                query_data = search_query[query_field]
+                
+                patents = await self._search_patents_api(query_data)
                 all_patents.extend(patents)
                 query_results.append({
                     "query_index": i + 1,
-                    "query": search_query["search_query"],
-                    "reasoning": search_query["reasoning"],
+                    "query": query_data,
+                    "reasoning": search_query.get("reasoning", "No reasoning provided"),
                     "results_count": len(patents)
                 })
                 logger.info(f"Query {i+1} returned {len(patents)} patents")
@@ -125,8 +129,8 @@ class PatentSearchService:
     async def _generate_search_queries(
         self, 
         query: str, 
-        context: str = None, 
-        conversation_history: str = None
+        context: Optional[str] = None, 
+        conversation_history: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Generate 5 PatentsView API queries using LLM with chain-of-thought reasoning."""
         
@@ -147,13 +151,14 @@ class PatentSearchService:
             response = self.llm_client.generate_text(
                 prompt=prompt,
                 system_message="You are a senior patent search expert with deep knowledge of PatentsView API. Use chain-of-thought reasoning to generate sophisticated search queries that balance exploration and exploitation.",
-                max_tokens=4000
+                max_tokens=6000
             )
             
             # Extract text from response
             if response.get("success"):
                 response_text = response["text"]
             else:
+                logger.error(f"LLM generation failed: {response.get('error', 'Unknown error')}")
                 raise Exception(f"LLM generation failed: {response.get('error', 'Unknown error')}")
             
             # Clean response
@@ -163,11 +168,49 @@ class PatentSearchService:
             if response_text.endswith("```"):
                 response_text = response_text[:-3]
             
-            # Debug: Log the raw LLM response
-            logger.info(f"Raw LLM response for search queries: {response_text[:500]}...")
+            # Try to fix common JSON issues
+            if response_text.startswith('"') and response_text.endswith('"'):
+                response_text = response_text[1:-1]  # Remove outer quotes
+            if response_text.startswith("'") and response_text.endswith("'"):
+                response_text = response_text[1:-1]  # Remove outer single quotes
             
-            criteria = json.loads(response_text)
+            # Ensure response starts with { for JSON object
+            if not response_text.strip().startswith('{'):
+                logger.warning(f"LLM response doesn't start with {{: {response_text[:100]}")
+                raise Exception("LLM response is not a JSON object")
+            
+            try:
+                criteria = json.loads(response_text)
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing failed: {e}")
+                logger.error(f"Raw response: {response_text}")
+                logger.error(f"Response length: {len(response_text)}")
+                raise Exception(f"Failed to parse LLM response as JSON: {e}. Response: {response_text[:200]}...")
+            except Exception as e:
+                logger.error(f"Unexpected error during JSON parsing: {e}")
+                logger.error(f"Raw response: {response_text}")
+                raise Exception(f"Unexpected error during JSON parsing: {e}. Response: {response_text[:200]}...")
+            
+            # Extract and validate search queries
             search_queries = criteria.get("search_queries", [])
+            logger.info(f"Generated {len(search_queries)} search queries")
+            
+            # Validate search queries structure
+            for i, q in enumerate(search_queries):
+                if not isinstance(q, dict):
+                    raise Exception(f"Search query {i+1} is not a dictionary: {q}")
+                
+                # Check for either 'query' or 'search_query' field
+                query_field = None
+                if "query" in q:
+                    query_field = "query"
+                elif "search_query" in q:
+                    query_field = "search_query"
+                else:
+                    raise Exception(f"Search query {i+1} missing 'query' or 'search_query' field: {q}")
+                
+                if not isinstance(q[query_field], dict):
+                    raise Exception(f"Search query {i+1} '{query_field}' field is not a dictionary: {q[query_field]}")
             
             # Validate we have 3-5 queries (flexible range)
             if len(search_queries) < 3 or len(search_queries) > 5:
@@ -177,7 +220,62 @@ class PatentSearchService:
             
         except Exception as e:
             logger.error(f"LLM query generation failed: {e}")
-            raise Exception(f"Failed to generate search queries: {e}")
+            
+            # Fallback: Generate simple queries if LLM fails
+            logger.warning("Falling back to simple query generation")
+            
+            # Split query into words for broader search
+            query_words = query.split()
+            if len(query_words) > 1:
+                # Multi-word query - create broader searches
+                fallback_queries = [
+                    {
+                        "query": {"patent_abstract": query},
+                        "reasoning": f"Simple abstract search for: {query}",
+                        "strategy": "fallback"
+                    },
+                    {
+                        "query": {"patent_title": query},
+                        "reasoning": f"Simple title search for: {query}",
+                        "strategy": "fallback"
+                    },
+                    {
+                        "query": {"_or": [{"patent_abstract": query}, {"patent_title": query}]},
+                        "reasoning": f"Combined abstract and title search for: {query}",
+                        "strategy": "fallback"
+                    },
+                    {
+                        "query": {"patent_abstract": query_words[0]},
+                        "reasoning": f"First word search: {query_words[0]}",
+                        "strategy": "fallback"
+                    },
+                    {
+                        "query": {"patent_abstract": query_words[-1]},
+                        "reasoning": f"Last word search: {query_words[-1]}",
+                        "strategy": "fallback"
+                    }
+                ]
+            else:
+                # Single word query
+                fallback_queries = [
+                    {
+                        "query": {"patent_abstract": query},
+                        "reasoning": f"Abstract search for: {query}",
+                        "strategy": "fallback"
+                    },
+                    {
+                        "query": {"patent_title": query},
+                        "reasoning": f"Title search for: {query}",
+                        "strategy": "fallback"
+                    },
+                    {
+                        "query": {"_or": [{"patent_abstract": query}, {"patent_title": query}]},
+                        "reasoning": f"Combined search for: {query}",
+                        "strategy": "fallback"
+                    }
+                ]
+            
+            return fallback_queries
     
     async def _search_patents_api(self, search_query: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Execute PatentsView API call for patent titles/numbers."""
@@ -199,6 +297,9 @@ class PatentSearchService:
             headers["X-Api-Key"] = self.api_key
         
         try:
+            # Debug: Log the API request
+            logger.info(f"PatentsView API request: {json.dumps(payload, indent=2)}")
+            
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(url, json=payload, headers=headers)
                 response.raise_for_status()
@@ -211,6 +312,13 @@ class PatentSearchService:
                 
                 patents = data.get("patents", [])
                 logger.info(f"PatentsView API returned {len(patents)} patents")
+                
+                # Debug: Log sample patents if any found
+                if patents:
+                    logger.info(f"Sample patent: {json.dumps(patents[0], indent=2)[:500]}...")
+                else:
+                    logger.warning(f"No patents found for query: {json.dumps(payload, indent=2)}")
+                
                 return patents
                 
         except Exception as e:
@@ -337,136 +445,53 @@ class PatentSearchService:
             patent_summaries.append(summary)
         
         prompt = f"""
-You are a senior patent attorney generating a comprehensive prior art search report. You MUST follow this exact structure and include ALL specified elements.
+Generate a prior art search report for: {query}
 
-## INPUT DATA:
-
-**Original Query**: {query}
-
-**Context from Word Document**: {context or ""}
-
-**Conversation History**: {conversation_history or ""}
-
-**Search Queries Used** (EXACTLY {len(search_queries)} queries generated by LLM):
+**Search Queries** ({len(search_queries)}):
 {json.dumps(search_queries, indent=2)}
 
-**Patents Found** ({len(patent_summaries)} patents):
+**Patents Found** ({len(patent_summaries)}):
 {json.dumps(patent_summaries, indent=2)}
 
-**CRITICAL INSTRUCTION**: You MUST use the actual patent data provided above. Do NOT generate a generic "no patents found" report. The patents listed above are the REAL results from the search. Use this data to create an accurate report.
+**CRITICAL**: Use the actual patent data provided. Do NOT generate generic reports.
 
-## MANDATORY REPORT STRUCTURE - FOLLOW EXACTLY:
+## REPORT STRUCTURE:
 
 # Prior Art Search Report: {query}
 
 ## 1. Executive Summary
-- **Original Query**: {query}
-- **Context**: {context or "Not provided"}
-- **Conversation History**: {conversation_history or "Not provided"}
-- **Search Strategy**: Used {len(search_queries)} different PatentsView API queries
-- **Key Findings**: Found {len(patent_summaries)} relevant patents
+- **Query**: {query}
+- **Results**: Found {len(patent_summaries)} relevant patents
+- **Search Strategy**: {len(search_queries)} PatentsView API queries
 
 ## 2. Search Strategy Analysis
-**CRITICAL: You MUST include ALL {len(search_queries)} search queries with their reasoning and results**
-
-For each of the {len(search_queries)} search queries, show:
-- The exact PatentsView API query object
-- The reasoning provided by the LLM
-- Number of results returned from this query
-- Why this query strategy was chosen
-
-### Search Query 1:
-**Query**: {json.dumps(query_results[0]["query"]) if query_results else "N/A"}
-**Reasoning**: {query_results[0]["reasoning"] if query_results else "N/A"}
-**Results Returned**: {query_results[0]["results_count"] if query_results else 0}
-**Strategy**: [Your analysis of why this approach was used]
-
-### Search Query 2:
-**Query**: {json.dumps(query_results[1]["query"]) if len(query_results) > 1 else "N/A"}
-**Reasoning**: {query_results[1]["reasoning"] if len(query_results) > 1 else "N/A"}
-**Results Returned**: {query_results[1]["results_count"] if len(query_results) > 1 else 0}
-**Strategy**: [Your analysis of why this approach was used]
-
-### Search Query 3:
-**Query**: {json.dumps(query_results[2]["query"]) if len(query_results) > 2 else "N/A"}
-**Reasoning**: {query_results[2]["reasoning"] if len(query_results) > 2 else "N/A"}
-**Results Returned**: {query_results[2]["results_count"] if len(query_results) > 2 else 0}
-**Strategy**: [Your analysis of why this approach was used]
-
-### Search Query 4:
-**Query**: {json.dumps(query_results[3]["query"]) if len(query_results) > 3 else "N/A"}
-**Reasoning**: {query_results[3]["reasoning"] if len(query_results) > 3 else "N/A"}
-**Results Returned**: {query_results[3]["results_count"] if len(query_results) > 3 else 0}
-**Strategy**: [Your analysis of why this approach was used]
-
-### Search Query 5:
-**Query**: {json.dumps(query_results[4]["query"]) if len(query_results) > 4 else "N/A"}
-**Reasoning**: {query_results[4]["reasoning"] if len(query_results) > 4 else "N/A"}
-**Results Returned**: {query_results[4]["results_count"] if len(query_results) > 4 else 0}
-**Strategy**: [Your analysis of why this approach was used]
-
-### Search Results Summary:
-- **Total Queries Executed**: {len(query_results)}
-- **Total Patents Found**: {sum(q["results_count"] for q in query_results)}
-- **Unique Patents After Deduplication**: {len(patent_summaries)}
-- **Patents Filtered Out**: {sum(q["results_count"] for q in query_results) - len(patent_summaries)}
-- **Deduplication Rate**: {((sum(q["results_count"] for q in query_results) - len(patent_summaries)) / sum(q["results_count"] for q in query_results) * 100) if sum(q["results_count"] for q in query_results) > 0 else 0:.1f}%
+{chr(10).join([f"""
+### Query {i+1}:
+**Query**: {json.dumps(qr["query"]) if i < len(query_results) else "N/A"}
+**Reasoning**: {qr["reasoning"] if i < len(query_results) else "N/A"}
+**Results**: {qr["results_count"] if i < len(query_results) else 0}
+""" for i, qr in enumerate(query_results)])}
 
 ## 3. Key Findings
-- **Total Patents Found**: {len(patent_summaries)}
-- **Patent List**: [List all patents with brief descriptions]
+- **Total Patents**: {len(patent_summaries)}
+- **Top Patents**: {chr(10).join([f"• {p['patent_number']}: {p['title'][:60]}..." for p in patent_summaries[:5]])}
 
-## 4. Patent Landscape Overview
-- **Technology Focus**: [Analyze the current state of the technology]
-- **Context Integration**: [Reference the Word document context: {context or "Not provided"}]
-- **Conversation Context**: [Reference conversation history: {conversation_history or "Not provided"}]
+## 4. Detailed Patent Analysis
+{chr(10).join([f"""
+### Patent {i+1}: {p['patent_number']}
+**Title**: {p['title']}
+**Date**: {p['date']}
+**Abstract**: {p['abstract'][:100]}...
+**Inventors**: {p['inventor']}
+**Assignee**: {p['assignee']}
+**Relevance**: [Brief analysis]
+""" for i, p in enumerate(patent_summaries)])}
 
-## 5. Risk Assessment
-- **Patent Conflicts**: [Evaluate potential conflicts]
-- **Context Requirements**: [Consider the input context and requirements]
+## 5. Risk Assessment & Recommendations
+- **Patent Conflicts**: [Identify potential conflicts]
+- **Recommendations**: [Based on findings]
 
-## 6. Recommendations
-- **Based on Findings**: [Recommendations based on findings and input context]
-- **Conversation History**: [Reference conversation history if relevant: {conversation_history or "Not provided"}]
-
-## 7. Detailed Patent Analysis
-**CRITICAL: You MUST include claims analysis for each patent**
-
-For each patent, provide:
-- **Patent Number**: [Patent ID]
-- **Title**: [Patent title]
-- **Date**: [Patent date]
-- **Abstract**: [Patent abstract]
-- **Inventors**: [List of inventors]
-- **Claims Summary**: [Summary of all claims for this patent]
-- **Key Claims**: [Most important claims and their scope]
-- **Patent Link**: [Link to patent details]
-
-### Patent 1: [Patent ID]
-**Title**: [Title]
-**Date**: [Date]
-**Abstract**: [Abstract]
-**Inventors**: [Inventors]
-**Claims Summary**: [Detailed analysis of all claims]
-**Key Claims**: [Most important claims]
-**Patent Link**: [Link]
-
-### Patent 2: [Patent ID]
-[Continue for all patents...]
-
-## CRITICAL REQUIREMENTS:
-1. You MUST show all {len(search_queries)} search queries in section 2 with results counts
-2. You MUST include the Word document context in your analysis
-3. You MUST reference the conversation history where relevant
-4. You MUST show the actual PatentsView API query format
-5. You MUST include claims analysis for each patent in section 7
-6. You MUST show deduplication statistics
-7. You MUST follow this exact structure
-8. **MOST IMPORTANT**: You MUST use the actual patent data provided above. There are {len(patent_summaries)} patents found - analyze them, don't say "no patents found"
-
-**FINAL WARNING**: The patents listed in the input data are REAL search results. Use this data to create an accurate report. Do NOT generate a generic "no patents found" report.
-
-Generate the report now following this EXACT structure:
+Generate the complete report using the provided patent data.
 """
         
         try:

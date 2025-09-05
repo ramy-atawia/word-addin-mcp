@@ -154,39 +154,6 @@ class MCPToolService {
     }
   }
 
-  async sendAgentMessage(params: {
-    message: any;
-    context: {
-      document_content: string;
-      chat_history: string;
-    };
-  }): Promise<{
-    response: string;
-    intent_type?: string;
-    tools_used?: string[];
-    execution_time?: number;
-    reasoning?: string;
-  }> {
-    try {
-      const response = await fetch(`${this.baseUrl}/api/v1/chat/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(params),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Failed to send agent message:', error);
-      throw error;
-    }
-  }
 }
 
 export default new MCPToolService();

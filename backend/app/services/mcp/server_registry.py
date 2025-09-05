@@ -316,42 +316,33 @@ class MCPServerRegistry:
             return []
     
     async def _discover_external_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
-        """Discover tools from external server using corrected FastMCP client."""
+        """Discover tools from external server using persistent connections."""
         try:
-            from app.core.fastmcp_client import FastMCPClientFactory
+            from app.core.mcp_connection_manager import get_connection_manager
             
-            client = None
-            if server.url.startswith(('http://', 'https://')):
-                client = FastMCPClientFactory.create_http_client(
-                    server.url, 
-                    server.name, 
-                    timeout=30.0
-                )
-            else:
-                # Handle STDIO command
-                server_command = server.url.split() if isinstance(server.url, str) else server.url
-                client = FastMCPClientFactory.create_stdio_client(
-                    server_command, 
-                    server.name, 
-                    timeout=30.0
-                )
+            # Get connection from pool
+            connection_manager = await get_connection_manager()
+            connection = await connection_manager.get_connection(server.url, server.name)
             
-            async with client:
-                # Use the corrected list_tools method
-                tools_data = await client.list_tools()
-                
-                unified_tools = []
-                logger.debug(f"Processing {len(tools_data)} tools from {server.name}")
-                for tool_data in tools_data:
-                    if self._validate_tool_schema(tool_data):
-                        unified_tool = self._create_unified_tool_from_mcp(tool_data, server)
-                        unified_tools.append(unified_tool)
-                        logger.debug(f"Created tool: {unified_tool.name}")
-                    else:
-                        logger.warning(f"Tool validation failed: {tool_data.get('name', 'unknown')}")
-                
-                logger.debug(f"Returned {len(unified_tools)} tools from {server.name}")
-                return unified_tools
+            if not connection:
+                logger.error(f"No connection available to {server.name}")
+                return []
+            
+            # Use the corrected list_tools method
+            tools_data = await connection.client.list_tools()
+            
+            unified_tools = []
+            logger.debug(f"Processing {len(tools_data)} tools from {server.name}")
+            for tool_data in tools_data:
+                if self._validate_tool_schema(tool_data):
+                    unified_tool = self._create_unified_tool_from_mcp(tool_data, server)
+                    unified_tools.append(unified_tool)
+                    logger.debug(f"Created tool: {unified_tool.name}")
+                else:
+                    logger.warning(f"Tool validation failed: {tool_data.get('name', 'unknown')}")
+            
+            logger.debug(f"Returned {len(unified_tools)} tools from {server.name}")
+            return unified_tools
             
         except Exception as e:
             logger.error(f"Failed to discover external tools: {e}")
@@ -407,26 +398,17 @@ class MCPServerRegistry:
         )
     
     async def _execute_external_tool(self, server: MCPServerInfo, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool on external server using corrected FastMCP client."""
-        from app.core.fastmcp_client import FastMCPClientFactory
+        """Execute a tool on external server using persistent connections."""
+        from app.core.mcp_connection_manager import get_connection_manager
         
-        client = None
-        if server.url.startswith(('http://', 'https://')):
-            client = FastMCPClientFactory.create_http_client(
-                server.url, 
-                server.name, 
-                timeout=30.0
-            )
-        else:
-            server_command = server.url.split() if isinstance(server.url, str) else server.url
-            client = FastMCPClientFactory.create_stdio_client(
-                server_command, 
-                server.name, 
-                timeout=30.0
-            )
+        # Get connection from pool
+        connection_manager = await get_connection_manager()
+        connection = await connection_manager.get_connection(server.url, server.name)
         
-        async with client:
-            return await client.execute_tool(tool_info.name, parameters)
+        if not connection:
+            raise ConnectionError(f"No connection available to {server.name}")
+        
+        return await connection.client.execute_tool(tool_info.name, parameters)
     
     async def _test_server_connection(self, server: MCPServerInfo) -> bool:
         """Test connection to a server."""
@@ -514,69 +496,78 @@ class MCPServerRegistry:
                         "error": "Internal server not running"
                     }
             else:
-                # External server health check using corrected FastMCP client
+                # External server health check using persistent connections
                 try:
-                    from app.core.fastmcp_client import FastMCPClientFactory
+                    from app.core.mcp_connection_manager import get_connection_manager
                     
-                    client = None
-                    if server.url.startswith(('http://', 'https://')):
-                        client = FastMCPClientFactory.create_http_client(
-                            server.url, 
-                            server.name, 
-                            timeout=10.0
-                        )
-                    else:
-                        server_command = server.url.split() if isinstance(server.url, str) else server.url
-                        client = FastMCPClientFactory.create_stdio_client(
-                            server_command, 
-                            server.name, 
-                            timeout=10.0
-                        )
+                    # Get connection from pool
+                    connection_manager = await get_connection_manager()
+                    connection = await connection_manager.get_connection(server.url, server.name)
                     
-                    async with client:
-                        # Use health check method from corrected client
-                        is_healthy = await client.health_check()
+                    if not connection:
+                        server.connection_errors += 1
+                        server.status = "unhealthy"
+                        server.connected = False
                         
-                        if is_healthy:
-                            server.last_health_check = time.time()
-                            server.status = "healthy"
-                            server.connected = True
-                            
-                            health_data = {
-                                "status": "healthy",
-                                "server_id": server.server_id,
-                                "server_name": server.name,
-                                "type": "external",
-                                "last_health_check": server.last_health_check
-                            }
-                            
-                            # Cache the health result
-                            self._health_cache[server.server_id] = {
-                                "health_data": health_data,
-                                "timestamp": time.time()
-                            }
-                            
-                            return health_data
-                        else:
-                            server.connection_errors += 1
-                            server.status = "unhealthy"
-                            server.connected = False
-                            
-                            health_data = {
-                                "status": "unhealthy",
-                                "server_id": server.server_id,
-                                "server_name": server.name,
-                                "type": "external",
-                                "error": "Health check failed"
-                            }
-                            
-                            # Cache the health result (even unhealthy ones)
-                            self._health_cache[server.server_id] = {
-                                "health_data": health_data,
-                                "timestamp": time.time()
-                            }
-                            
-                            return health_data
+                        health_data = {
+                            "status": "unhealthy",
+                            "server_id": server.server_id,
+                            "server_name": server.name,
+                            "type": "external",
+                            "error": "No connection available"
+                        }
+                        
+                        # Cache the health result
+                        self._health_cache[server.server_id] = {
+                            "health_data": health_data,
+                            "timestamp": time.time()
+                        }
+                        
+                        return health_data
+                    
+                    # Use health check method from persistent connection
+                    is_healthy = await connection.client.health_check()
+                    
+                    if is_healthy:
+                        server.last_health_check = time.time()
+                        server.status = "healthy"
+                        server.connected = True
+                        
+                        health_data = {
+                            "status": "healthy",
+                            "server_id": server.server_id,
+                            "server_name": server.name,
+                            "type": "external",
+                            "last_health_check": server.last_health_check
+                        }
+                        
+                        # Cache the health result
+                        self._health_cache[server.server_id] = {
+                            "health_data": health_data,
+                            "timestamp": time.time()
+                        }
+                        
+                        return health_data
+                    else:
+                        server.connection_errors += 1
+                        server.status = "unhealthy"
+                        server.connected = False
+                        
+                        health_data = {
+                            "status": "unhealthy",
+                            "server_id": server.server_id,
+                            "server_name": server.name,
+                            "type": "external",
+                            "error": "Health check failed"
+                        }
+                        
+                        # Cache the health result (even unhealthy ones)
+                        self._health_cache[server.server_id] = {
+                            "health_data": health_data,
+                            "timestamp": time.time()
+                        }
+                        
+                        return health_data
                         
                 except Exception as e:
                     server.connection_errors += 1

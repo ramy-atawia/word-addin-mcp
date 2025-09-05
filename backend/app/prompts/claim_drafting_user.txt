@@ -7,27 +7,12 @@ CONVERSATION CONTEXT:
 DOCUMENT REFERENCE:
 {document_reference}
 
-INSTRUCTIONS:
-1. Analyze the request type directly:
-   - New drafting: When no claims are referenced
-   - Refinement: When specific claims are mentioned
+TASK: Draft patent claims based on the user query above.
 
-2. For refinements:
-   - Locate referenced claims in context
-   - Mark changes with [MODIFIED]
-   - Preserve claim dependencies
+Generate a markdown document with patent claims that:
+- Cover the invention described in the user query
+- Use proper patent terminology and structure
+- Include both independent and dependent claims
+- Focus on technical details and novel aspects
 
-3. For new claims:
-   - Start numbering from 1
-   - Anchor to document sections [DOC§X.Y]
-   - Generate both independent and dependent claims
-   - Focus on the technical innovation described
-
-4. Ensure each claim:
-   - Is clear and unambiguous
-   - Uses proper patent terminology
-   - Covers the novel aspects of the invention
-   - Follows USPTO formatting requirements
-
-OUTPUT FORMAT:
-Generate patent claims in proper format with claim numbers, types, and clear technical language.
+Return the complete markdown document.

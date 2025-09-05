@@ -41,416 +41,120 @@ class ClaimDraftingService:
         """Async context manager exit."""
         pass
     
-    async def draft_claims(self, invention_description: str, claim_count: int = 5, 
-                          include_dependent: bool = True, technical_focus: Optional[str] = None,
-                          conversation_context: Optional[str] = None, 
+    async def draft_claims(self, user_query: str, conversation_context: Optional[str] = None, 
                           document_reference: Optional[str] = None) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
-        """Draft patent claims based on invention description."""
+        """Draft patent claims based on user query."""
         try:
-            logger.info(f"Starting claim drafting for invention: {invention_description[:100]}...")
+            logger.info(f"Starting claim drafting for query: {user_query[:100]}...")
             
-            # Generate LLM drafting criteria
-            llm_criteria = await self._generate_llm_drafting_criteria(
-                invention_description, claim_count, include_dependent, 
-                technical_focus, conversation_context, document_reference
+            # Draft claims using LLM - return simple markdown
+            claims_markdown = await self._draft_claims_with_llm_simple(
+                user_query, conversation_context, document_reference
             )
             
-            # Draft claims using LLM
-            claims_result = await self._draft_claims_with_llm(
-                invention_description, claim_count, include_dependent,
-                technical_focus, conversation_context, document_reference
-            )
-            
-            # Generate drafting report
-            drafting_report = await self._generate_drafting_report(claims_result, invention_description)
-            
-            # Create result
+            # Create simple result
             result = {
-                "invention_description": invention_description,
-                "claims_generated": len(claims_result.get("claims", [])),
-                "claims": claims_result.get("claims", []),
-                "drafting_report": drafting_report,
+                "user_query": user_query,
+                "drafting_report": claims_markdown,
                 "drafting_metadata": {
-                    "timestamp": datetime.now().isoformat(),
-                    "claim_count": claim_count,
-                    "include_dependent": include_dependent,
-                    "technical_focus": technical_focus,
-                    "execution_time": time.time()
+                    "timestamp": datetime.now().isoformat()
                 }
             }
             
-            logger.info(f"Claim drafting completed: {len(claims_result.get('claims', []))} claims generated")
+            logger.info(f"Claim drafting completed: markdown report generated")
             
-            # Prepare LLM criteria for return
-            generated_criteria = [llm_criteria]
-            logger.info(f"Returning drafting result with {len(generated_criteria)} generated criteria")
-            
-            return result, generated_criteria
+            # Return empty criteria list
+            return result, []
             
         except Exception as e:
-            logger.error(f"Claim drafting failed for invention '{invention_description[:50]}': {str(e)}")
+            logger.error(f"Claim drafting failed for query '{user_query[:50]}': {str(e)}")
             raise
     
-    async def _generate_llm_drafting_criteria(self, invention_description: str, claim_count: int,
-                                            include_dependent: bool, technical_focus: Optional[str],
-                                            conversation_context: Optional[str], 
-                                            document_reference: Optional[str]) -> Dict[str, Any]:
-        """Generate sophisticated drafting criteria using LLM."""
-        try:
-            prompt = f"""
-You are a patent claim drafting expert. Given an invention description, generate optimized drafting criteria for patent claims.
-
-Invention Description: "{invention_description}"
-
-Parameters:
-- Claim Count: {claim_count}
-- Include Dependent Claims: {include_dependent}
-- Technical Focus: {technical_focus or 'General'}
-- Conversation Context: {conversation_context or 'None'}
-- Document Reference: {document_reference or 'None'}
-
-Generate drafting strategy considering:
-1. Key technical elements to claim
-2. Novel and non-obvious aspects
-3. Claim structure and dependencies
-4. Technical terminology optimization
-5. USPTO compliance requirements
-
-Return a JSON response with these fields:
-{{
-    "key_technical_elements": ["element1", "element2", "element3"],
-    "novel_aspects": ["aspect1", "aspect2", "aspect3"],
-    "claim_structure": {{
-        "independent_claims": ["structure1", "structure2"],
-        "dependent_claims": ["dependency1", "dependency2"]
-    }},
-    "technical_terminology": ["term1", "term2", "term3"],
-    "drafting_strategy": "brief explanation of the drafting approach",
-    "reasoning": "detailed reasoning for the drafting strategy"
-}}
-
-Focus on creating strong, defensible patent claims that cover the invention comprehensively.
-"""
-            
-            response_data = self.llm_client.generate_text(
-                prompt=prompt,
-                max_tokens=800,
-                temperature=0.3
-            )
-            response = response_data.get("text", "")
-            
-            # Parse the JSON response (handle markdown-wrapped responses)
-            try:
-                # Remove markdown code blocks if present
-                if response.startswith("```json"):
-                    response = response.replace("```json", "").replace("```", "").strip()
-                elif response.startswith("```"):
-                    response = response.replace("```", "").strip()
-                
-                criteria = json.loads(response)
-                logger.info(f"Generated LLM drafting criteria: {criteria.get('reasoning', 'No reasoning provided')}")
-                return criteria
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse LLM response as JSON: {response}")
-                return self._fallback_drafting_criteria(invention_description)
-                
-        except Exception as e:
-            logger.error(f"LLM drafting criteria generation failed: {e}")
-            return self._fallback_drafting_criteria(invention_description)
-    
-    def _fallback_drafting_criteria(self, invention_description: str) -> Dict[str, Any]:
-        """Fallback drafting criteria when LLM generation fails."""
-        return {
-            "key_technical_elements": ["system", "method", "apparatus"],
-            "novel_aspects": ["innovation", "improvement", "novelty"],
-            "claim_structure": {
-                "independent_claims": ["system claim", "method claim"],
-                "dependent_claims": ["dependent system claim", "dependent method claim"]
-            },
-            "technical_terminology": ["device", "process", "technique"],
-            "drafting_strategy": "Standard patent claim structure with system and method claims",
-            "reasoning": "Fallback to standard drafting approach due to LLM generation failure"
-        }
-    
-    async def _draft_claims_with_llm(self, invention_description: str, claim_count: int,
-                                   include_dependent: bool, technical_focus: Optional[str],
-                                   conversation_context: Optional[str], 
-                                   document_reference: Optional[str]) -> Dict[str, Any]:
-        """Draft claims using LLM integration."""
+    async def _draft_claims_with_llm_simple(self, user_query: str, conversation_context: Optional[str], 
+                                          document_reference: Optional[str]) -> str:
+        """Draft claims using LLM and return simple markdown string."""
         try:
             # Load prompts
             system_prompt = self._load_system_prompt()
-            user_prompt = self._load_user_prompt(
-                invention_description, conversation_context, document_reference
+            user_prompt = self._load_user_prompt()
+            
+            # Format user prompt with parameters
+            formatted_user_prompt = user_prompt.format(
+                user_query=user_query,
+                conversation_context=conversation_context or "",
+                document_reference=document_reference or ""
             )
             
-            # Define function schema for structured output
-            functions = [{
-                "type": "function",
-                "function": {
-                    "name": "draft_claims",
-                    "description": "Draft patent claims based on invention description",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "claims": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "claim_number": {"type": "string"},
-                                        "claim_text": {"type": "string"},
-                                        "claim_type": {"type": "string", "enum": ["independent", "dependent"]},
-                                        "dependency": {"type": "string", "description": "For dependent claims, which claim this depends on"},
-                                        "technical_focus": {"type": "string", "description": "Main technical aspect of this claim"}
-                                    },
-                                    "required": ["claim_number", "claim_text", "claim_type"]
-                                }
-                            },
-                            "drafting_notes": {"type": "string", "description": "Notes about the drafting approach"},
-                            "quality_assessment": {"type": "string", "description": "Assessment of claim quality and strength"}
-                        },
-                        "required": ["claims", "drafting_notes", "quality_assessment"]
-                    }
-                }
-            }]
-            
-            # Call LLM with function calling
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
-            
-            # Use function calling for structured output
+            # Call LLM
             response_data = self.llm_client.generate_text(
-                prompt=user_prompt,
+                prompt=formatted_user_prompt,
                 system_message=system_prompt,
                 max_tokens=4000,
                 temperature=0.3
             )
             
-            # Parse response
-            response_text = response_data.get("text", "")
-            
-            # Try to parse as JSON first (for structured responses)
-            try:
-                if response_text.startswith("```json"):
-                    response_text = response_text.replace("```json", "").replace("```", "").strip()
-                elif response_text.startswith("```"):
-                    response_text = response_text.replace("```", "").strip()
-                
-                result = json.loads(response_text)
-            except json.JSONDecodeError:
-                # If not JSON, parse as natural language patent claims
-                result = self._parse_natural_language_claims(response_text, invention_description, claim_count)
-            
-            # Validate and clean claims
-            if not result.get("claims") or not isinstance(result["claims"], list):
-                result = self._create_fallback_claims(invention_description, claim_count)
-            
-            # Ensure we have the required fields
-            if "drafting_notes" not in result:
-                result["drafting_notes"] = "Claims drafted based on invention description"
-            if "quality_assessment" not in result:
-                result["quality_assessment"] = "Standard quality assessment pending detailed review"
-            
-            return result
+            # Return raw response as markdown
+            return response_data.get("text", "Error: No response from LLM")
             
         except Exception as e:
-            logger.error(f"LLM claim drafting failed: {e}")
-            return self._create_fallback_claims(invention_description, claim_count)
-    
-    def _parse_natural_language_claims(self, response_text: str, invention_description: str, claim_count: int) -> Dict[str, Any]:
-        """Parse natural language patent claims from LLM response."""
-        import re
-        
-        claims = []
-        lines = response_text.split('\n')
-        current_claim = None
-        claim_counter = 1
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            # Look for claim patterns
-            if re.match(r'^\d+\.', line) or 'claim' in line.lower():
-                # Save previous claim if exists
-                if current_claim:
-                    claims.append(current_claim)
-                    claim_counter += 1
-                
-                # Start new claim
-                claim_text = re.sub(r'^\d+\.\s*', '', line)
-                current_claim = {
-                    "claim_number": str(claim_counter),
-                    "claim_text": claim_text,
-                    "claim_type": "independent" if claim_counter == 1 else "dependent",
-                    "technical_focus": "system architecture" if claim_counter == 1 else "additional features"
-                }
-                
-                if claim_counter > 1:
-                    current_claim["dependency"] = "1"
-            elif current_claim and line:
-                # Continue building current claim
-                current_claim["claim_text"] += " " + line
-        
-        # Add the last claim
-        if current_claim:
-            claims.append(current_claim)
-        
-        # If no claims found, try to extract from the text
-        if not claims:
-            # Look for any sentence that starts with "A" or "The" and contains technical terms
-            sentences = re.split(r'[.!?]+', response_text)
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if (sentence.startswith(('A ', 'The ', 'An ')) and 
-                    len(sentence) > 20 and 
-                    any(term in sentence.lower() for term in ['system', 'method', 'apparatus', 'device', 'process'])):
-                    claims.append({
-                        "claim_number": str(len(claims) + 1),
-                        "claim_text": sentence,
-                        "claim_type": "independent" if len(claims) == 0 else "dependent",
-                        "technical_focus": "system architecture" if len(claims) == 0 else "additional features"
-                    })
-                    if len(claims) > 1:
-                        claims[-1]["dependency"] = "1"
-        
-        # Limit to requested count
-        claims = claims[:claim_count]
-        
-        return {
-            "claims": claims,
-            "drafting_notes": "Claims parsed from natural language LLM response",
-            "quality_assessment": "Claims generated using LLM with natural language processing"
-        }
-    
-    def _create_fallback_claims(self, invention_description: str, claim_count: int) -> Dict[str, Any]:
-        """Create fallback claims when LLM fails."""
-        claims = []
-        
-        # Create basic independent claim
-        claims.append({
-            "claim_number": "1",
-            "claim_text": f"A system for {invention_description[:100]}...",
-            "claim_type": "independent",
-            "technical_focus": "system architecture"
-        })
-        
-        # Create dependent claims if requested
-        if claim_count > 1:
-            for i in range(2, min(claim_count + 1, 6)):
-                claims.append({
-                    "claim_number": str(i),
-                    "claim_text": f"The system of claim 1, further comprising...",
-                    "claim_type": "dependent",
-                    "dependency": "1",
-                    "technical_focus": "additional features"
-                })
-        
-        return {
-            "claims": claims,
-            "drafting_notes": "Fallback claims generated due to LLM processing issues",
-            "quality_assessment": "Basic claims structure - requires manual review and refinement"
-        }
+            logger.error(f"Simple LLM claim drafting failed: {e}")
+            return f"# Patent Claims\n\nError generating claims: {str(e)}"
     
     def _load_system_prompt(self) -> str:
         """Load system prompt for claim drafting."""
         try:
             with open("backend/app/prompts/claim_drafting_system.txt", "r") as f:
-                return f.read().strip()
+                return f.read()
         except FileNotFoundError:
-            return """You are a patent claim specialist. Draft clear, concise, and technically accurate patent claims that follow USPTO requirements and best practices."""
+            logger.warning("System prompt file not found, using default")
+            return """You are a patent claim specialist. Generate high-quality patent claims in markdown format.
+
+OUTPUT FORMAT:
+Generate a markdown document with this structure:
+
+# Patent Claims
+
+## Claim 1 (Independent)
+[Independent claim text describing the main invention with technical details]
+
+## Claim 2 (Dependent)
+The [system/method/apparatus] of claim 1, wherein [specific additional feature]
+
+## Claim 3 (Dependent)
+The [system/method/apparatus] of claim 1, further comprising [additional component]
+
+[Continue with additional dependent claims as needed]
+
+RULES:
+- Use proper patent terminology (comprising, configured to, wherein, etc.)
+- Make claims specific and technically detailed
+- Ensure dependent claims properly reference their parent claims
+- Focus on the novel and non-obvious aspects of the invention
+- Use clear, unambiguous language
+- Include technical details that make the invention unique"""
     
-    def _load_user_prompt(self, invention_description: str, conversation_context: Optional[str], 
-                         document_reference: Optional[str]) -> str:
-        """Load and format user prompt for claim drafting."""
+    def _load_user_prompt(self) -> str:
+        """Load user prompt for claim drafting."""
         try:
             with open("backend/app/prompts/claim_drafting_user.txt", "r") as f:
-                template = f.read().strip()
-            
-            return template.format(
-                user_query=invention_description,
-                conversation_context=conversation_context or "No additional context provided",
-                document_reference=document_reference or "No document reference provided"
-            )
+                return f.read()
         except FileNotFoundError:
-            return f"""Draft patent claims for the following invention:
+            logger.warning("User prompt file not found, using default")
+            return """USER QUERY:
+{user_query}
 
-{invention_description}
+CONVERSATION CONTEXT:
+{conversation_context}
 
-Context: {conversation_context or "No additional context"}
-Document Reference: {document_reference or "No document reference"}
+DOCUMENT REFERENCE:
+{document_reference}
 
-Generate clear, technically accurate patent claims following USPTO requirements."""
-    
-    async def _generate_drafting_report(self, claims_result: Dict[str, Any], invention_description: str) -> str:
-        """Generate comprehensive drafting report."""
-        try:
-            claims = claims_result.get("claims", [])
-            drafting_notes = claims_result.get("drafting_notes", "")
-            quality_assessment = claims_result.get("quality_assessment", "")
-            
-            report = f"# Patent Claim Drafting Report\n\n"
-            
-            # Executive Summary
-            report += f"## 1. Executive Summary\n"
-            report += f"Successfully drafted {len(claims)} patent claims for the invention: '{invention_description[:100]}...'\n\n"
-            
-            # Claims Overview
-            report += f"## 2. Claims Overview\n"
-            independent_claims = [c for c in claims if c.get("claim_type") == "independent"]
-            dependent_claims = [c for c in claims if c.get("claim_type") == "dependent"]
-            
-            report += f"- **Independent Claims**: {len(independent_claims)}\n"
-            report += f"- **Dependent Claims**: {len(dependent_claims)}\n"
-            report += f"- **Total Claims**: {len(claims)}\n\n"
-            
-            # Individual Claims Analysis
-            report += f"## 3. Individual Claims Analysis\n"
-            for claim in claims:
-                report += f"**Claim {claim.get('claim_number', 'N/A')}** ({claim.get('claim_type', 'unknown')})\n"
-                report += f"- Technical Focus: {claim.get('technical_focus', 'Not specified')}\n"
-                if claim.get('dependency'):
-                    report += f"- Depends on: Claim {claim.get('dependency')}\n"
-                report += f"- Text: {claim.get('claim_text', '')[:200]}...\n\n"
-            
-            # Quality Assessment
-            report += f"## 4. Quality Assessment\n"
-            report += f"{quality_assessment}\n\n"
-            
-            # Drafting Notes
-            report += f"## 5. Drafting Notes\n"
-            report += f"{drafting_notes}\n\n"
-            
-            # Recommendations
-            report += f"## 6. Recommendations\n"
-            report += f"- Review all claims for clarity and technical accuracy\n"
-            report += f"- Ensure proper claim dependencies for dependent claims\n"
-            report += f"- Verify USPTO compliance and formatting\n"
-            report += f"- Consider additional dependent claims for comprehensive coverage\n"
-            report += f"- Conduct prior art search to validate novelty\n\n"
-            
-            # Metadata
-            report += f"---\n"
-            report += f"**Drafting Metadata:**\n"
-            report += f"- Invention: {invention_description[:100]}...\n"
-            report += f"- Claims generated: {len(claims)}\n"
-            report += f"- Generated: {datetime.now().isoformat()}\n"
-            report += f"- Quality level: {'High' if len(independent_claims) >= 2 else 'Standard'}\n"
-            
-            return report
-            
-        except Exception as e:
-            logger.error(f"Report generation failed: {e}")
-            return f"Claim drafting completed for: {invention_description[:100]}... Generated {len(claims_result.get('claims', []))} claims."
-    
-    def get_service_status(self) -> Dict[str, Any]:
-        """Get service status and configuration."""
-        return {
-            "service": "ClaimDraftingService",
-            "llm_configured": bool(self.llm_client),
-            "status": "active"
-        }
+TASK: Draft patent claims based on the user query above.
+
+Generate a markdown document with patent claims that:
+- Cover the invention described in the user query
+- Use proper patent terminology and structure
+- Include both independent and dependent claims
+- Focus on technical details and novel aspects
+
+Return the complete markdown document."""

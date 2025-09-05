@@ -271,59 +271,6 @@ class MemoryService:
             })
         
         return results
-    
-    async def get_user_memory(self, user_id: str, limit: int = 100) -> List[Dict[str, Any]]:
-        """Compatibility method for existing API calls."""
-        results = []
-        
-        # Search through all sessions for user
-        for session_id, conversations in self.conversations.items():
-            for conv in conversations:
-                if conv.get("user_id") == user_id:
-                    results.append({
-                        "id": conv["id"],
-                        "session_id": session_id,
-                        "content": conv["content"],
-                        "content_type": "conversation",
-                        "created_at": conv["timestamp"],
-                        "last_accessed": conv["timestamp"],
-                        "access_count": 1,
-                        "importance_score": 0.5,
-                        "tags": []
-                    })
-        
-        return results[:limit]
-    
-    async def delete_memory(self, memory_id: str) -> bool:
-        """Compatibility method for existing API calls."""
-        # This is a simplified implementation
-        # In a real system, you'd want more sophisticated deletion logic
-        return True
-    
-    async def clear_session_memory(self, session_id: str) -> int:
-        """Compatibility method for existing API calls."""
-        return self.clear_session(session_id)
-    
-    async def get_memory_statistics(self) -> Dict[str, Any]:
-        """Compatibility method for existing API calls."""
-        total_conversations = sum(len(convs) for convs in self.conversations.values())
-        total_documents = len(self.documents)
-        total_tool_results = sum(len(results) for results in self.tool_results.values())
-        
-        return {
-            "total_memories": total_conversations + total_documents + total_tool_results,
-            "conversation_count": total_conversations,
-            "document_count": total_documents,
-            "tool_result_count": total_tool_results,
-            "average_importance_score": 0.5,
-            "index_sizes": {
-                "content_index": 0,
-                "tag_index": 0,
-                "session_index": len(self.conversations),
-                "user_index": 0
-            },
-            "timestamp": datetime.utcnow().isoformat()
-        }
 
 
 # Global instance for easy access

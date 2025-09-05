@@ -27,41 +27,24 @@ class ClaimDraftingTool(BaseInternalTool):
         self.input_schema = {
             "type": "object",
             "properties": {
-                "invention_description": {
+                "user_query": {
                     "type": "string",
-                    "description": "Detailed description of the invention to draft claims for",
-                    "minLength": 10,
-                    "maxLength": 10000
-                },
-                "claim_count": {
-                    "type": "integer",
-                    "description": "Number of claims to generate",
-                    "minimum": 1,
-                    "maximum": 20,
-                    "default": 5
-                },
-                "include_dependent": {
-                    "type": "boolean",
-                    "description": "Whether to include dependent claims",
-                    "default": True
-                },
-                "technical_focus": {
-                    "type": "string",
-                    "description": "Specific technical area focus",
-                    "maxLength": 500
+                    "description": "User query describing what claims to draft",
+                    "minLength": 3,
+                    "maxLength": 1000
                 },
                 "conversation_context": {
                     "type": "string",
                     "description": "Additional context from conversation history",
-                    "maxLength": 2000
+                    "maxLength": 5000
                 },
                 "document_reference": {
                     "type": "string",
                     "description": "Reference to existing document content",
-                    "maxLength": 5000
+                    "maxLength": 10000
                 }
             },
-            "required": ["invention_description"]
+            "required": ["user_query"]
         }
         
         # Output schema
@@ -123,20 +106,17 @@ class ClaimDraftingTool(BaseInternalTool):
         self.usage_count += 1
         
         try:
-            # Extract parameters
-            invention_description = parameters.get("invention_description", "")
-            claim_count = parameters.get("claim_count", 5)
-            include_dependent = parameters.get("include_dependent", True)
-            technical_focus = parameters.get("technical_focus")
+            # Extract parameters - simplified
+            user_query = parameters.get("user_query", "")
             conversation_context = parameters.get("conversation_context")
             document_reference = parameters.get("document_reference")
             
-            logger.info(f"Executing claim drafting tool for invention: {invention_description[:100]}...")
+            logger.info(f"Executing claim drafting tool for query: {user_query[:100]}...")
             
             # Validate parameters
-            if not invention_description or len(invention_description.strip()) < 10:
+            if not user_query or len(user_query.strip()) < 3:
                 execution_time = time.time() - start_time
-                return "Error: Invalid invention description - must be at least 10 characters long"
+                return "Error: Invalid user query - must be at least 3 characters long"
             
             # Use the claim drafting service
             try:
@@ -144,10 +124,7 @@ class ClaimDraftingTool(BaseInternalTool):
                 
                 async with ClaimDraftingService() as drafting_service:
                     drafting_result, generated_criteria = await drafting_service.draft_claims(
-                        invention_description=invention_description,
-                        claim_count=claim_count,
-                        include_dependent=include_dependent,
-                        technical_focus=technical_focus,
+                        user_query=user_query,
                         conversation_context=conversation_context,
                         document_reference=document_reference
                     )

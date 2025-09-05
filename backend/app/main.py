@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 
 from .core.config import settings
 from .core.logging import setup_logging
-from .api.v1 import mcp, external_mcp, chat, document, session, auth, health, legal_tools
+from .api.v1 import mcp, external_mcp, document, session, auth, health, legal_tools
 
 # Setup logging
 setup_logging()
@@ -180,11 +180,6 @@ app.include_router(
     tags=["external-mcp"]
 )
 
-app.include_router(
-    chat.router,
-    prefix="/api/v1",
-    tags=["chat"]
-)
 
 app.include_router(
     document.router,

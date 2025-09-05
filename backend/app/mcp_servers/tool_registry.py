@@ -12,8 +12,6 @@ import structlog
 
 from .tools import (
     WebSearchTool,
-    TextAnalysisTool,
-    DocumentAnalysisTool,
     FileReaderTool,
     PriorArtSearchTool,
     ClaimDraftingTool,
@@ -46,8 +44,6 @@ class InternalToolRegistry:
         try:
             # Create tool instances
             web_search_tool = WebSearchTool()
-            text_analysis_tool = TextAnalysisTool()
-            document_analysis_tool = DocumentAnalysisTool()
             file_reader_tool = FileReaderTool()
             prior_art_search_tool = PriorArtSearchTool()
             claim_drafting_tool = ClaimDraftingTool()
@@ -55,8 +51,6 @@ class InternalToolRegistry:
             
             # Register tools
             self._register_tool(web_search_tool)
-            self._register_tool(text_analysis_tool)
-            self._register_tool(document_analysis_tool)
             self._register_tool(file_reader_tool)
             self._register_tool(prior_art_search_tool)
             self._register_tool(claim_drafting_tool)

@@ -472,19 +472,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         .join('\n');
 
       // Send message to agent chat endpoint
-      const response = await mcpToolService.sendAgentMessage({
+      const response = await mcpToolService.chatWithAgent({
         message: userMessage,
         context: {
           document_content: documentContent,
-          chat_history: chatHistoryString
-        }
+          chat_history: chatHistoryString,
+          available_tools: "web_search,prior_art_search,claim_drafting,claim_analysis,file_reader"
+        },
+        sessionId: "default-session"
       });
 
       // Add AI response to messages
       const aiMessage: ChatMessage = {
         id: Date.now().toString(),
         type: 'assistant',
-        content: response.response,
+        content: response.success ? response.result?.response || 'No response received' : response.error || 'Error occurred',
         timestamp: new Date()
       };
 
@@ -492,10 +494,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       // Log agent response details
       console.log('Agent Response:', {
-        intent_type: response.intent_type,
-        tools_used: response.tools_used,
-        execution_time: response.execution_time,
-        reasoning: response.reasoning
+        success: response.success,
+        tool_name: response.result?.tool_name,
+        intent_type: response.result?.intent_type
       });
 
     } catch (error) {

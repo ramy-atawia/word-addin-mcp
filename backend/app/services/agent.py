@@ -262,12 +262,14 @@ class AgentService:
             context_parts.append(f"User Input: {user_input}")
 
             if conversation_history:
-                # Send all conversation history (up to 50 messages) for better context
+                # Truncate conversation history to prevent token limit issues
+                # Keep only the last 5 messages to maintain context while staying within limits
+                recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
                 history_text = "\n".join([
                     f"{msg.get('role', 'user')}: {msg.get('content', '')}"
-                    for msg in conversation_history
+                    for msg in recent_history
                 ])
-                context_parts.append(f"Conversation History:\n{history_text}")
+                context_parts.append(f"Conversation History (last {len(recent_history)} messages):\n{history_text}")
 
             if document_content:
                 # Use full document content (up to 10000 chars from frontend)
@@ -299,9 +301,21 @@ class AgentService:
 
         {context}
 
+        IMPORTANT RULES:
+        1. Use context from conversation history and document content to infer what the user wants
+        2. If user says "prior art search" or "patent search" but doesn't specify what to search for:
+           - Check if there's relevant content in the document or conversation history
+           - If yes, use that content as the search query
+           - If no, ask "What technology would you like to search for patents about?"
+        3. If user says "draft claims" but doesn't specify what to draft:
+           - Check if there's relevant content in the document or conversation history  
+           - If yes, use that content as the invention description
+           - If no, ask "What invention would you like me to draft claims for?"
+        4. NEVER invent random queries - only use context or ask for clarification
+
         Respond with JSON in one of two formats:
 
-        Tool Call:
+        Tool Call (if you can infer parameters from context):
         {{
             "action": "tool_call",
             "tool_name": "exact_tool_name_from_available_tools",
@@ -310,7 +324,7 @@ class AgentService:
             }}
         }}
 
-        Conversational Response:
+        Conversational Response (if you need clarification):
         {{
             "action": "conversational_response",
             "response": "Your response text"
@@ -433,7 +447,7 @@ Provide a well-formatted markdown response that directly answers the user's ques
             # Get formatted response from LLM
             result = llm_client.generate_text(
                 prompt=user_prompt,
-                max_tokens=8000,
+                max_tokens=16000,
                 temperature=0.3,
                 system_message=system_prompt
             )

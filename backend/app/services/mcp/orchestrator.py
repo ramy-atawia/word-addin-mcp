@@ -64,7 +64,7 @@ class MCPOrchestrator:
         # Tool discovery caching
         self._tool_cache = {}
         self._cache_timestamp = 0
-        self._cache_ttl = 60  # 5 seconds cache TTL for testing
+        self._cache_ttl = 300  # 5 minutes cache TTL for better performance
         
         logger.info("MCP Orchestrator initialized successfully")
     
@@ -78,6 +78,11 @@ class MCPOrchestrator:
         """Initialize all MCP components."""
         try:
             logger.info("Initializing MCP Orchestrator components...")
+            
+            # Initialize connection manager for persistent connections
+            from app.core.mcp_connection_manager import get_connection_manager
+            await get_connection_manager()
+            logger.info("MCP Connection Manager initialized")
             
             # Initialize server registry
             await self.server_registry.initialize()
@@ -564,6 +569,14 @@ class MCPOrchestrator:
                     logger.info("Internal server stopped")
                 except Exception as e:
                     logger.error(f"Error stopping internal server: {str(e)}")
+            
+            # Shutdown connection manager
+            try:
+                from app.core.mcp_connection_manager import shutdown_connection_manager
+                await shutdown_connection_manager()
+                logger.info("Connection manager shutdown completed")
+            except Exception as e:
+                logger.error(f"Error shutting down connection manager: {str(e)}")
             
             # Shutdown server registry
             try:

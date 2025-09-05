@@ -97,15 +97,16 @@ class FastMCPClient:
             try:
                 await self.client.ping()
                 logger.info(f"Successfully connected and pinged {self.config.server_url}")
+                self.state = MCPConnectionState.CONNECTED
+                self.connection_time = time.time()
+                self.last_error = None
+                return True
             except Exception as e:
-                logger.warning(f"Connected but ping failed: {e}")
-                # Connection might still be valid, continue
-            
-            self.state = MCPConnectionState.CONNECTED
-            self.connection_time = time.time()
-            self.last_error = None
-            
-            return True
+                logger.error(f"Connection failed: {e}")
+                await self.client.__aexit__(None, None, None)  # Clean up
+                self.state = MCPConnectionState.FAILED
+                self.last_error = str(e)
+                return False
             
         except Exception as e:
             self.state = MCPConnectionState.FAILED
