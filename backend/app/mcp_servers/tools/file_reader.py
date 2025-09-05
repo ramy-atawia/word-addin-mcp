@@ -102,12 +102,11 @@ class FileReaderTool(BaseInternalTool):
             
             return {
                 "status": "success",
-                "content": content,
-                "path": path,
-                "encoding": encoding,
-                "size": size,
-                "timestamp": time.time(),
-                "execution_time": execution_time
+                "result": content,
+                "tool_name": self.name,
+                "execution_time": execution_time,
+                "success": True,
+                "error": None
             }
             
         except Exception as e:

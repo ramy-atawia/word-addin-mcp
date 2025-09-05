@@ -2,6 +2,9 @@ import * as React from 'react';
 import { Text, Badge } from '@fluentui/react-components';
 import { Bot24Regular, Person24Regular, Warning24Regular } from '@fluentui/react-icons';
 import { makeStyles, tokens } from '@fluentui/react-components';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 
 export interface ChatMessage {
   id: string;
@@ -180,6 +183,109 @@ const useStyles = makeStyles({
     fontSize: '11px',
     color: tokens.colorNeutralForeground3,
   },
+  markdownContent: {
+    '& h1, & h2, & h3, & h4, & h5, & h6': {
+      marginTop: '16px',
+      marginBottom: '8px',
+      fontWeight: '600',
+      color: tokens.colorNeutralForeground1,
+    },
+    '& h1': {
+      fontSize: '20px',
+      borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
+      paddingBottom: '8px',
+    },
+    '& h2': {
+      fontSize: '18px',
+    },
+    '& h3': {
+      fontSize: '16px',
+    },
+    '& p': {
+      marginBottom: '12px',
+      lineHeight: '1.6',
+    },
+    '& ul, & ol': {
+      marginBottom: '12px',
+      paddingLeft: '20px',
+    },
+    '& li': {
+      marginBottom: '4px',
+    },
+    '& strong': {
+      fontWeight: '600',
+      color: tokens.colorNeutralForeground1,
+    },
+    '& em': {
+      fontStyle: 'italic',
+    },
+    '& a': {
+      color: tokens.colorBrandForeground1,
+      textDecoration: 'none',
+      '&:hover': {
+        textDecoration: 'underline',
+      },
+    },
+    '& code': {
+      backgroundColor: tokens.colorNeutralBackground2,
+      padding: '2px 6px',
+      borderRadius: '4px',
+      fontSize: '13px',
+      fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+    },
+    '& pre': {
+      backgroundColor: tokens.colorNeutralBackground2,
+      padding: '12px',
+      borderRadius: '6px',
+      overflow: 'auto',
+      marginBottom: '12px',
+      '& code': {
+        backgroundColor: 'transparent',
+        padding: 0,
+      },
+    },
+    '& blockquote': {
+      borderLeft: `4px solid ${tokens.colorBrandStroke1}`,
+      paddingLeft: '16px',
+      marginLeft: 0,
+      marginBottom: '12px',
+      fontStyle: 'italic',
+      color: tokens.colorNeutralForeground2,
+    },
+    '& table': {
+      width: '100%',
+      borderCollapse: 'collapse',
+      marginBottom: '12px',
+    },
+    '& th, & td': {
+      border: `1px solid ${tokens.colorNeutralStroke1}`,
+      padding: '8px 12px',
+      textAlign: 'left',
+    },
+    '& th': {
+      backgroundColor: tokens.colorNeutralBackground2,
+      fontWeight: '600',
+    },
+    // Syntax highlighting styles
+    '& .hljs': {
+      backgroundColor: tokens.colorNeutralBackground2,
+      color: tokens.colorNeutralForeground1,
+    },
+    '& .hljs-comment, & .hljs-quote': {
+      color: tokens.colorNeutralForeground3,
+      fontStyle: 'italic',
+    },
+    '& .hljs-keyword, & .hljs-selector-tag, & .hljs-type': {
+      color: tokens.colorBrandForeground1,
+      fontWeight: '600',
+    },
+    '& .hljs-string, & .hljs-title': {
+      color: tokens.colorStatusSuccessForeground1,
+    },
+    '& .hljs-number, & .hljs-literal': {
+      color: tokens.colorStatusWarningForeground1,
+    },
+  },
 });
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
@@ -244,6 +350,36 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       content = String(content || '');
     }
     
+    // Check if content looks like markdown (has markdown syntax)
+    const isMarkdown = /^#\s|^\*\*|^\* |^\- |^\d+\. |\[.*\]\(.*\)|`.*`/.test(content.trim());
+    
+    if (isMarkdown) {
+      return (
+        <div className={styles.markdownContent}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={{
+              // Custom link handling for patent links
+              a: ({ href, children, ...props }) => (
+                <a 
+                  href={href} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  {...props}
+                >
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
+      );
+    }
+    
+    // Fallback to plain text for non-markdown content
     return content
       .split('\n')
       .map((line, index) => (

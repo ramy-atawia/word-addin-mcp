@@ -1,0 +1,19 @@
+Generate a comprehensive prior art search strategy for the following invention:
+
+**Invention Description**: {user_query}
+
+**Additional Context**: {conversation_context}
+
+**Document Reference**: {document_reference}
+
+Please provide:
+1. **Search Strategy**: Multiple search approaches with specific query terms
+2. **Risk Assessment**: Potential patent conflicts and blocking patents
+3. **Recommendations**: Strategic guidance for patent prosecution
+4. **Design-Around Opportunities**: Alternative approaches to avoid conflicts
+
+Focus on:
+- Technical terminology variations
+- Key inventive concepts
+- Potential prior art in related fields
+- Competitive landscape analysis

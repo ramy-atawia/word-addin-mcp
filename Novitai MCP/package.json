@@ -32,12 +32,15 @@
   "dependencies": {
     "@fluentui/react-components": "^9.55.1",
     "@fluentui/react-icons": "^2.0.264",
+    "axios": "^1.6.0",
     "core-js": "^3.36.0",
     "es6-promise": "^4.2.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
     "regenerator-runtime": "^0.14.1",
-    "axios": "^1.6.0"
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

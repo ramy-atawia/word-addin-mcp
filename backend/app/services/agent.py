@@ -154,29 +154,62 @@ class AgentService:
                     if not orchestrator:
                         raise RuntimeError("MCP Orchestrator not initialized.")
 
+                    logger.debug(f"DEBUG: About to execute tool {tool_name} with parameters: {parameters}")
                     execution_result = await orchestrator.execute_tool(tool_name, parameters)
-                    final_response = await self.format_tool_output_with_llm(execution_result, user_message, tool_name)
-                    tools_used = ["llm_chat", tool_name]
-
+                    logger.debug(f"DEBUG: Tool execution result type: {type(execution_result)}")
+                    logger.debug(f"DEBUG: Tool execution result keys: {execution_result.keys() if isinstance(execution_result, dict) else 'Not a dict'}")
+                    if isinstance(execution_result, dict) and "result" in execution_result:
+                        logger.debug(f"DEBUG: Nested result type: {type(execution_result['result'])}")
+                        logger.debug(f"DEBUG: Nested result keys: {execution_result['result'].keys() if isinstance(execution_result['result'], dict) else 'Not a dict'}")
+                        if isinstance(execution_result["result"], dict) and "report" in execution_result["result"]:
+                            logger.debug(f"DEBUG: Report found in nested result, length: {len(execution_result['result']['report'])}")
+                        else:
+                            logger.debug(f"DEBUG: No report in nested result")
+                    else:
+                        logger.debug(f"DEBUG: No nested result field")
+                    
+                    # Extract the markdown content from all tools
+                    if (isinstance(execution_result, dict) and 
+                        "result" in execution_result and 
+                        isinstance(execution_result["result"], str)):
+                        
+                        final_response = execution_result["result"]
+                        logger.debug(f"DEBUG: EXTRACTION SUCCESS - length: {len(final_response)}")
+                        
+                        # For prior art search, verify it's the comprehensive report
+                        if tool_name == "prior_art_search_tool":
+                            if len(final_response) > 5000 and "Search Strategy Analysis" in final_response:
+                                logger.debug(f"DEBUG: CONFIRMED - This is the comprehensive 7-section report")
+                            else:
+                                logger.error(f"DEBUG: WARNING - Report seems incomplete, length: {len(final_response)}")
+                    else:
+                        # Emergency fallback
+                        logger.error(f"DEBUG: EXTRACTION FAILED - execution_result structure unexpected")
+                        logger.error(f"DEBUG: execution_result keys: {execution_result.keys() if isinstance(execution_result, dict) else 'Not a dict'}")
+                        final_response = f"Error: Unable to extract tool result. Tool executed but response structure was unexpected."
+                    
                 except Exception as e:
+                    logger.error(f"DEBUG: Tool execution exception: {type(e).__name__}: {str(e)}")
                     final_response = f"Tool execution failed: {str(e)}"
-                    tools_used = ["llm_chat", f"{tool_name}_failed"]
             else:
                 final_response = "I'm not sure how to help with that request."
 
             self.conversation_memory.add_message("assistant", final_response)
             execution_time = time.time() - start_time
             
-            return {
+            response_data = {
                 "response": final_response,
                 "intent_type": intent_type,
                 "tool_name": tool_name,
-                "tools_used": tools_used,
                 "execution_time": execution_time,
                 "success": True,
-                "reasoning": reasoning,
-                "conversation_memory_size": self.conversation_memory.get_memory_size()
+                "error": None
             }
+            
+            logger.debug(f"DEBUG: Final response data - response length: {len(final_response) if final_response else 'None'}")
+            logger.debug(f"DEBUG: Final response data - intent: {intent_type}, tool: {tool_name}, success: True")
+            
+            return response_data
             
         except Exception as e:
             execution_time = time.time() - start_time
@@ -187,11 +220,9 @@ class AgentService:
                 "response": error_response,
                 "intent_type": "unknown",
                 "tool_name": None,
-                "tools_used": [],
                 "execution_time": execution_time,
                 "success": False,
-                "error": str(e),
-                "conversation_memory_size": self.conversation_memory.get_memory_size()
+                "error": str(e)
             }
     
     async def detect_intent_and_route(
@@ -288,9 +319,10 @@ class AgentService:
         Only output valid JSON.
         '''
 
+        user_input = context.split('User Input: ')[1].split('\n\n')[0] if 'User Input: ' in context else "Unknown"
         user_prompt = f"""Analyze the request and provide appropriate JSON response.
 
-User said: "{context.split('User Input: ')[1].split('\n\n')[0]}"
+User said: "{user_input}"
 
 Choose the most appropriate tool or provide a conversational response."""
 
@@ -401,7 +433,7 @@ Provide a well-formatted markdown response that directly answers the user's ques
             # Get formatted response from LLM
             result = llm_client.generate_text(
                 prompt=user_prompt,
-                max_tokens=1500,
+                max_tokens=8000,
                 temperature=0.3,
                 system_message=system_prompt
             )

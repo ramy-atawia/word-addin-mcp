@@ -1,0 +1,33 @@
+USER QUERY:
+{user_query}
+
+CONVERSATION CONTEXT:
+{conversation_context}
+
+DOCUMENT REFERENCE:
+{document_reference}
+
+INSTRUCTIONS:
+1. Analyze the request type directly:
+   - New drafting: When no claims are referenced
+   - Refinement: When specific claims are mentioned
+
+2. For refinements:
+   - Locate referenced claims in context
+   - Mark changes with [MODIFIED]
+   - Preserve claim dependencies
+
+3. For new claims:
+   - Start numbering from 1
+   - Anchor to document sections [DOC§X.Y]
+   - Generate both independent and dependent claims
+   - Focus on the technical innovation described
+
+4. Ensure each claim:
+   - Is clear and unambiguous
+   - Uses proper patent terminology
+   - Covers the novel aspects of the invention
+   - Follows USPTO formatting requirements
+
+OUTPUT FORMAT:
+Generate patent claims in proper format with claim numbers, types, and clear technical language.

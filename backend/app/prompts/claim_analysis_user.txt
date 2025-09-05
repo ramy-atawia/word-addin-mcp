@@ -1,0 +1,39 @@
+Analyze the following patent claims for validity, quality, and improvement opportunities:
+
+{claims_text}
+
+Analysis Type: {analysis_type}
+Focus Areas: {focus_areas}
+
+Provide comprehensive analysis covering:
+
+1. CLAIM STRUCTURE ANALYSIS:
+   - Independent vs dependent claim relationships
+   - Proper claim dependencies and numbering
+   - Claim breadth and scope assessment
+
+2. VALIDITY ASSESSMENT:
+   - 35 USC 101 (subject matter eligibility)
+   - 35 USC 112 (written description, enablement, definiteness)
+   - 35 USC 103 (obviousness)
+   - 35 USC 102 (novelty)
+
+3. QUALITY EVALUATION:
+   - Clarity and definiteness
+   - Technical accuracy and specificity
+   - Breadth vs. specificity balance
+   - Defensibility and enforcement potential
+
+4. IMPROVEMENT RECOMMENDATIONS:
+   - Specific language improvements
+   - Structural enhancements
+   - Additional claim opportunities
+   - Risk mitigation strategies
+
+5. RISK ASSESSMENT:
+   - High, medium, and low risk issues
+   - Prior art concerns
+   - Validity challenges
+   - Enforcement difficulties
+
+Focus on providing actionable insights and specific recommendations for improving the claims.

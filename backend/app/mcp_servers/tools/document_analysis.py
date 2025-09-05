@@ -97,9 +97,11 @@ class DocumentAnalysisTool(BaseInternalTool):
             
             return {
                 "status": "success",
-                "analysis": analysis,
-                "timestamp": time.time(),
-                "execution_time": execution_time
+                "result": analysis.get("summary", str(analysis)),
+                "tool_name": self.name,
+                "execution_time": execution_time,
+                "success": True,
+                "error": None
             }
             
         except Exception as e:

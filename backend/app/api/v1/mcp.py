@@ -16,6 +16,7 @@ from ...services.mcp.orchestrator import get_initialized_mcp_orchestrator
 from ...schemas.agent import AgentChatRequest, AgentChatResponse
 from ...services.agent import agent_service
 from ...schemas.mcp import ExternalServerRequest
+from .legal_tools import router as legal_tools_router
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +85,15 @@ async def agent_chat(request: AgentChatRequest):
         )
 
         logger.info(f"Chat processed - intent: {response.get('intent_type')}, tool: {response.get('tool_name')}, time: {response.get('execution_time', 0):.2f}s")
+        logger.debug(f"DEBUG: Agent response type: {type(response)}")
+        logger.debug(f"DEBUG: Agent response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
+        logger.debug(f"DEBUG: Agent response['response'] type: {type(response.get('response')) if isinstance(response, dict) else 'Not accessible'}")
+        logger.debug(f"DEBUG: Agent response['response'] length: {len(response.get('response', '')) if isinstance(response, dict) and response.get('response') else 'None or empty'}")
         
-        return AgentChatResponse(**response)
+        agent_chat_response = AgentChatResponse(**response)
+        logger.debug(f"DEBUG: AgentChatResponse created successfully")
+        
+        return agent_chat_response
         
     except Exception as e:
         logger.error(f"Agent chat request failed: {str(e)}")

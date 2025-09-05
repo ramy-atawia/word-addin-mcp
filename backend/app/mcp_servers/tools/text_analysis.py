@@ -107,11 +107,11 @@ class TextAnalysisTool(BaseInternalTool):
             
             return {
                 "status": "success",
-                "result": result,
-                "operation": operation,
-                "confidence": confidence,
-                "timestamp": time.time(),
-                "execution_time": execution_time
+                "result": result.get("processed_text", str(result)),
+                "tool_name": self.name,
+                "execution_time": execution_time,
+                "success": True,
+                "error": None
             }
             
         except Exception as e:

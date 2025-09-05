@@ -68,7 +68,29 @@ class MCPServerRegistry:
         self.health_monitor_task: Optional[asyncio.Task] = None
         self.health_monitor_running = False
         
+        # Health check caching to prevent frequent connections
+        self._health_cache: Dict[str, Dict[str, Any]] = {}
+        self._health_cache_ttl = 60  # Cache health checks for 30 seconds
+        
         logger.info("MCP Server Registry initialized")
+    
+    def _is_health_cache_valid(self, server_id: str) -> bool:
+        """Check if health cache for a server is still valid."""
+        if server_id not in self._health_cache:
+            return False
+        
+        cache_entry = self._health_cache[server_id]
+        cache_time = cache_entry.get("timestamp", 0)
+        return (time.time() - cache_time) < self._health_cache_ttl
+    
+    def clear_health_cache(self, server_id: str = None) -> None:
+        """Clear health cache for a specific server or all servers."""
+        if server_id:
+            self._health_cache.pop(server_id, None)
+            logger.debug(f"Cleared health cache for server: {server_id}")
+        else:
+            self._health_cache.clear()
+            logger.debug("Cleared all health cache")
     
     async def _load_servers_from_config(self) -> None:
         """Load external servers from configuration file."""
@@ -123,6 +145,8 @@ class MCPServerRegistry:
             # Test connection
             if await self._test_server_connection(server_info):
                 self.servers[server_id] = server_info
+                # Clear health cache since we have a new server
+                self.clear_health_cache(server_id)
                 logger.info(f"MCP server '{server_info.name}' added with ID: {server_id}")
                 return server_id
             else:
@@ -152,6 +176,8 @@ class MCPServerRegistry:
             if server.type == "external":
                 await self._disconnect_external_server(server)
             
+            # Clear health cache for removed server
+            self.clear_health_cache(server_id)
             del self.servers[server_id]
             logger.info(f"MCP server {server_id} removed successfully")
             return True
@@ -461,6 +487,12 @@ class MCPServerRegistry:
     async def _get_server_health(self, server: MCPServerInfo) -> Dict[str, Any]:
         """Get health status of a specific server."""
         try:
+            # Check cache first for external servers to avoid frequent connections
+            if server.type == "external" and self._is_health_cache_valid(server.server_id):
+                cached_health = self._health_cache[server.server_id]
+                logger.debug(f"Using cached health for {server.name}")
+                return cached_health["health_data"]
+            
             if server.type == "internal":
                 from app.mcp_servers.internal_server import get_global_server
                 internal_server = get_global_server()
@@ -510,38 +542,62 @@ class MCPServerRegistry:
                             server.status = "healthy"
                             server.connected = True
                             
-                            return {
+                            health_data = {
                                 "status": "healthy",
                                 "server_id": server.server_id,
                                 "server_name": server.name,
                                 "type": "external",
                                 "last_health_check": server.last_health_check
                             }
+                            
+                            # Cache the health result
+                            self._health_cache[server.server_id] = {
+                                "health_data": health_data,
+                                "timestamp": time.time()
+                            }
+                            
+                            return health_data
                         else:
                             server.connection_errors += 1
                             server.status = "unhealthy"
                             server.connected = False
                             
-                            return {
+                            health_data = {
                                 "status": "unhealthy",
                                 "server_id": server.server_id,
                                 "server_name": server.name,
                                 "type": "external",
                                 "error": "Health check failed"
                             }
+                            
+                            # Cache the health result (even unhealthy ones)
+                            self._health_cache[server.server_id] = {
+                                "health_data": health_data,
+                                "timestamp": time.time()
+                            }
+                            
+                            return health_data
                         
                 except Exception as e:
                     server.connection_errors += 1
                     server.status = "unhealthy"
                     server.connected = False
                     
-                    return {
+                    health_data = {
                         "status": "unhealthy",
                         "server_id": server.server_id,
                         "server_name": server.name,
                         "type": "external",
                         "error": str(e)
                     }
+                    
+                    # Cache the health result (even error cases)
+                    self._health_cache[server.server_id] = {
+                        "health_data": health_data,
+                        "timestamp": time.time()
+                    }
+                    
+                    return health_data
                 
         except Exception as e:
             return {

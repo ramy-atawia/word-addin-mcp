@@ -73,7 +73,7 @@ class WebSearchTool(BaseInternalTool):
             
         return True, ""
     
-    async def execute(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, parameters: Dict[str, Any]) -> str:
         """Execute web search using real Google Search API."""
         start_time = time.time()
         
@@ -116,28 +116,19 @@ class WebSearchTool(BaseInternalTool):
                     
                     logger.info(f"Google search completed for '{query}' - {len(formatted_results)} results in {execution_time:.3f}s")
                     
-                    return {
-                        "status": "success",
-                        "results": formatted_results,
-                        "query": query,
-                        "total_results": len(formatted_results),
-                        "source": "Google Custom Search API",
-                        "timestamp": time.time(),
-                        "execution_time": execution_time
-                    }
+                    # Format results as text for simplified response
+                    result_text = f"# Web Search Results for: {query}\n\n"
+                    for i, result in enumerate(formatted_results, 1):
+                        result_text += f"## {i}. {result['title']}\n"
+                        result_text += f"**URL**: {result['url']}\n"
+                        result_text += f"**Snippet**: {result['snippet']}\n\n"
+                    
+                    return result_text
                 else:
                     # Fallback to placeholder if no results
                     logger.warning(f"No Google search results for query: {query}")
-                    return {
-                        "status": "success", 
-                        "results": [],
-                        "query": query,
-                        "total_results": 0,
-                        "message": "No search results found",
-                        "source": "Google Custom Search API",
-                        "timestamp": time.time(),
-                        "execution_time": time.time() - start_time
-                    }
+                    execution_time = time.time() - start_time
+                    return f"# Web Search Results for: {query}\n\nNo search results found."
                     
             except ImportError:
                 logger.error("WebSearchService not available, using placeholder")
@@ -150,19 +141,12 @@ class WebSearchTool(BaseInternalTool):
                 execution_time = time.time() - start_time
                 self.update_usage_stats(execution_time)
                 
-                return {
-                    "status": "success",
-                    "results": results,
-                    "query": query,
-                    "source": "placeholder",
-                    "timestamp": time.time(),
-                    "execution_time": execution_time
-                }
+                return f"# Web Search Results for: {query}\n\nWebSearchService not configured. Please configure Google Search API credentials."
             
         except Exception as e:
             execution_time = time.time() - start_time
             logger.error(f"Web search failed for query '{parameters.get('query', '')}': {str(e)}")
-            raise
+            return f"# Web Search Results\n\n**Error**: Web search failed: {str(e)}"
     
     def get_schema(self) -> Dict[str, Any]:
         """Get complete tool schema."""
