@@ -1,10 +1,11 @@
 import * as React from 'react';
-import { Text, Badge } from '@fluentui/react-components';
-import { Bot24Regular, Person24Regular, Warning24Regular } from '@fluentui/react-icons';
+import { Text, Badge, Button } from '@fluentui/react-components';
+import { Bot24Regular, Person24Regular, Warning24Regular, DocumentAdd24Regular } from '@fluentui/react-icons';
 import { makeStyles, tokens } from '@fluentui/react-components';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { officeIntegrationService } from '../../services/officeIntegrationService';
 
 export interface ChatMessage {
   id: string;
@@ -286,10 +287,73 @@ const useStyles = makeStyles({
       color: tokens.colorStatusWarningForeground1,
     },
   },
+  insertButton: {
+    marginTop: '12px',
+    alignSelf: 'flex-start',
+  },
+  insertButtonContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  insertButtonIcon: {
+    width: '16px',
+    height: '16px',
+  },
 });
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const styles = useStyles();
+  const [isInserting, setIsInserting] = React.useState(false);
+  const [insertSuccess, setInsertSuccess] = React.useState(false);
+
+  const handleInsertToWord = async () => {
+    if (isInserting) return;
+    
+    setIsInserting(true);
+    setInsertSuccess(false);
+    
+    try {
+      // Check if Office.js is available
+      const isOfficeReady = await officeIntegrationService.checkOfficeReady();
+      if (!isOfficeReady) {
+        alert('Office.js is not available. Please ensure you are running this in a Word add-in context.');
+        return;
+      }
+
+      // Convert markdown content to plain text for Word insertion
+      const plainTextContent = convertMarkdownToPlainText(message.content);
+      
+      // Insert the content at the cursor position
+      await officeIntegrationService.insertText(plainTextContent, {
+        location: 'cursor',
+        format: 'plain'
+      });
+      
+      setInsertSuccess(true);
+      setTimeout(() => setInsertSuccess(false), 3000); // Reset success state after 3 seconds
+      
+    } catch (error) {
+      console.error('Failed to insert content to Word:', error);
+      alert(`Failed to insert content to Word: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsInserting(false);
+    }
+  };
+
+  const convertMarkdownToPlainText = (markdown: string): string => {
+    // Simple markdown to plain text conversion
+    return markdown
+      .replace(/^#+\s+/gm, '') // Remove headers
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+      .replace(/\*(.*?)\*/g, '$1') // Remove italic
+      .replace(/`(.*?)`/g, '$1') // Remove inline code
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
+      .replace(/^\s*[-*+]\s+/gm, '• ') // Convert list items
+      .replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers
+      .replace(/\n{3,}/g, '\n\n') // Normalize multiple newlines
+      .trim();
+  };
 
   const getMessageStyle = () => {
     switch (message.type) {
@@ -459,6 +523,27 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       <div className={styles.messageContent}>
         {formatContent(message.content)}
       </div>
+
+      {/* Insert to Word Button - Only for assistant messages */}
+      {message.type === 'assistant' && (
+        <div className={styles.insertButton}>
+          <Button
+            appearance={insertSuccess ? "primary" : "outline"}
+            size="small"
+            icon={<DocumentAdd24Regular className={styles.insertButtonIcon} />}
+            onClick={handleInsertToWord}
+            disabled={isInserting}
+            className={styles.insertButtonContent}
+          >
+            {isInserting 
+              ? 'Inserting...' 
+              : insertSuccess 
+                ? 'Inserted!' 
+                : 'Insert to Word'
+            }
+          </Button>
+        </div>
+      )}
 
       {/* AI Metadata */}
       {renderAIMetadata()}
