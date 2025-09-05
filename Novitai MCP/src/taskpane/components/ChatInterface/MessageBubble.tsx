@@ -321,13 +321,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         return;
       }
 
-      // Convert markdown content to plain text for Word insertion
-      const plainTextContent = convertMarkdownToPlainText(message.content);
-      
-      // Insert the content at the cursor position
-      await officeIntegrationService.insertText(plainTextContent, {
-        location: 'cursor',
-        format: 'plain'
+      // Insert the formatted markdown content at the cursor position
+      await officeIntegrationService.insertFormattedMarkdown(message.content, {
+        location: 'cursor'
       });
       
       setInsertSuccess(true);
@@ -341,19 +337,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     }
   };
 
-  const convertMarkdownToPlainText = (markdown: string): string => {
-    // Simple markdown to plain text conversion
-    return markdown
-      .replace(/^#+\s+/gm, '') // Remove headers
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic
-      .replace(/`(.*?)`/g, '$1') // Remove inline code
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
-      .replace(/^\s*[-*+]\s+/gm, '• ') // Convert list items
-      .replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers
-      .replace(/\n{3,}/g, '\n\n') // Normalize multiple newlines
-      .trim();
-  };
 
   const getMessageStyle = () => {
     switch (message.type) {

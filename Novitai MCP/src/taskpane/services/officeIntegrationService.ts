@@ -182,6 +182,79 @@ export class OfficeIntegrationService {
   }
 
   /**
+   * Insert formatted markdown content at specified location
+   */
+  async insertFormattedMarkdown(markdown: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+    if (!this.isOfficeReady) {
+      console.warn('Office.js not available, cannot insert formatted content');
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      Word.run(async (context) => {
+        try {
+          const { location } = options;
+          
+          // Convert markdown to formatted text with basic styling
+          const formattedText = this.convertMarkdownToFormattedText(markdown);
+          
+          // Get the insertion point and insert content
+          switch (location) {
+            case 'cursor':
+            case 'selection':
+              const selectionRange = context.document.getSelection();
+              selectionRange.insertText(formattedText, 'After');
+              break;
+            case 'end':
+            case 'newParagraph':
+              const body = context.document.body;
+              body.insertParagraph(formattedText, 'End');
+              break;
+            default:
+              const defaultRange = context.document.getSelection();
+              defaultRange.insertText(formattedText, 'After');
+          }
+          
+          await context.sync();
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      }).catch(reject);
+    });
+  }
+
+  /**
+   * Convert markdown to formatted text for Word insertion
+   */
+  private convertMarkdownToFormattedText(markdown: string): string {
+    return markdown
+      // Convert headers to bold text with line breaks
+      .replace(/^# (.*$)/gm, '$1\n')
+      .replace(/^## (.*$)/gm, '$1\n')
+      .replace(/^### (.*$)/gm, '$1\n')
+      .replace(/^#### (.*$)/gm, '$1\n')
+      .replace(/^##### (.*$)/gm, '$1\n')
+      .replace(/^###### (.*$)/gm, '$1\n')
+      // Convert bold text (keep the ** for now, Word will handle it)
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      // Convert italic text
+      .replace(/\*(.*?)\*/g, '$1')
+      // Convert inline code
+      .replace(/`(.*?)`/g, '$1')
+      // Convert links to just the text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Convert list items
+      .replace(/^\s*[-*+]\s/gm, '• ')
+      .replace(/^\s*\d+\.\s/gm, '')
+      // Normalize multiple newlines
+      .replace(/\n{3,}/g, '\n\n')
+      // Clean up any remaining markdown syntax
+      .replace(/^#+\s*/gm, '')
+      .trim();
+  }
+
+  /**
    * Replace selected text with new content
    */
   async replaceSelectedText(text: string, options: Partial<InsertionOptions> = {}): Promise<void> {
