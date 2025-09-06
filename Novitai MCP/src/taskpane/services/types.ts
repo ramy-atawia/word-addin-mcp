@@ -24,7 +24,7 @@ export interface MCPToolExecutionResult {
   metadata?: Record<string, any>;
 }
 
-export type MCPConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type MCPConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
 export interface MCPServerConfig {
   name: string;
@@ -58,7 +58,7 @@ export interface MCPExecutionHistoryItem {
 
 export interface MCPMessage {
   id: string;
-  type: 'user' | 'assistant' | 'system' | 'tool';
+  type: "user" | "assistant" | "system" | "tool";
   content: string;
   timestamp: Date;
   metadata?: Record<string, any>;

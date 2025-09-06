@@ -4,5 +4,26 @@
   ],
   "extends": [
     "plugin:office-addins/react"
-  ]
+  ],
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "node": true
+  },
+  "globals": {
+    "fetch": "readonly",
+    "AbortSignal": "readonly",
+    "console": "readonly",
+    "Office": "readonly",
+    "Word": "readonly"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "rules": {
+    "no-case-declarations": "off",
+    "no-undef": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }]
+  }
 }

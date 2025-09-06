@@ -1,5 +1,5 @@
-import React from 'react';
-import MCPToolManager from './MCPToolManager';
+import React from "react";
+import MCPToolManager from "./MCPToolManager";
 
 const App: React.FC = () => {
   return <MCPToolManager />;

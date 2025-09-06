@@ -1,15 +1,20 @@
-import * as React from 'react';
-import { Text, Badge, Button } from '@fluentui/react-components';
-import { Bot24Regular, Person24Regular, Warning24Regular, DocumentAdd24Regular } from '@fluentui/react-icons';
-import { makeStyles, tokens } from '@fluentui/react-components';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeHighlight from 'rehype-highlight';
-import { officeIntegrationService } from '../../services/officeIntegrationService';
+import * as React from "react";
+import { Text, Badge, Button } from "@fluentui/react-components";
+import {
+  Bot24Regular,
+  Person24Regular,
+  Warning24Regular,
+  DocumentAdd24Regular,
+} from "@fluentui/react-icons";
+import { makeStyles, tokens } from "@fluentui/react-components";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import { officeIntegrationService } from "../../services/officeIntegrationService";
 
 export interface ChatMessage {
   id: string;
-  type: 'user' | 'assistant' | 'system';
+  type: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   metadata?: {
@@ -34,115 +39,115 @@ interface MessageBubbleProps {
 
 const useStyles = makeStyles({
   messageBubble: {
-    maxWidth: '85%',
-    padding: '16px 20px',
+    maxWidth: "85%",
+    padding: "16px 20px",
     borderRadius: tokens.borderRadiusLarge,
-    wordWrap: 'break-word',
-    marginBottom: '16px',
-    position: 'relative',
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      transform: 'translateY(-2px)',
+    wordWrap: "break-word",
+    marginBottom: "16px",
+    position: "relative",
+    transition: "all 0.2s ease",
+    "&:hover": {
+      transform: "translateY(-2px)",
       boxShadow: tokens.shadow8,
     },
   },
   userMessage: {
     backgroundColor: tokens.colorBrandBackground,
     color: tokens.colorNeutralForegroundOnBrand,
-    alignSelf: 'flex-end',
-    marginLeft: 'auto',
+    alignSelf: "flex-end",
+    marginLeft: "auto",
     boxShadow: tokens.shadow4,
-    '&::before': {
+    "&::before": {
       content: '""',
-      position: 'absolute',
-      right: '-8px',
-      top: '16px',
+      position: "absolute",
+      right: "-8px",
+      top: "16px",
       width: 0,
       height: 0,
       borderLeft: `8px solid ${tokens.colorBrandBackground}`,
-      borderTop: '8px solid transparent',
-      borderBottom: '8px solid transparent',
+      borderTop: "8px solid transparent",
+      borderBottom: "8px solid transparent",
     },
   },
   assistantMessage: {
     backgroundColor: tokens.colorNeutralBackground1,
     color: tokens.colorNeutralForeground1,
     border: `1px solid ${tokens.colorNeutralStroke1}`,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     boxShadow: tokens.shadow4,
-    '&::before': {
+    "&::before": {
       content: '""',
-      position: 'absolute',
-      left: '-8px',
-      top: '16px',
+      position: "absolute",
+      left: "-8px",
+      top: "16px",
       width: 0,
       height: 0,
       borderRight: `8px solid ${tokens.colorNeutralBackground1}`,
-      borderTop: '8px solid transparent',
-      borderBottom: '8px solid transparent',
+      borderTop: "8px solid transparent",
+      borderBottom: "8px solid transparent",
     },
   },
   systemMessage: {
     backgroundColor: tokens.colorStatusWarningBackground1,
     color: tokens.colorStatusWarningForeground1,
     border: `1px solid ${tokens.colorStatusWarningBorder1}`,
-    alignSelf: 'center',
-    maxWidth: '70%',
-    textAlign: 'center',
+    alignSelf: "center",
+    maxWidth: "70%",
+    textAlign: "center",
     boxShadow: tokens.shadow4,
   },
   messageHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '12px',
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "12px",
   },
   messageContent: {
-    lineHeight: '1.6',
-    fontSize: '14px',
+    lineHeight: "1.6",
+    fontSize: "14px",
   },
   timestamp: {
-    fontSize: '11px',
+    fontSize: "11px",
     opacity: 0.7,
-    marginTop: '8px',
-    fontStyle: 'italic',
+    marginTop: "8px",
+    fontStyle: "italic",
   },
   toolResult: {
-    marginTop: '12px',
-    padding: '12px',
+    marginTop: "12px",
+    padding: "12px",
     backgroundColor: tokens.colorNeutralBackground2,
     borderRadius: tokens.borderRadiusMedium,
     border: `1px solid ${tokens.colorNeutralStroke1}`,
-    position: 'relative',
-    '&::before': {
+    position: "relative",
+    "&::before": {
       content: '""',
-      position: 'absolute',
-      top: '-6px',
-      left: '20px',
+      position: "absolute",
+      top: "-6px",
+      left: "20px",
       width: 0,
       height: 0,
-      borderLeft: '6px solid transparent',
-      borderRight: '6px solid transparent',
+      borderLeft: "6px solid transparent",
+      borderRight: "6px solid transparent",
       borderBottom: `6px solid ${tokens.colorNeutralBackground2}`,
     },
   },
   errorMessage: {
     color: tokens.colorStatusDangerForeground1,
-    fontSize: '14px',
-    padding: '8px 12px',
+    fontSize: "14px",
+    padding: "8px 12px",
     backgroundColor: tokens.colorStatusDangerBackground1,
     borderRadius: tokens.borderRadiusSmall,
     border: `1px solid ${tokens.colorStatusDangerBorder1}`,
   },
   messageIcon: {
-    width: '24px',
-    height: '24px',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '12px',
-    fontWeight: '600',
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "12px",
+    fontWeight: "600",
   },
   userIcon: {
     backgroundColor: tokens.colorNeutralForegroundOnBrand,
@@ -157,148 +162,148 @@ const useStyles = makeStyles({
     color: tokens.colorStatusWarningForeground1,
   },
   aiMetadata: {
-    marginTop: '8px',
-    padding: '8px 12px',
+    marginTop: "8px",
+    padding: "8px 12px",
     backgroundColor: tokens.colorStatusSuccessBackground1,
     borderRadius: tokens.borderRadiusSmall,
     border: `1px solid ${tokens.colorStatusSuccessBorder1}`,
-    fontSize: '11px',
+    fontSize: "11px",
     color: tokens.colorStatusSuccessForeground1,
   },
   intentMetadata: {
-    marginTop: '8px',
-    padding: '8px 12px',
+    marginTop: "8px",
+    padding: "8px 12px",
     backgroundColor: tokens.colorBrandBackground2,
     borderRadius: tokens.borderRadiusSmall,
     border: `1px solid ${tokens.colorBrandStroke1}`,
-    fontSize: '11px',
+    fontSize: "11px",
     color: tokens.colorBrandForeground1,
   },
   metadataGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-    gap: '8px',
-    marginTop: '8px',
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+    gap: "8px",
+    marginTop: "8px",
   },
   metadataItem: {
-    fontSize: '11px',
+    fontSize: "11px",
     color: tokens.colorNeutralForeground3,
   },
   markdownContent: {
-    '& h1, & h2, & h3, & h4, & h5, & h6': {
-      marginTop: '16px',
-      marginBottom: '8px',
-      fontWeight: '600',
+    "& h1, & h2, & h3, & h4, & h5, & h6": {
+      marginTop: "16px",
+      marginBottom: "8px",
+      fontWeight: "600",
       color: tokens.colorNeutralForeground1,
     },
-    '& h1': {
-      fontSize: '20px',
+    "& h1": {
+      fontSize: "20px",
       borderBottom: `1px solid ${tokens.colorNeutralStroke1}`,
-      paddingBottom: '8px',
+      paddingBottom: "8px",
     },
-    '& h2': {
-      fontSize: '18px',
+    "& h2": {
+      fontSize: "18px",
     },
-    '& h3': {
-      fontSize: '16px',
+    "& h3": {
+      fontSize: "16px",
     },
-    '& p': {
-      marginBottom: '12px',
-      lineHeight: '1.6',
+    "& p": {
+      marginBottom: "12px",
+      lineHeight: "1.6",
     },
-    '& ul, & ol': {
-      marginBottom: '12px',
-      paddingLeft: '20px',
+    "& ul, & ol": {
+      marginBottom: "12px",
+      paddingLeft: "20px",
     },
-    '& li': {
-      marginBottom: '4px',
+    "& li": {
+      marginBottom: "4px",
     },
-    '& strong': {
-      fontWeight: '600',
+    "& strong": {
+      fontWeight: "600",
       color: tokens.colorNeutralForeground1,
     },
-    '& em': {
-      fontStyle: 'italic',
+    "& em": {
+      fontStyle: "italic",
     },
-    '& a': {
+    "& a": {
       color: tokens.colorBrandForeground1,
-      textDecoration: 'none',
-      '&:hover': {
-        textDecoration: 'underline',
+      textDecoration: "none",
+      "&:hover": {
+        textDecoration: "underline",
       },
     },
-    '& code': {
+    "& code": {
       backgroundColor: tokens.colorNeutralBackground2,
-      padding: '2px 6px',
-      borderRadius: '4px',
-      fontSize: '13px',
+      padding: "2px 6px",
+      borderRadius: "4px",
+      fontSize: "13px",
       fontFamily: 'Consolas, Monaco, "Courier New", monospace',
     },
-    '& pre': {
+    "& pre": {
       backgroundColor: tokens.colorNeutralBackground2,
-      padding: '12px',
-      borderRadius: '6px',
-      overflow: 'auto',
-      marginBottom: '12px',
-      '& code': {
-        backgroundColor: 'transparent',
+      padding: "12px",
+      borderRadius: "6px",
+      overflow: "auto",
+      marginBottom: "12px",
+      "& code": {
+        backgroundColor: "transparent",
         padding: 0,
       },
     },
-    '& blockquote': {
+    "& blockquote": {
       borderLeft: `4px solid ${tokens.colorBrandStroke1}`,
-      paddingLeft: '16px',
+      paddingLeft: "16px",
       marginLeft: 0,
-      marginBottom: '12px',
-      fontStyle: 'italic',
+      marginBottom: "12px",
+      fontStyle: "italic",
       color: tokens.colorNeutralForeground2,
     },
-    '& table': {
-      width: '100%',
-      borderCollapse: 'collapse',
-      marginBottom: '12px',
+    "& table": {
+      width: "100%",
+      borderCollapse: "collapse",
+      marginBottom: "12px",
     },
-    '& th, & td': {
+    "& th, & td": {
       border: `1px solid ${tokens.colorNeutralStroke1}`,
-      padding: '8px 12px',
-      textAlign: 'left',
+      padding: "8px 12px",
+      textAlign: "left",
     },
-    '& th': {
+    "& th": {
       backgroundColor: tokens.colorNeutralBackground2,
-      fontWeight: '600',
+      fontWeight: "600",
     },
     // Syntax highlighting styles
-    '& .hljs': {
+    "& .hljs": {
       backgroundColor: tokens.colorNeutralBackground2,
       color: tokens.colorNeutralForeground1,
     },
-    '& .hljs-comment, & .hljs-quote': {
+    "& .hljs-comment, & .hljs-quote": {
       color: tokens.colorNeutralForeground3,
-      fontStyle: 'italic',
+      fontStyle: "italic",
     },
-    '& .hljs-keyword, & .hljs-selector-tag, & .hljs-type': {
+    "& .hljs-keyword, & .hljs-selector-tag, & .hljs-type": {
       color: tokens.colorBrandForeground1,
-      fontWeight: '600',
+      fontWeight: "600",
     },
-    '& .hljs-string, & .hljs-title': {
+    "& .hljs-string, & .hljs-title": {
       color: tokens.colorStatusSuccessForeground1,
     },
-    '& .hljs-number, & .hljs-literal': {
+    "& .hljs-number, & .hljs-literal": {
       color: tokens.colorStatusWarningForeground1,
     },
   },
   insertButton: {
-    marginTop: '12px',
-    alignSelf: 'flex-start',
+    marginTop: "12px",
+    alignSelf: "flex-start",
   },
   insertButtonContent: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
   },
   insertButtonIcon: {
-    width: '16px',
-    height: '16px',
+    width: "16px",
+    height: "16px",
   },
 });
 
@@ -309,32 +314,35 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   const handleInsertToWord = async () => {
     if (isInserting) return;
-    
+
     setIsInserting(true);
     setInsertSuccess(false);
-    
+
     try {
       // Check if Office.js is available
       const isOfficeReady = await officeIntegrationService.checkOfficeReady();
       if (!isOfficeReady) {
-        alert('Office.js is not available. Please ensure you are running this in a Word add-in context.');
+        alert(
+          "Office.js is not available. Please ensure you are running this in a Word add-in context."
+        );
         return;
       }
 
       // Convert markdown to HTML first (same as bubble chat)
       const htmlContent = convertMarkdownToHTML(message.content);
-      
+
       // Insert the HTML content at the cursor position
       await officeIntegrationService.insertHTML(htmlContent, {
-        location: 'cursor'
+        location: "cursor",
       });
-      
+
       setInsertSuccess(true);
       setTimeout(() => setInsertSuccess(false), 3000); // Reset success state after 3 seconds
-      
     } catch (error) {
-      console.error('Failed to insert content to Word:', error);
-      alert(`Failed to insert content to Word: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Failed to insert content to Word:", error);
+      alert(
+        `Failed to insert content to Word: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     } finally {
       setIsInserting(false);
     }
@@ -342,43 +350,44 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   const convertMarkdownToHTML = (markdown: string): string => {
     // Simple markdown to HTML conversion (same logic as ReactMarkdown)
-    return markdown
-      // Headers
-      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-      .replace(/^#### (.*$)/gm, '<h4>$1</h4>')
-      .replace(/^##### (.*$)/gm, '<h5>$1</h5>')
-      .replace(/^###### (.*$)/gm, '<h6>$1</h6>')
-      // Bold text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Italic text
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // Inline code
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-      // Links
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-      // Lists
-      .replace(/^\s*[-*+]\s/gm, '• ')
-      .replace(/^\s*\d+\.\s/gm, '')
-      // Line breaks
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br>')
-      // Wrap in paragraphs
-      .replace(/^(.*)$/gm, '<p>$1</p>')
-      // Clean up empty paragraphs
-      .replace(/<p><\/p>/g, '')
-      .replace(/<p>(<h[1-6]>.*<\/h[1-6]>)<\/p>/g, '$1');
+    return (
+      markdown
+        // Headers
+        .replace(/^# (.*$)/gm, "<h1>$1</h1>")
+        .replace(/^## (.*$)/gm, "<h2>$1</h2>")
+        .replace(/^### (.*$)/gm, "<h3>$1</h3>")
+        .replace(/^#### (.*$)/gm, "<h4>$1</h4>")
+        .replace(/^##### (.*$)/gm, "<h5>$1</h5>")
+        .replace(/^###### (.*$)/gm, "<h6>$1</h6>")
+        // Bold text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        // Italic text
+        .replace(/\*(.*?)\*/g, "<em>$1</em>")
+        // Inline code
+        .replace(/`(.*?)`/g, "<code>$1</code>")
+        // Links
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+        // Lists
+        .replace(/^\s*[-*+]\s/gm, "• ")
+        .replace(/^\s*\d+\.\s/gm, "")
+        // Line breaks
+        .replace(/\n\n/g, "</p><p>")
+        .replace(/\n/g, "<br>")
+        // Wrap in paragraphs
+        .replace(/^(.*)$/gm, "<p>$1</p>")
+        // Clean up empty paragraphs
+        .replace(/<p><\/p>/g, "")
+        .replace(/<p>(<h[1-6]>.*<\/h[1-6]>)<\/p>/g, "$1")
+    );
   };
-
 
   const getMessageStyle = () => {
     switch (message.type) {
-      case 'user':
+      case "user":
         return `${styles.messageBubble} ${styles.userMessage}`;
-      case 'assistant':
+      case "assistant":
         return `${styles.messageBubble} ${styles.assistantMessage}`;
-      case 'system':
+      case "system":
         return `${styles.messageBubble} ${styles.systemMessage}`;
       default:
         return `${styles.messageBubble} ${styles.assistantMessage}`;
@@ -387,24 +396,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   const getMessageIcon = () => {
     switch (message.type) {
-      case 'user':
-        return 'U';
-      case 'assistant':
-        return 'A';
-      case 'system':
-        return 'S';
+      case "user":
+        return "U";
+      case "assistant":
+        return "A";
+      case "system":
+        return "S";
       default:
-        return 'A';
+        return "A";
     }
   };
 
   const getMessageIconStyle = () => {
     switch (message.type) {
-      case 'user':
+      case "user":
         return `${styles.messageIcon} ${styles.userIcon}`;
-      case 'assistant':
+      case "assistant":
         return `${styles.messageIcon} ${styles.assistantIcon}`;
-      case 'system':
+      case "system":
         return `${styles.messageIcon} ${styles.systemIcon}`;
       default:
         return `${styles.messageIcon} ${styles.assistantIcon}`;
@@ -413,32 +422,35 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
   const getMessageLabel = () => {
     switch (message.type) {
-      case 'user':
-        return 'You';
-      case 'assistant':
-        return 'AI Assistant';
-      case 'system':
-        return 'System';
+      case "user":
+        return "You";
+      case "assistant":
+        return "AI Assistant";
+      case "system":
+        return "System";
       default:
-        return 'Unknown';
+        return "Unknown";
     }
   };
 
   const formatContent = (content: any) => {
     // Ensure content is a string
-    if (typeof content !== 'string') {
-      console.warn('MessageBubble: content is not a string:', content);
-      content = String(content || '');
+    if (typeof content !== "string") {
+      console.warn("MessageBubble: content is not a string:", content);
+      content = String(content || "");
     }
-    
+
     // For assistant messages, always treat as markdown since they come from our tools
     // For other message types, check for markdown syntax
-    const hasMarkdownSyntax = /#\s|\*\*.*\*\*|\*.*\*|^\- |^\d+\. |\[.*\]\(.*\)|`.*`|^##|^###|^####|^#####|^######/.test(content);
-    
+    const hasMarkdownSyntax =
+      /#\s|\*\*.*\*\*|\*.*\*|^\- |^\d+\. |\[.*\]\(.*\)|`.*`|^##|^###|^####|^#####|^######/.test(
+        content
+      );
+
     // Assistant messages are always markdown (they come from our tools)
     // Other messages only if they have markdown syntax
-    const isMarkdown = message.type === 'assistant' || hasMarkdownSyntax;
-    
+    const isMarkdown = message.type === "assistant" || hasMarkdownSyntax;
+
     if (isMarkdown) {
       return (
         <div className={styles.markdownContent}>
@@ -448,12 +460,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             components={{
               // Custom link handling for patent links
               a: ({ href, children, ...props }) => (
-                <a 
-                  href={href} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  {...props}
-                >
+                <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
                   {children}
                 </a>
               ),
@@ -464,16 +471,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         </div>
       );
     }
-    
+
     // Fallback to plain text for non-markdown content
-    return content
-      .split('\n')
-      .map((line, index) => (
-        <React.Fragment key={index}>
-          {line}
-          {index < content.split('\n').length - 1 && <br />}
-        </React.Fragment>
-      ));
+    return content.split("\n").map((line, index) => (
+      <React.Fragment key={index}>
+        {line}
+        {index < content.split("\n").length - 1 && <br />}
+      </React.Fragment>
+    ));
   };
 
   const renderAIMetadata = () => {
@@ -481,7 +486,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
     return (
       <div className={styles.aiMetadata}>
-        <div style={{ fontWeight: '600', marginBottom: '4px' }}>🤖 AI Generated Response</div>
+        <div style={{ fontWeight: "600", marginBottom: "4px" }}>🤖 AI Generated Response</div>
         <div className={styles.metadataGrid}>
           {message.metadata.modelUsed && (
             <div className={styles.metadataItem}>
@@ -503,7 +508,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
     return (
       <div className={styles.intentMetadata}>
-        <div style={{ fontWeight: '600', marginBottom: '4px' }}>🧠 Intent Analysis</div>
+        <div style={{ fontWeight: "600", marginBottom: "4px" }}>🧠 Intent Analysis</div>
         <div className={styles.metadataGrid}>
           <div className={styles.metadataItem}>
             <strong>Intent:</strong> {message.metadata.intent_type}
@@ -512,7 +517,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             <strong>Routing:</strong> {message.metadata.routing_decision}
           </div>
           {message.metadata.reasoning && (
-            <div className={styles.metadataItem} style={{ gridColumn: '1 / -1' }}>
+            <div className={styles.metadataItem} style={{ gridColumn: "1 / -1" }}>
               <strong>Reasoning:</strong> {message.metadata.reasoning}
             </div>
           )}
@@ -524,10 +529,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   return (
     <div className={getMessageStyle()}>
       <div className={styles.messageHeader}>
-        <div className={getMessageIconStyle()}>
-          {getMessageIcon()}
-        </div>
-        <Text size={200} style={{ fontWeight: '500' }}>
+        <div className={getMessageIconStyle()}>{getMessageIcon()}</div>
+        <Text size={200} style={{ fontWeight: "500" }}>
           {getMessageLabel()}
         </Text>
         {message.metadata?.toolUsed && (
@@ -536,18 +539,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           </Badge>
         )}
         {message.metadata?.aiGenerated && (
-          <Badge appearance="filled" size="small" style={{ backgroundColor: tokens.colorStatusSuccessBackground1 }}>
+          <Badge
+            appearance="filled"
+            size="small"
+            style={{ backgroundColor: tokens.colorStatusSuccessBackground1 }}
+          >
             AI
           </Badge>
         )}
       </div>
-      
-      <div className={styles.messageContent}>
-        {formatContent(message.content)}
-      </div>
+
+      <div className={styles.messageContent}>{formatContent(message.content)}</div>
 
       {/* Insert to Word Button - Only for assistant messages */}
-      {message.type === 'assistant' && (
+      {message.type === "assistant" && (
         <div className={styles.insertButton}>
           <Button
             appearance={insertSuccess ? "primary" : "outline"}
@@ -557,12 +562,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             disabled={isInserting}
             className={styles.insertButtonContent}
           >
-            {isInserting 
-              ? 'Inserting...' 
-              : insertSuccess 
-                ? 'Inserted!' 
-                : 'Insert to Word'
-            }
+            {isInserting ? "Inserting..." : insertSuccess ? "Inserted!" : "Insert to Word"}
           </Button>
         </div>
       )}
@@ -575,30 +575,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
       {message.metadata?.toolResult && (
         <div className={styles.toolResult}>
-          <Text size={200} style={{ fontWeight: '600', marginBottom: '4px' }}>
+          <Text size={200} style={{ fontWeight: "600", marginBottom: "4px" }}>
             Tool Result:
           </Text>
           <Text size={200}>
-            {typeof message.metadata.toolResult === 'string' 
-              ? message.metadata.toolResult 
-              : JSON.stringify(message.metadata.toolResult, null, 2)
-            }
+            {typeof message.metadata.toolResult === "string"
+              ? message.metadata.toolResult
+              : JSON.stringify(message.metadata.toolResult, null, 2)}
           </Text>
         </div>
       )}
 
       {message.metadata?.error && (
         <div className={styles.errorMessage}>
-          <Text size={200}>
-            Error: {message.metadata.error}
-          </Text>
+          <Text size={200}>Error: {message.metadata.error}</Text>
         </div>
       )}
 
       <div className={styles.timestamp}>
-        <Text size={100}>
-          {message.timestamp.toLocaleTimeString()}
-        </Text>
+        <Text size={100}>{message.timestamp.toLocaleTimeString()}</Text>
       </div>
     </div>
   );

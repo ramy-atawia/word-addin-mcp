@@ -22,8 +22,8 @@ export interface DocumentStats {
 }
 
 export interface InsertionOptions {
-  location: 'cursor' | 'selection' | 'end' | 'newParagraph';
-  format?: 'plain' | 'formatted' | 'withSource';
+  location: "cursor" | "selection" | "end" | "newParagraph";
+  format?: "plain" | "formatted" | "withSource";
   source?: string;
   addFootnote?: boolean;
 }
@@ -41,15 +41,15 @@ export class OfficeIntegrationService {
   private async initializeOffice(): Promise<void> {
     try {
       // Check if Office.js is available
-      if (typeof Office !== 'undefined') {
+      if (typeof Office !== "undefined") {
         this.isOfficeReady = true;
-        console.log('Office.js integration ready');
+        console.log("Office.js integration ready");
       } else {
-        console.warn('Office.js not available - running in standalone mode');
+        console.warn("Office.js not available - running in standalone mode");
         this.isOfficeReady = false;
       }
     } catch (error) {
-      console.error('Failed to initialize Office.js:', error);
+      console.error("Failed to initialize Office.js:", error);
       this.isOfficeReady = false;
     }
   }
@@ -66,14 +66,14 @@ export class OfficeIntegrationService {
    */
   async getOfficeVersion(): Promise<string> {
     if (!this.isOfficeReady) {
-      return 'standalone';
+      return "standalone";
     }
 
     try {
-      return Office.context.document.url || 'unknown';
+      return Office.context.document.url || "unknown";
     } catch (error) {
-      console.error('Failed to get Office version:', error);
-      return 'unknown';
+      console.error("Failed to get Office version:", error);
+      return "unknown";
     }
   }
 
@@ -82,17 +82,17 @@ export class OfficeIntegrationService {
    */
   async getDocumentContent(): Promise<string> {
     if (!this.isOfficeReady) {
-      console.warn('Office.js not available, returning empty content');
-      return '';
+      console.warn("Office.js not available, returning empty content");
+      return "";
     }
 
     return new Promise((resolve, reject) => {
       Word.run(async (context) => {
         try {
           const body = context.document.body;
-          body.load('text');
+          body.load("text");
           await context.sync();
-          resolve(body.text || '');
+          resolve(body.text || "");
         } catch (error) {
           reject(error);
         }
@@ -105,17 +105,17 @@ export class OfficeIntegrationService {
    */
   async getSelectedText(): Promise<string> {
     if (!this.isOfficeReady) {
-      console.warn('Office.js not available, returning empty selection');
-      return '';
+      console.warn("Office.js not available, returning empty selection");
+      return "";
     }
 
     return new Promise((resolve, reject) => {
       Word.run(async (context) => {
         try {
           const range = context.document.getSelection();
-          range.load('text');
+          range.load("text");
           await context.sync();
-          resolve(range.text || '');
+          resolve(range.text || "");
         } catch (error) {
           reject(error);
         }
@@ -126,9 +126,12 @@ export class OfficeIntegrationService {
   /**
    * Insert text at specified location
    */
-  async insertText(text: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+  async insertText(
+    text: string,
+    options: InsertionOptions = { location: "cursor" }
+  ): Promise<void> {
     if (!this.isOfficeReady) {
-      console.warn('Office.js not available, cannot insert text');
+      console.warn("Office.js not available, cannot insert text");
       return;
     }
 
@@ -136,42 +139,42 @@ export class OfficeIntegrationService {
       Word.run(async (context) => {
         try {
           const { location, format, source, addFootnote } = options;
-          
+
           let contentToInsert = text;
-          
+
           // Format content based on options
-          if (format === 'withSource' && source) {
+          if (format === "withSource" && source) {
             contentToInsert = `${text}\n\nSource: ${source}`;
           }
-          
+
           switch (location) {
-            case 'cursor':
+            case "cursor":
               const cursorRange = context.document.getSelection();
-              cursorRange.insertText(contentToInsert, 'After');
+              cursorRange.insertText(contentToInsert, "After");
               break;
-              
-            case 'selection':
+
+            case "selection":
               const selectionRange = context.document.getSelection();
-              selectionRange.insertText(contentToInsert, 'Replace');
+              selectionRange.insertText(contentToInsert, "Replace");
               break;
-              
-            case 'end':
+
+            case "end":
               const body = context.document.body;
-              body.insertParagraph(contentToInsert, 'End');
+              body.insertParagraph(contentToInsert, "End");
               break;
-              
-            case 'newParagraph':
+
+            case "newParagraph":
               const body2 = context.document.body;
-              body2.insertParagraph(contentToInsert, 'End');
+              body2.insertParagraph(contentToInsert, "End");
               break;
           }
-          
+
           // Add footnote if requested
           if (addFootnote && source) {
             const footnoteBody = context.document.body;
-            footnoteBody.insertParagraph(`Footnote: ${source}`, 'End');
+            footnoteBody.insertParagraph(`Footnote: ${source}`, "End");
           }
-          
+
           await context.sync();
           resolve();
         } catch (error) {
@@ -184,9 +187,12 @@ export class OfficeIntegrationService {
   /**
    * Insert formatted markdown content at specified location
    */
-  async insertFormattedMarkdown(markdown: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+  async insertFormattedMarkdown(
+    markdown: string,
+    options: InsertionOptions = { location: "cursor" }
+  ): Promise<void> {
     if (!this.isOfficeReady) {
-      console.warn('Office.js not available, cannot insert formatted content');
+      console.warn("Office.js not available, cannot insert formatted content");
       return;
     }
 
@@ -194,27 +200,27 @@ export class OfficeIntegrationService {
       Word.run(async (context) => {
         try {
           const { location } = options;
-          
+
           // Convert markdown to formatted text with basic styling
           const formattedText = this.convertMarkdownToFormattedText(markdown);
-          
+
           // Get the insertion point and insert content
           switch (location) {
-            case 'cursor':
-            case 'selection':
+            case "cursor":
+            case "selection":
               const selectionRange = context.document.getSelection();
-              selectionRange.insertText(formattedText, 'After');
+              selectionRange.insertText(formattedText, "After");
               break;
-            case 'end':
-            case 'newParagraph':
+            case "end":
+            case "newParagraph":
               const body = context.document.body;
-              body.insertParagraph(formattedText, 'End');
+              body.insertParagraph(formattedText, "End");
               break;
             default:
               const defaultRange = context.document.getSelection();
-              defaultRange.insertText(formattedText, 'After');
+              defaultRange.insertText(formattedText, "After");
           }
-          
+
           await context.sync();
           resolve();
         } catch (error) {
@@ -228,38 +234,43 @@ export class OfficeIntegrationService {
    * Convert markdown to formatted text for Word insertion
    */
   private convertMarkdownToFormattedText(markdown: string): string {
-    return markdown
-      // Convert headers to bold text with line breaks
-      .replace(/^# (.*$)/gm, '$1\n')
-      .replace(/^## (.*$)/gm, '$1\n')
-      .replace(/^### (.*$)/gm, '$1\n')
-      .replace(/^#### (.*$)/gm, '$1\n')
-      .replace(/^##### (.*$)/gm, '$1\n')
-      .replace(/^###### (.*$)/gm, '$1\n')
-      // Convert bold text (keep the ** for now, Word will handle it)
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      // Convert italic text
-      .replace(/\*(.*?)\*/g, '$1')
-      // Convert inline code
-      .replace(/`(.*?)`/g, '$1')
-      // Convert links to just the text
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      // Convert list items
-      .replace(/^\s*[-*+]\s/gm, '• ')
-      .replace(/^\s*\d+\.\s/gm, '')
-      // Normalize multiple newlines
-      .replace(/\n{3,}/g, '\n\n')
-      // Clean up any remaining markdown syntax
-      .replace(/^#+\s*/gm, '')
-      .trim();
+    return (
+      markdown
+        // Convert headers to bold text with line breaks
+        .replace(/^# (.*$)/gm, "$1\n")
+        .replace(/^## (.*$)/gm, "$1\n")
+        .replace(/^### (.*$)/gm, "$1\n")
+        .replace(/^#### (.*$)/gm, "$1\n")
+        .replace(/^##### (.*$)/gm, "$1\n")
+        .replace(/^###### (.*$)/gm, "$1\n")
+        // Convert bold text (keep the ** for now, Word will handle it)
+        .replace(/\*\*(.*?)\*\*/g, "$1")
+        // Convert italic text
+        .replace(/\*(.*?)\*/g, "$1")
+        // Convert inline code
+        .replace(/`(.*?)`/g, "$1")
+        // Convert links to just the text
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        // Convert list items
+        .replace(/^\s*[-*+]\s/gm, "• ")
+        .replace(/^\s*\d+\.\s/gm, "")
+        // Normalize multiple newlines
+        .replace(/\n{3,}/g, "\n\n")
+        // Clean up any remaining markdown syntax
+        .replace(/^#+\s*/gm, "")
+        .trim()
+    );
   }
 
   /**
    * Insert HTML content at specified location
    */
-  async insertHTML(htmlContent: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+  async insertHTML(
+    htmlContent: string,
+    options: InsertionOptions = { location: "cursor" }
+  ): Promise<void> {
     if (!this.isOfficeReady) {
-      console.warn('Office.js not available, cannot insert HTML content');
+      console.warn("Office.js not available, cannot insert HTML content");
       return;
     }
 
@@ -267,24 +278,24 @@ export class OfficeIntegrationService {
       Word.run(async (context) => {
         try {
           const { location } = options;
-          
+
           // Get the insertion point and insert HTML content
           switch (location) {
-            case 'cursor':
-            case 'selection':
+            case "cursor":
+            case "selection":
               const selectionRange = context.document.getSelection();
-              selectionRange.insertHtml(htmlContent, 'After');
+              selectionRange.insertHtml(htmlContent, "After");
               break;
-            case 'end':
-            case 'newParagraph':
+            case "end":
+            case "newParagraph":
               const body = context.document.body;
-              body.insertHtml(htmlContent, 'End');
+              body.insertHtml(htmlContent, "End");
               break;
             default:
               const defaultRange = context.document.getSelection();
-              defaultRange.insertHtml(htmlContent, 'After');
+              defaultRange.insertHtml(htmlContent, "After");
           }
-          
+
           await context.sync();
           resolve();
         } catch (error) {
@@ -298,7 +309,7 @@ export class OfficeIntegrationService {
    * Replace selected text with new content
    */
   async replaceSelectedText(text: string, options: Partial<InsertionOptions> = {}): Promise<void> {
-    return this.insertText(text, { ...options, location: 'selection' });
+    return this.insertText(text, { ...options, location: "selection" });
   }
 
   /**
@@ -307,39 +318,39 @@ export class OfficeIntegrationService {
   async getDocumentMetadata(): Promise<DocumentMetadata> {
     if (!this.isOfficeReady) {
       return {
-        title: 'Standalone Mode',
-        author: 'Unknown',
+        title: "Standalone Mode",
+        author: "Unknown",
         createdDate: new Date(),
         modifiedDate: new Date(),
         wordCount: 0,
         characterCount: 0,
-        paragraphCount: 0
+        paragraphCount: 0,
       };
     }
 
     try {
       const content = await this.getDocumentContent();
       const stats = this.calculateDocumentStats(content);
-      
+
       return {
-        title: 'Document', // Office.js doesn't provide title easily
-        author: 'Unknown', // Office.js doesn't provide author easily
+        title: "Document", // Office.js doesn't provide title easily
+        author: "Unknown", // Office.js doesn't provide author easily
         createdDate: new Date(),
         modifiedDate: new Date(),
         wordCount: stats.wordCount,
         characterCount: stats.characterCount,
-        paragraphCount: stats.paragraphCount
+        paragraphCount: stats.paragraphCount,
       };
     } catch (error) {
-      console.error('Failed to get document metadata:', error);
+      console.error("Failed to get document metadata:", error);
       return {
-        title: 'Error',
-        author: 'Unknown',
+        title: "Error",
+        author: "Unknown",
         createdDate: new Date(),
         modifiedDate: new Date(),
         wordCount: 0,
         characterCount: 0,
-        paragraphCount: 0
+        paragraphCount: 0,
       };
     }
   }
@@ -354,7 +365,7 @@ export class OfficeIntegrationService {
         characterCount: 0,
         paragraphCount: 0,
         lineCount: 0,
-        pageCount: 0
+        pageCount: 0,
       };
     }
 
@@ -362,13 +373,13 @@ export class OfficeIntegrationService {
       const content = await this.getDocumentContent();
       return this.calculateDocumentStats(content);
     } catch (error) {
-      console.error('Failed to get document statistics:', error);
+      console.error("Failed to get document statistics:", error);
       return {
         wordCount: 0,
         characterCount: 0,
         paragraphCount: 0,
         lineCount: 0,
-        pageCount: 0
+        pageCount: 0,
       };
     }
   }
@@ -377,16 +388,16 @@ export class OfficeIntegrationService {
    * Calculate document statistics from content
    */
   private calculateDocumentStats(content: string): DocumentStats {
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     const paragraphs = content.split(/\n\s*\n/);
     const words = content.trim().split(/\s+/);
-    
+
     return {
       wordCount: content.trim() ? words.length : 0,
       characterCount: content.length,
       paragraphCount: paragraphs.length,
       lineCount: lines.length,
-      pageCount: Math.ceil(content.length / 2000) // Rough estimate: 2000 chars per page
+      pageCount: Math.ceil(content.length / 2000), // Rough estimate: 2000 chars per page
     };
   }
 
@@ -402,7 +413,7 @@ export class OfficeIntegrationService {
       const selectedText = await this.getSelectedText();
       return selectedText.trim().length > 0;
     } catch (error) {
-      console.error('Failed to check selection:', error);
+      console.error("Failed to check selection:", error);
       return false;
     }
   }
@@ -412,15 +423,15 @@ export class OfficeIntegrationService {
    */
   async getSelectionContext(beforeWords: number = 10, afterWords: number = 10): Promise<string> {
     if (!this.isOfficeReady) {
-      return '';
+      return "";
     }
 
     try {
       const fullContent = await this.getDocumentContent();
       const selectedText = await this.getSelectedText();
-      
+
       if (!selectedText.trim()) {
-        return '';
+        return "";
       }
 
       const selectedIndex = fullContent.indexOf(selectedText);
@@ -434,10 +445,10 @@ export class OfficeIntegrationService {
       const beforeWordsArray = beforeText.trim().split(/\s+/).slice(-beforeWords);
       const afterWordsArray = afterText.trim().split(/\s+/).slice(0, afterWords);
 
-      return `${beforeWordsArray.join(' ')} [SELECTED: ${selectedText}] ${afterWordsArray.join(' ')}`;
+      return `${beforeWordsArray.join(" ")} [SELECTED: ${selectedText}] ${afterWordsArray.join(" ")}`;
     } catch (error) {
-      console.error('Failed to get selection context:', error);
-      return '';
+      console.error("Failed to get selection context:", error);
+      return "";
     }
   }
 }

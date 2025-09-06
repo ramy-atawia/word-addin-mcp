@@ -9,13 +9,15 @@ import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 const originalConsoleError = console.error;
 console.error = (...args) => {
   const message = args[0];
-  if (typeof message === 'string') {
+  if (typeof message === "string") {
     // Filter out Office telemetry errors
-    if (message.includes('word-telemetry.officeapps.live.com') ||
-        message.includes('RemoteTelemetry.ashx') ||
-        message.includes('RemoteUls.ashx') ||
-        message.includes('Access to XMLHttpRequest') ||
-        message.includes('CORS policy')) {
+    if (
+      message.includes("word-telemetry.officeapps.live.com") ||
+      message.includes("RemoteTelemetry.ashx") ||
+      message.includes("RemoteUls.ashx") ||
+      message.includes("Access to XMLHttpRequest") ||
+      message.includes("CORS policy")
+    ) {
       return; // Don't log these errors
     }
   }
@@ -24,11 +26,11 @@ console.error = (...args) => {
 
 // Suppress Office telemetry fetch errors
 const originalFetch = window.fetch;
-window.fetch = function(...args) {
+window.fetch = function (...args) {
   const url = args[0];
-  if (typeof url === 'string' && url.includes('word-telemetry.officeapps.live.com')) {
+  if (typeof url === "string" && url.includes("word-telemetry.officeapps.live.com")) {
     // Return a rejected promise for telemetry requests to prevent errors
-    return Promise.reject(new Error('Telemetry blocked'));
+    return Promise.reject(new Error("Telemetry blocked"));
   }
   return originalFetch.apply(this, args);
 };

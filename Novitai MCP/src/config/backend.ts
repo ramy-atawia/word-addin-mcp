@@ -8,8 +8,8 @@ export interface BackendConfig {
 
 // Default backend configuration
 export const defaultBackendConfig: BackendConfig = {
-  baseUrl: 'https://localhost:9000',
-  apiVersion: 'v1',
+  baseUrl: "https://localhost:9000",
+  apiVersion: "v1",
   timeout: 30000, // 30 seconds
   retryAttempts: 3,
 };
@@ -36,7 +36,7 @@ export const getApiBaseUrl = (): string => {
 // Get the full URL for a specific endpoint
 export const getEndpointUrl = (endpoint: string): string => {
   const baseUrl = getApiBaseUrl();
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
   return `${baseUrl}/${cleanEndpoint}`;
 };
 
@@ -49,18 +49,18 @@ export const getHealthCheckUrl = (): string => {
 export const getApiUrl = (endpoint: string): string => {
   const endpoints: { [key: string]: string } = {
     // MCP endpoints
-    'MCP_TOOLS': getEndpointUrl('mcp/tools'),
-    'MCP_EXECUTE': getEndpointUrl('mcp/execute'),
-    'MCP_SERVERS': getEndpointUrl('mcp/servers'),
-    
+    MCP_TOOLS: getEndpointUrl("mcp/tools"),
+    MCP_EXECUTE: getEndpointUrl("mcp/execute"),
+    MCP_SERVERS: getEndpointUrl("mcp/servers"),
+
     // External server endpoints
-    'EXTERNAL_SERVERS': getEndpointUrl('external/servers'),
-    'TEST_CONNECTION': getEndpointUrl('external/servers/test-connection'),
-    'ADD_SERVER': getEndpointUrl('external/servers'),
-    'UPDATE_SERVER': getEndpointUrl('external/servers/{id}'),
-    'REMOVE_SERVER': getEndpointUrl('external/servers/{id}'),
+    EXTERNAL_SERVERS: getEndpointUrl("external/servers"),
+    TEST_CONNECTION: getEndpointUrl("external/servers/test-connection"),
+    ADD_SERVER: getEndpointUrl("external/servers"),
+    UPDATE_SERVER: getEndpointUrl("external/servers/{id}"),
+    REMOVE_SERVER: getEndpointUrl("external/servers/{id}"),
   };
-  
+
   return endpoints[endpoint] || getEndpointUrl(endpoint);
 };
 
@@ -77,15 +77,15 @@ export const getMCPServerToolsUrl = (serverName: string): string => {
 export const isBackendAvailable = async (): Promise<boolean> => {
   try {
     const response = await fetch(getHealthCheckUrl(), {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       signal: AbortSignal.timeout(backendConfig.timeout),
     });
     return response.ok;
   } catch (error) {
-    console.error('Backend health check failed:', error);
+    console.error("Backend health check failed:", error);
     return false;
   }
 };
@@ -97,18 +97,18 @@ export const getBackendStatus = async (): Promise<{
   error?: string;
 }> => {
   const startTime = Date.now();
-  
+
   try {
     const response = await fetch(getHealthCheckUrl(), {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       signal: AbortSignal.timeout(backendConfig.timeout),
     });
-    
+
     const responseTime = Date.now() - startTime;
-    
+
     if (response.ok) {
       return {
         available: true,
@@ -126,7 +126,7 @@ export const getBackendStatus = async (): Promise<{
     return {
       available: false,
       responseTime,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 };
