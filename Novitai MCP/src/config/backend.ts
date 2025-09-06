@@ -49,16 +49,16 @@ export const getHealthCheckUrl = (): string => {
 export const getApiUrl = (endpoint: string): string => {
   const endpoints: { [key: string]: string } = {
     // MCP endpoints
-    'MCP_TOOLS': getEndpointUrl('mcp/tools'),
-    'MCP_EXECUTE': getEndpointUrl('mcp/execute'),
-    'MCP_SERVERS': getEndpointUrl('mcp/servers'),
-    
+    MCP_TOOLS: getEndpointUrl("mcp/tools"),
+    MCP_EXECUTE: getEndpointUrl("mcp/execute"),
+    MCP_SERVERS: getEndpointUrl("mcp/servers"),
+
     // External server endpoints
-    'EXTERNAL_SERVERS': getEndpointUrl('external/servers'),
-    'TEST_CONNECTION': getEndpointUrl('external/servers/test-connection'),
-    'ADD_SERVER': getEndpointUrl('external/servers'),
-    'UPDATE_SERVER': getEndpointUrl('external/servers/{id}'),
-    'REMOVE_SERVER': getEndpointUrl('external/servers/{id}'),
+    EXTERNAL_SERVERS: getEndpointUrl("external/servers"),
+    TEST_CONNECTION: getEndpointUrl("external/servers/test-connection"),
+    ADD_SERVER: getEndpointUrl("external/servers"),
+    UPDATE_SERVER: getEndpointUrl("external/servers/{id}"),
+    REMOVE_SERVER: getEndpointUrl("external/servers/{id}"),
   };
   
   return endpoints[endpoint] || getEndpointUrl(endpoint);
@@ -76,16 +76,16 @@ export const getMCPServerToolsUrl = (serverName: string): string => {
 // Utility function to check if backend is available
 export const isBackendAvailable = async (): Promise<boolean> => {
   try {
-    const response = await fetch(getHealthCheckUrl(), {
-      method: 'GET',
+    const response = await globalThis.fetch(getHealthCheckUrl(), {
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      signal: AbortSignal.timeout(backendConfig.timeout),
+      signal: globalThis.AbortSignal.timeout(backendConfig.timeout),
     });
     return response.ok;
   } catch (error) {
-    console.error('Backend health check failed:', error);
+    globalThis.console.error("Backend health check failed:", error);
     return false;
   }
 };
@@ -99,12 +99,12 @@ export const getBackendStatus = async (): Promise<{
   const startTime = Date.now();
   
   try {
-    const response = await fetch(getHealthCheckUrl(), {
-      method: 'GET',
+    const response = await globalThis.fetch(getHealthCheckUrl(), {
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      signal: AbortSignal.timeout(backendConfig.timeout),
+      signal: globalThis.AbortSignal.timeout(backendConfig.timeout),
     });
     
     const responseTime = Date.now() - startTime;
