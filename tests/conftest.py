@@ -10,6 +10,7 @@ import time
 from typing import Dict, Any, List
 import os
 import sys
+from fastapi.testclient import TestClient
 
 # Add the backend directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
@@ -29,6 +30,15 @@ def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
+@pytest.fixture
+def test_client():
+    """Create a test client for the FastAPI application."""
+    try:
+        from backend.app.main import app
+        return TestClient(app)
+    except ImportError as e:
+        pytest.skip(f"Could not import app: {e}")
 
 @pytest_asyncio.fixture(scope="function")
 async def http_client():
