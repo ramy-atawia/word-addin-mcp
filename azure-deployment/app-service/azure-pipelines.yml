@@ -1,0 +1,136 @@
+# Azure DevOps Pipeline for App Service Deployment
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - backend/*
+      - Novitai MCP/*
+      - docker-compose.yml
+
+variables:
+  azureServiceConnection: 'wordaddin-mcp-connection'
+  appServiceName: 'wordaddin-mcp-app'
+  resourceGroupName: 'wordaddin-mcp-rg'
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and Test
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+        displayName: 'Use Python 3.11'
+
+    - task: UseNode@1
+      inputs:
+        versionSpec: '18.x'
+        displayName: 'Use Node 18'
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+      displayName: 'Install Python dependencies'
+
+    - script: |
+        cd "Novitai MCP"
+        npm install
+        npm run build
+      displayName: 'Build Frontend'
+
+    - script: |
+        python -m pytest tests/ -v --cov=backend --cov-report=xml
+      displayName: 'Run Tests'
+
+    - task: PublishTestResults@2
+      condition: always()
+      inputs:
+        testResultsFiles: '**/test-results.xml'
+        testRunTitle: 'Python Tests'
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: '**/coverage.xml'
+
+- stage: Deploy
+  displayName: Deploy to App Service
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployToAppService
+    displayName: Deploy to App Service
+    environment: 'production'
+    pool:
+      vmImage: $(vmImageName)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureCLI@2
+            displayName: 'Deploy Infrastructure'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Create resource group if it doesn't exist
+                az group create --name $(resourceGroupName) --location "East US"
+                
+                # Deploy ARM template
+                az deployment group create \
+                  --resource-group $(resourceGroupName) \
+                  --template-file $(Build.SourcesDirectory)/azure-deployment/app-service/arm-template.json \
+                  --parameters appServiceName=$(appServiceName)
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy Backend to App Service'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              appType: 'webAppLinux'
+              appName: '$(appServiceName)-backend'
+              package: '$(Build.SourcesDirectory)/backend'
+              runtimeStack: 'PYTHON|3.11'
+
+          - task: AzureWebApp@1
+            displayName: 'Deploy Frontend to App Service'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              appType: 'webAppLinux'
+              appName: '$(appServiceName)-frontend'
+              package: '$(Build.SourcesDirectory)/Novitai MCP/dist'
+              runtimeStack: 'NODE|18-lts'
+
+          - task: AzureCLI@2
+            displayName: 'Configure App Settings'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Configure backend app settings
+                az webapp config appsettings set \
+                  --name $(appServiceName)-backend \
+                  --resource-group $(resourceGroupName) \
+                  --settings \
+                    DATABASE_URL="$(postgresConnectionString)" \
+                    REDIS_URL="$(redisConnectionString)" \
+                    AZURE_STORAGE_CONNECTION_STRING="$(storageConnectionString)" \
+                    ENVIRONMENT="production"
+                
+                # Configure frontend app settings
+                az webapp config appsettings set \
+                  --name $(appServiceName)-frontend \
+                  --resource-group $(resourceGroupName) \
+                  --settings \
+                    REACT_APP_API_URL="https://$(appServiceName)-backend.azurewebsites.net" \
+                    REACT_APP_ENVIRONMENT="production"
