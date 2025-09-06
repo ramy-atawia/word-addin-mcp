@@ -1,24 +1,24 @@
 # Core Framework
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-pydantic==2.5.0
+pydantic>=2.8.0
 pydantic-settings==2.1.0
 
 # Database and ORM
 sqlalchemy==2.0.23
 alembic==1.13.1
-psycopg2-binary==2.9.9
-asyncpg==0.29.0
+psycopg2-binary>=2.9.10
+asyncpg>=0.30.0
 
 # AI and LangChain
 langchain==0.1.0
 langchain-openai==0.0.2
 langchain-community==0.0.10
 azure-identity==1.15.0
-openai>=1.6.1,<2.0.0
+openai>=1.6.1,<1.68.0
 
 # MCP Protocol
-mcp>=1.12.4,<2.0.0  # Official MCP Python SDK (FastMCP compatible)
+# mcp>=1.0.0,<1.12.0  # Official MCP Python SDK (FastMCP compatible) - temporarily disabled due to anyio conflicts
 
 # HTTP and API
 httpx==0.25.2
@@ -58,8 +58,8 @@ chardet==5.2.0
 
 # Web Scraping
 beautifulsoup4==4.12.2
-lxml==4.9.3
+lxml>=5.0.0
 
 # Data Processing
-pandas==2.1.4
-numpy==1.25.2
+pandas>=2.2.0
+numpy>=1.25.2,<2.0.0
