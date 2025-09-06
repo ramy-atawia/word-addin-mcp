@@ -1,0 +1,108 @@
+# Azure DevOps Pipeline for Container Apps Deployment
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - backend/*
+      - Novitai MCP/*
+      - docker-compose.yml
+
+variables:
+  azureServiceConnection: 'wordaddin-mcp-connection'
+  containerRegistry: 'wordaddinregistry.azurecr.io'
+  imageRepository: 'wordaddin-mcp'
+  containerRegistryServiceConnection: 'wordaddin-acr-connection'
+  dockerfilePath: '$(Build.SourcesDirectory)'
+  tag: '$(Build.BuildId)'
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and Push
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    - task: Docker@2
+      displayName: Build and push backend image
+      inputs:
+        command: buildAndPush
+        repository: '$(imageRepository)-backend'
+        dockerfile: '$(dockerfilePath)/backend/Dockerfile'
+        containerRegistry: $(containerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          latest
+
+    - task: Docker@2
+      displayName: Build and push frontend image
+      inputs:
+        command: buildAndPush
+        repository: '$(imageRepository)-frontend'
+        dockerfile: '$(dockerfilePath)/Novitai MCP/Dockerfile'
+        containerRegistry: $(containerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          latest
+
+    - task: Docker@2
+      displayName: Build and push MCP server image
+      inputs:
+        command: buildAndPush
+        repository: '$(imageRepository)-mcp-server'
+        dockerfile: '$(dockerfilePath)/middleware/Dockerfile'
+        containerRegistry: $(containerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          latest
+
+- stage: Deploy
+  displayName: Deploy to Azure
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployToContainerApps
+    displayName: Deploy to Container Apps
+    environment: 'production'
+    pool:
+      vmImage: $(vmImageName)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: AzureCLI@2
+            displayName: 'Deploy Infrastructure'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Deploy Bicep template
+                az deployment group create \
+                  --resource-group $(resourceGroupName) \
+                  --template-file $(Build.SourcesDirectory)/azure-deployment/container-apps/bicep/main.bicep \
+                  --parameters environment=prod \
+                  --parameters containerAppName=wordaddin-mcp \
+                  --parameters postgresServerName=wordaddin-postgres \
+                  --parameters redisCacheName=wordaddin-redis \
+                  --parameters storageAccountName=wordaddinstorage
+
+          - task: AzureCLI@2
+            displayName: 'Update Container App Images'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Update container app with new images
+                az containerapp update \
+                  --name wordaddin-mcp-app-prod \
+                  --resource-group $(resourceGroupName) \
+                  --image $(containerRegistry)/$(imageRepository)-backend:$(tag) \
+                  --image $(containerRegistry)/$(imageRepository)-frontend:$(tag) \
+                  --image $(containerRegistry)/$(imageRepository)-mcp-server:$(tag)
