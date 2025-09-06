@@ -22,10 +22,13 @@
     "stop": "office-addin-debugging stop manifest.xml",
     "validate": "office-addin-manifest validate manifest.xml",
     "watch": "webpack --mode development --watch",
+    "test": "echo 'No unit tests configured yet'",
+    "test:coverage": "echo 'No coverage tests configured yet'",
     "test-integration": "node test_integration.js",
     "lint": "office-addin-lint check",
     "lint:fix": "office-addin-lint fix",
     "prettier": "office-addin-lint prettier",
+    "type-check": "echo 'TypeScript checking not configured yet'",
     "signin": "office-addin-dev-settings m365-account login",
     "signout": "office-addin-dev-settings m365-account logout"
   },
