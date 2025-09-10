@@ -1,0 +1,366 @@
+{
+  "summary": {
+    "total_tests": 27,
+    "passed_tests": 26,
+    "failed_tests": 1,
+    "success_rate": 96.29629629629629,
+    "total_execution_time": 88.0483193397522,
+    "average_response_time": 3.2610195124590837,
+    "max_response_time": 35.15452003479004
+  },
+  "test_results": [
+    {
+      "test_name": "API Endpoints - Health Endpoint",
+      "status": "PASSED",
+      "start_time": 1757477291.74531,
+      "duration": 0.055624961853027344,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "response_data": {
+          "status": "healthy",
+          "timestamp": 1757477291.7946968,
+          "mcp_orchestrator": {
+            "status": "healthy",
+            "timestamp": 1757477291.7942991,
+            "components": {
+              "server_registry": {
+                "status": "healthy",
+                "timestamp": 1757477291.7938857,
+                "servers": {
+                  "a6032d8d-963a-4a94-bbff-3963458e6957": {
+                    "status": "healthy",
+                    "server_id": "a6032d8d-963a-4a94-bbff-3963458e6957",
+                    "server_name": "Internal MCP Server",
+                    "type": "internal",
+                    "last_health_check": 1757477291.7938733
+                  }
+                },
+                "total_servers": 1,
+                "healthy_servers": 1
+              },
+              "execution_engine": {
+                "status": "healthy",
+                "timestamp": 1757477291.7939687,
+                "components": {
+                  "validation_service": "healthy"
+                },
+                "metrics": {
+                  "request_count": 21,
+                  "error_count": 0,
+                  "total_execution_time": 0.07322573661804199,
+                  "average_execution_time": 0.0034869398389543805,
+                  "validation_errors": 0,
+                  "execution_errors": 0
+                }
+              },
+              "internal_server": {
+                "status": "healthy",
+                "tool_count": 5,
+                "server_type": "fastmcp",
+                "timestamp": 1757477291.7942789
+              }
+            },
+            "metrics": {
+              "request_count": 75,
+              "error_count": 1,
+              "total_execution_time": 170.43299102783203,
+              "average_execution_time": 2.2724398803710937
+            }
+          },
+          "version": "1.0.0"
+        }
+      }
+    },
+    {
+      "test_name": "API Endpoints - Tools List Endpoint",
+      "status": "PASSED",
+      "start_time": 1757477291.800939,
+      "duration": 0.008740901947021484,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "tool_count": 5
+      }
+    },
+    {
+      "test_name": "API Endpoints - Agent Chat Endpoint",
+      "status": "PASSED",
+      "start_time": 1757477291.8096828,
+      "duration": 1.1518950462341309,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "response_length": 80
+      }
+    },
+    {
+      "test_name": "API Endpoints - Tool Execution Endpoint",
+      "status": "PASSED",
+      "start_time": 1757477292.961586,
+      "duration": 0.422396183013916,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "tool_name": "web_search_tool"
+      }
+    },
+    {
+      "test_name": "API Endpoints - External Servers Endpoint",
+      "status": "PASSED",
+      "start_time": 1757477293.383989,
+      "duration": 0.004892826080322266,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "server_count": 0
+      }
+    },
+    {
+      "test_name": "API Endpoints - Add External Server Endpoint",
+      "status": "PASSED",
+      "start_time": 1757477293.388887,
+      "duration": 0.19024109840393066,
+      "error": null,
+      "details": {
+        "status_code": 503,
+        "server_name": "Test Server 243e1d2f"
+      }
+    },
+    {
+      "test_name": "API Endpoints - Test Connection Endpoint",
+      "status": "PASSED",
+      "start_time": 1757477293.579134,
+      "duration": 0.9108238220214844,
+      "error": null,
+      "details": {
+        "status_code": 200
+      }
+    },
+    {
+      "test_name": "MCP Tools - Web Search Tool",
+      "status": "PASSED",
+      "start_time": 1757477294.4899929,
+      "duration": 0.4330761432647705,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "result_type": "str"
+      }
+    },
+    {
+      "test_name": "MCP Tools - Prior Art Search Tool",
+      "status": "PASSED",
+      "start_time": 1757477294.923074,
+      "duration": 32.50209903717041,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "result_type": "str"
+      }
+    },
+    {
+      "test_name": "MCP Tools - Claim Drafting Tool",
+      "status": "PASSED",
+      "start_time": 1757477327.425202,
+      "duration": 6.036952018737793,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "result_type": "str"
+      }
+    },
+    {
+      "test_name": "MCP Tools - Claim Analysis Tool",
+      "status": "PASSED",
+      "start_time": 1757477333.4621592,
+      "duration": 0.058072805404663086,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "result_type": "str"
+      }
+    },
+    {
+      "test_name": "MCP Tools - File Reader Tool",
+      "status": "FAILED",
+      "start_time": 1757477333.5202382,
+      "duration": 0.0753328800201416,
+      "error": "",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - Tool Parameter Validation",
+      "status": "PASSED",
+      "start_time": 1757477333.595576,
+      "duration": 0.018199920654296875,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "validation_working": true
+      }
+    },
+    {
+      "test_name": "MCP Tools - Tool Error Handling",
+      "status": "PASSED",
+      "start_time": 1757477333.6137779,
+      "duration": 0.022446155548095703,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "error_handling_working": true
+      }
+    },
+    {
+      "test_name": "Frontend Integration - Frontend Health Check",
+      "status": "PASSED",
+      "start_time": 1757477333.636311,
+      "duration": 0.003062009811401367,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "test_name": "Frontend Integration - CORS Headers",
+      "status": "PASSED",
+      "start_time": 1757477333.6393769,
+      "duration": 0.004419088363647461,
+      "error": null,
+      "details": {
+        "status_code": 405,
+        "cors_headers": {
+          "date": "Wed, 10 Sep 2025 04:08:53 GMT",
+          "server": "uvicorn",
+          "allow": "GET",
+          "content-length": "31",
+          "content-type": "application/json",
+          "x-process-time": "0.0006690025329589844"
+        }
+      }
+    },
+    {
+      "test_name": "Frontend Integration - JSON Response Format",
+      "status": "PASSED",
+      "start_time": 1757477333.643799,
+      "duration": 0.005219697952270508,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "json_valid": true
+      }
+    },
+    {
+      "test_name": "LLM Capabilities - LLM Intent Detection",
+      "status": "PASSED",
+      "start_time": 1757477333.649055,
+      "duration": 35.15452003479004,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "intent_detected": "tool_execution"
+      }
+    },
+    {
+      "test_name": "LLM Capabilities - LLM Tool Selection",
+      "status": "PASSED",
+      "start_time": 1757477368.803585,
+      "duration": 7.468109130859375,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "tool_selection_working": true
+      }
+    },
+    {
+      "test_name": "Performance - Response Time Performance",
+      "status": "PASSED",
+      "start_time": 1757477376.2719822,
+      "duration": 0.012903928756713867,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "response_time": 0.012578964233398438
+      }
+    },
+    {
+      "test_name": "Performance - Concurrent Requests",
+      "status": "PASSED",
+      "start_time": 1757477376.2848918,
+      "duration": 0.11755609512329102,
+      "error": null,
+      "details": {
+        "concurrent_requests": 5,
+        "all_successful": true
+      }
+    },
+    {
+      "test_name": "Performance - Memory Usage Stability",
+      "status": "PASSED",
+      "start_time": 1757477376.402456,
+      "duration": 0.16697287559509277,
+      "error": null,
+      "details": {
+        "memory_stability_test": "completed",
+        "requests_made": 10
+      }
+    },
+    {
+      "test_name": "Error Handling - Invalid Endpoint Handling",
+      "status": "PASSED",
+      "start_time": 1757477376.5694761,
+      "duration": 0.015383720397949219,
+      "error": null,
+      "details": {
+        "status_code": 404,
+        "error_handling": "working"
+      }
+    },
+    {
+      "test_name": "Error Handling - Malformed JSON Handling",
+      "status": "PASSED",
+      "start_time": 1757477376.584863,
+      "duration": 0.009608030319213867,
+      "error": null,
+      "details": {
+        "status_code": 422,
+        "json_validation": "working"
+      }
+    },
+    {
+      "test_name": "Error Handling - Large Payload Handling",
+      "status": "PASSED",
+      "start_time": 1757477376.594475,
+      "duration": 1.1590650081634521,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "large_payload_handled": true
+      }
+    },
+    {
+      "test_name": "Security - SQL Injection Protection",
+      "status": "PASSED",
+      "start_time": 1757477377.753609,
+      "duration": 1.1134881973266602,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "sql_injection_protected": true
+      }
+    },
+    {
+      "test_name": "Security - XSS Protection",
+      "status": "PASSED",
+      "start_time": 1757477378.867102,
+      "duration": 0.9264252185821533,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "xss_protected": true
+      }
+    }
+  ],
+  "performance_metrics": {}
+}

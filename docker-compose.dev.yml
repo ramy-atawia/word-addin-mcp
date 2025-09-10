@@ -1,0 +1,29 @@
+# Development override for docker-compose
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+version: '3.8'
+
+services:
+  # Backend with development settings
+  backend:
+    build:
+      target: development
+    environment:
+      - FASTAPI_RELOAD=true
+      - DEBUG=true
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000", "--reload"]
+
+  # Use development frontend profile
+  frontend-dev:
+    profiles:
+      - ""  # Remove profile restriction for dev
+    volumes:
+      - "./Novitai MCP:/app"
+      - frontend_node_modules:/app/node_modules
+      - office_certs:/root/.office-addin-dev-certs
+    stdin_open: true
+    tty: true

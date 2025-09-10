@@ -1,0 +1,226 @@
+{
+  "summary": {
+    "total_tests": 14,
+    "passed_tests": 12,
+    "failed_tests": 2,
+    "success_rate": 85.71428571428571,
+    "total_execution_time": 48.16725778579712,
+    "average_response_time": 3.440513849258423,
+    "max_response_time": 30.00627112388611
+  },
+  "test_results": [
+    {
+      "test_name": "Health Endpoint",
+      "status": "PASSED",
+      "start_time": 1757392413.2224839,
+      "duration": 0.043543100357055664,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "response_data": {
+          "status": "healthy",
+          "timestamp": 1757392413.2573192,
+          "mcp_orchestrator": {
+            "status": "healthy",
+            "timestamp": 1757392413.2565706,
+            "components": {
+              "server_registry": {
+                "status": "healthy",
+                "timestamp": 1757392413.2554638,
+                "servers": {
+                  "8742d13c-3dbf-451d-91e3-bf140873d283": {
+                    "status": "healthy",
+                    "server_id": "8742d13c-3dbf-451d-91e3-bf140873d283",
+                    "server_name": "Internal MCP Server",
+                    "type": "internal",
+                    "last_health_check": 1757392413.2526677
+                  },
+                  "95d4454a-6017-4007-8261-a0bb03db4add": {
+                    "status": "healthy",
+                    "server_id": "95d4454a-6017-4007-8261-a0bb03db4add",
+                    "server_name": "Microsoft Learn",
+                    "type": "external",
+                    "last_health_check": 1757392353.5521653
+                  },
+                  "5dc7f98a-54e7-44af-ac68-26b1fc07b484": {
+                    "status": "healthy",
+                    "server_id": "5dc7f98a-54e7-44af-ac68-26b1fc07b484",
+                    "server_name": "ms learn",
+                    "type": "external",
+                    "last_health_check": 1757392354.601411
+                  }
+                },
+                "total_servers": 3,
+                "healthy_servers": 3
+              },
+              "execution_engine": {
+                "status": "healthy",
+                "timestamp": 1757392413.2558157,
+                "components": {
+                  "validation_service": "healthy"
+                },
+                "metrics": {
+                  "request_count": 15,
+                  "error_count": 0,
+                  "total_execution_time": 0.02087259292602539,
+                  "average_execution_time": 0.0013915061950683593,
+                  "validation_errors": 0,
+                  "execution_errors": 0
+                }
+              },
+              "internal_server": {
+                "status": "healthy",
+                "tool_count": 5,
+                "server_type": "fastmcp",
+                "timestamp": 1757392413.2565675
+              }
+            },
+            "metrics": {
+              "request_count": 89,
+              "error_count": 1,
+              "total_execution_time": 66.20566082000732,
+              "average_execution_time": 0.7438838294382846
+            }
+          },
+          "version": "1.0.0"
+        }
+      }
+    },
+    {
+      "test_name": "Tools List Endpoint",
+      "status": "PASSED",
+      "start_time": 1757392413.2660322,
+      "duration": 0.009491920471191406,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "tool_count": 9
+      }
+    },
+    {
+      "test_name": "Agent Chat Endpoint (Fixed)",
+      "status": "PASSED",
+      "start_time": 1757392413.275527,
+      "duration": 1.346966028213501,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "response_length": 75
+      }
+    },
+    {
+      "test_name": "Web Search Tool",
+      "status": "PASSED",
+      "start_time": 1757392414.622496,
+      "duration": 0.4700329303741455,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "result_type": "str"
+      }
+    },
+    {
+      "test_name": "Prior Art Search Tool",
+      "status": "FAILED",
+      "start_time": 1757392415.092532,
+      "duration": 30.00627112388611,
+      "error": "",
+      "details": {}
+    },
+    {
+      "test_name": "Claim Drafting Tool",
+      "status": "PASSED",
+      "start_time": 1757392445.0988212,
+      "duration": 14.691633939743042,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "result_type": "str"
+      }
+    },
+    {
+      "test_name": "Claim Analysis Tool",
+      "status": "PASSED",
+      "start_time": 1757392459.7904582,
+      "duration": 0.02173590660095215,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "result_type": "str"
+      }
+    },
+    {
+      "test_name": "External Servers Endpoint",
+      "status": "FAILED",
+      "start_time": 1757392459.812198,
+      "duration": 0.006042003631591797,
+      "error": "",
+      "details": {}
+    },
+    {
+      "test_name": "Add External Server Endpoint",
+      "status": "PASSED",
+      "start_time": 1757392459.818243,
+      "duration": 0.388897180557251,
+      "error": null,
+      "details": {
+        "status_code": 503,
+        "server_name": "Test Server 1757392459"
+      }
+    },
+    {
+      "test_name": "Test Connection Endpoint",
+      "status": "PASSED",
+      "start_time": 1757392460.2071419,
+      "duration": 1.1457641124725342,
+      "error": null,
+      "details": {
+        "status_code": 200
+      }
+    },
+    {
+      "test_name": "Performance Response Time",
+      "status": "PASSED",
+      "start_time": 1757392461.35291,
+      "duration": 0.006876945495605469,
+      "error": null,
+      "details": {
+        "status_code": 200,
+        "response_time": 0.006771087646484375
+      }
+    },
+    {
+      "test_name": "Concurrent Requests",
+      "status": "PASSED",
+      "start_time": 1757392461.35979,
+      "duration": 0.02069091796875,
+      "error": null,
+      "details": {
+        "concurrent_requests": 5,
+        "all_successful": true
+      }
+    },
+    {
+      "test_name": "Error Handling - Invalid Endpoint",
+      "status": "PASSED",
+      "start_time": 1757392461.380484,
+      "duration": 0.004538774490356445,
+      "error": null,
+      "details": {
+        "status_code": 404,
+        "error_handling": "working"
+      }
+    },
+    {
+      "test_name": "Error Handling - Malformed JSON",
+      "status": "PASSED",
+      "start_time": 1757392461.385026,
+      "duration": 0.004709005355834961,
+      "error": null,
+      "details": {
+        "status_code": 422,
+        "json_validation": "working"
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus } from './types';
 
 class MCPToolService {
-  private baseUrl: string = 'https://localhost:9000';
+  private baseUrl: string = 'http://localhost:9000';
   private connectionStatus: MCPConnectionStatus = 'disconnected';
 
   setBaseUrl(url: string) {

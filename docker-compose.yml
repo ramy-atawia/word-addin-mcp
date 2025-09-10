@@ -9,11 +9,11 @@ services:
       POSTGRES_DB: wordaddin
       POSTGRES_USER: wordaddin_user
       POSTGRES_PASSWORD: wordaddin_password
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./config/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - wordaddin-network
     healthcheck:
@@ -21,6 +21,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Redis Cache
   redis:
@@ -37,23 +38,49 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  # Backend FastAPI Application
+  # Backend FastAPI Application with integrated MCP
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: production
     container_name: wordaddin-backend
     environment:
+      # Database
       - DATABASE_URL=postgresql://wordaddin_user:wordaddin_password@postgres:5432/wordaddin
       - REDIS_URL=redis://redis:6379
+      
+      # FastAPI Configuration
       - FASTAPI_HOST=0.0.0.0
       - FASTAPI_PORT=9000
+      - FASTAPI_RELOAD=false
+      - ENVIRONMENT=production
+      - DEBUG=false
+      
+      # CORS Configuration
+      - ALLOWED_ORIGINS=["https://localhost:3002", "https://127.0.0.1:3002"]
+      - ALLOWED_HOSTS=["localhost", "127.0.0.1", "backend"]
+      
+      # MCP Configuration
+      - MCP_SERVER_URL=https://localhost:9000
+      
+      # Security
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here-change-in-production}
+      
+      # API Keys (from .env file)
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_DEPLOYMENT_NAME=${AZURE_OPENAI_DEPLOYMENT_NAME}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
+      - PATENTSVIEW_API_KEY=${PATENTSVIEW_API_KEY}
     ports:
       - "9000:9000"
     volumes:
-      - ./backend:/app
       - ./logs:/app/logs
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,123 +89,120 @@ services:
     networks:
       - wordaddin-network
     healthcheck:
-              test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
+    restart: unless-stopped
 
-  # MCP Server
-  mcp-server:
+  # Frontend Word Add-in (Development)
+  frontend-dev:
     build:
-      context: ./middleware
-      dockerfile: Dockerfile
-    container_name: wordaddin-mcp-server
+      context: "./Novitai MCP"
+      dockerfile: Dockerfile.simple
+    container_name: wordaddin-frontend-dev
     environment:
-      - MCP_SERVER_PORT=9001
-      - MCP_SERVER_HOST=0.0.0.0
+      - NODE_ENV=development
+      - REACT_APP_API_BASE_URL=http://backend:9000
+      - WEBPACK_DEV_SERVER_HOST=0.0.0.0
+      - WEBPACK_DEV_SERVER_PORT=3002
     ports:
-      - "9001:9001"
+      - "3002:3002"
     volumes:
-      - ./middleware:/app
-      - ./uploads:/app/uploads
-    networks:
-      - wordaddin-network
-    healthcheck:
-              test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Frontend React Application
-  frontend:
-    build:
-      context: ./src
-      dockerfile: Dockerfile
-    container_name: wordaddin-frontend
-    environment:
-      - REACT_APP_API_URL=https://localhost:9000
-      - REACT_APP_MCP_SERVER_URL=http://localhost:9001
-    ports:
-      - "3001:3000"
-    volumes:
-      - ./src:/app
-      - /app/node_modules
+      - "./Novitai MCP:/app"
+      - frontend_node_modules:/app/node_modules
     depends_on:
       - backend
-      - mcp-server
     networks:
       - wordaddin-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      test: ["CMD", "curl", "-f", "http://localhost:3002"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    profiles:
+      - dev
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: wordaddin-nginx
+  # Frontend Word Add-in (Production)
+  frontend-prod:
+    build:
+      context: "./Novitai MCP"
+      dockerfile: Dockerfile
+      target: production
+    container_name: wordaddin-frontend-prod
+    environment:
+      - NODE_ENV=production
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./config/nginx/conf.d:/etc/nginx/conf.d
-      - ./ssl:/etc/nginx/ssl
+      - "3002:443"
+      - "3080:80"
     depends_on:
       - backend
-      - frontend
-      - mcp-server
     networks:
       - wordaddin-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-k", "-f", "https://localhost"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    profiles:
+      - prod
 
-  # Monitoring Stack
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: wordaddin-prometheus
-    ports:
-      - "9090:9090"
+  # SSL Certificate Generator Service
+  ssl-generator:
+    image: alpine:latest
+    container_name: wordaddin-ssl-generator
     volumes:
-      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
+      - office_certs:/certs
+    command: >
+      sh -c "
+        apk add --no-cache openssl &&
+        if [ ! -f /certs/localhost.crt ]; then
+          echo 'Generating Office Add-in development certificates...' &&
+          mkdir -p /certs &&
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /certs/localhost.key \
+            -out /certs/localhost.crt \
+            -config <(
+            echo '[dn]'
+            echo 'CN=localhost'
+            echo '[req]'
+            echo 'distinguished_name = dn'
+            echo '[v3_req]'
+            echo 'subjectAltName = @alt_names'
+            echo '[alt_names]'
+            echo 'DNS.1 = localhost'
+            echo 'DNS.2 = *.localhost'
+            echo 'IP.1 = 127.0.0.1'
+            echo 'IP.2 = ::1'
+            ) \
+            -extensions v3_req \
+            -subj '/CN=localhost' &&
+          chmod 644 /certs/localhost.crt &&
+          chmod 600 /certs/localhost.key &&
+          echo 'SSL certificates generated successfully!'
+        else
+          echo 'SSL certificates already exist.'
+        fi
+      "
     networks:
       - wordaddin-network
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: wordaddin-grafana
-    ports:
-      - "3002:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./config/grafana/provisioning:/etc/grafana/provisioning
-    depends_on:
-      - prometheus
-    networks:
-      - wordaddin-network
+    restart: "no"
 
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
-  prometheus_data:
+  uploads_data:
     driver: local
-  grafana_data:
+  frontend_node_modules:
+    driver: local
+  office_certs:
     driver: local
 
 networks:

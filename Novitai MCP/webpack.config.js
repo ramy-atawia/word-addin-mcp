@@ -8,7 +8,7 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
-const REACT_APP_API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://localhost:9000';
+const REACT_APP_API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
 // const NODE_ENV = process.env.NODE_ENV || 'development'; // Removed as webpack handles NODE_ENV via mode option
 
 const urlDev = "https://localhost:3002/";

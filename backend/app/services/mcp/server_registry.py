@@ -292,7 +292,8 @@ class MCPServerRegistry:
             from app.mcp_servers.internal_server import get_global_server
             internal_mcp_server = get_global_server()
             
-            tools_data = await internal_mcp_server.tool_registry.list_all_tools()
+            # Use the FastMCP server's list_available_tools method
+            tools_data = await internal_mcp_server.list_available_tools()
             
             unified_tools = []
             for tool_data in tools_data:
@@ -390,12 +391,11 @@ class MCPServerRegistry:
     
     async def _execute_internal_tool(self, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool on internal server."""
-        from app.mcp_servers.internal_server import get_global_server
-        internal_mcp_server = get_global_server()
+        # Use the InternalToolRegistry directly since FastMCP server doesn't have execute_tool
+        from app.mcp_servers.tool_registry import InternalToolRegistry
+        tool_registry = InternalToolRegistry()
         
-        return await internal_mcp_server.tool_registry.execute_tool(
-            tool_info.name, parameters
-        )
+        return await tool_registry.execute_tool(tool_info.name, parameters)
     
     async def _execute_external_tool(self, server: MCPServerInfo, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool on external server using persistent connections."""
@@ -408,7 +408,7 @@ class MCPServerRegistry:
         if not connection:
             raise ConnectionError(f"No connection available to {server.name}")
         
-        return await connection.client.execute_tool(tool_info.name, parameters)
+        return await connection.client.call_tool(tool_info.name, parameters)
     
     async def _test_server_connection(self, server: MCPServerInfo) -> bool:
         """Test connection to a server."""

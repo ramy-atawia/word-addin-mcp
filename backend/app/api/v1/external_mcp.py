@@ -224,42 +224,26 @@ async def test_external_server_connection(request: ConnectionTestRequest):
     try:
         logger.info(f"Testing connection to external MCP server: {request.name}")
         
-        # Import the corrected FastMCP client
-        from ...core.fastmcp_client import FastMCPClientFactory
+        # Use the same corrected FastMCP client implementation as add_external_server
+        from ...core.fastmcp_client import FastMCPClient, MCPConnectionConfig
+        
+        # Create client configuration (same as add_external_server)
+        config = MCPConnectionConfig(
+            server_url=request.server_url,
+            server_name=request.name,
+            timeout=request.timeout
+        )
+        
+        # Create client
+        client = FastMCPClient(config)
         
         try:
-            # Create appropriate client based on URL
-            client = None
-            if request.server_url.startswith(('http://', 'https://')):
-                client = FastMCPClientFactory.create_http_client(
-                    request.server_url, 
-                    request.name, 
-                    timeout=request.timeout
-                )
-            else:
-                # Assume STDIO command
-                server_command = request.server_url.split()
-                client = FastMCPClientFactory.create_stdio_client(
-                    server_command, 
-                    request.name, 
-                    timeout=request.timeout
-                )
             
             # Test connection using the corrected client
             start_time = datetime.now()
             async with client:
-                # Perform health check
-                is_healthy = await client.health_check()
-                
-                if not is_healthy:
-                    return {
-                        "connection_test": "mcp_failed",
-                        "server_url": request.server_url,
-                        "server_name": request.name,
-                        "timestamp": datetime.now().isoformat(),
-                        "message": "MCP health check failed",
-                        "success": False
-                    }
+                # Perform health check and get tools
+                await client.health_check()
                 
                 # Try to list tools to verify full functionality
                 try:

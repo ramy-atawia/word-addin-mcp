@@ -122,7 +122,7 @@ class MCPConnectionManager:
                 # Find a healthy, available connection
                 for connection in pool:
                     if (connection.is_healthy and 
-                        connection.client.is_connected() and
+                        connection.client.is_connected and
                         not connection.client.state == MCPConnectionState.CONNECTING):
                         
                         # Update usage stats
@@ -170,6 +170,7 @@ class MCPConnectionManager:
     async def _create_connection(self, server_url: str, server_name: str) -> Optional[PooledConnection]:
         """Create a new connection to an MCP server."""
         try:
+            # Use real FastMCP Client through our wrapper
             from app.core.fastmcp_client import FastMCPClientFactory
             
             # Create client based on URL type
@@ -179,12 +180,18 @@ class MCPConnectionManager:
                     server_name, 
                     timeout=30.0
                 )
+            elif server_url.startswith(('ws://', 'wss://')):
+                client = FastMCPClientFactory.create_websocket_client(
+                    server_url,
+                    server_name,
+                    timeout=30.0
+                )
             else:
                 # Handle STDIO command
                 server_command = server_url.split() if isinstance(server_url, str) else server_url
                 client = FastMCPClientFactory.create_stdio_client(
                     server_command, 
-                    server_name, 
+                    server_name,
                     timeout=30.0
                 )
             

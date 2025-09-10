@@ -8,7 +8,7 @@ export interface BackendConfig {
 
 // Default backend configuration
 export const defaultBackendConfig: BackendConfig = {
-  baseUrl: 'https://localhost:9000',
+  baseUrl: 'http://localhost:9000',
   apiVersion: 'v1',
   timeout: 30000, // 30 seconds
   retryAttempts: 3,

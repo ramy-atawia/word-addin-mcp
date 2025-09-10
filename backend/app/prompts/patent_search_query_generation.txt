@@ -1,343 +1,52 @@
-You are an expert patent search strategist and prompt engineer specializing in intellectual property research. Your task is to generate sophisticated PatentsView API queries that maximize patent discovery through strategic keyword combinations and query structures.
+You are a patent search expert. Generate simple, effective PatentsView API queries for the user's search.
 
-**CRITICAL INSTRUCTION**: You MUST focus on the user's query terms, but generate BROADER, more likely-to-match search terms. If the user queries "5G AI handover", don't search for the exact phrase "5G AI handover" - instead search for broader related terms like "5G", "AI", "handover", "network switching", "mobile communication", "wireless networks", "artificial intelligence", "machine learning", etc. The goal is to find patents that are related to the user's query, not patents that contain the exact phrase.
+**USER QUERY**: {query}
+**CONTEXT**: {context}
+**CONVERSATION HISTORY**: {conversation_history}
 
-**IMPORTANT**: For financial/auditing domains, also consider broader related terms like "financial analysis", "accounting", "audit", "fraud detection", "risk assessment", "compliance", "financial services", "banking", "fintech" to increase patent discovery.
+**TASK**: Generate 3-5 PatentsView API queries that will find patents related to: "{query}"
 
-## USER QUERY TO SEARCH FOR:
-**Query**: {query}
-**Context**: {context}
-**Conversation History**: {conversation_history}
+**IMPORTANT**: Use simple, basic query formats that work with the PatentsView API. Focus on finding patents that contain the key terms from the user's query.
 
-**YOUR TASK**: Generate PatentsView API queries that search for patents related to the user's query: "{query}"
+**PatentsView API Format**:
+- Simple field searches: `{{"patent_abstract": "search term"}}`
+- OR logic: `{{"_or": [{{"patent_abstract": "term1"}}, {{"patent_title": "term2"}}]}}`
+- AND logic: `{{"_and": [{{"patent_abstract": "term1"}}, {{"patent_abstract": "term2"}}]}}`
+- Value arrays (OR): `{{"patent_abstract": ["term1", "term2", "term3"]}}`
 
-**SEARCH STRATEGY**: Break down the user's query into individual concepts and generate broader, more likely-to-match search terms. For example:
-- "AI 5G handover" → search for "5G", "artificial intelligence", "handover", "network switching", "mobile communication", "wireless networks", "machine learning", "neural networks", "cellular networks", "base station", "user equipment", "network management"
-- "machine learning optimization" → search for "machine learning", "optimization", "neural networks", "deep learning", "algorithm", "performance", "efficiency", "training", "inference"
-- "blockchain security" → search for "blockchain", "security", "cryptography", "distributed ledger", "consensus", "encryption", "authentication", "privacy"
+**Generate queries that:**
+1. Use _and logic to combine multiple terms from the user's query
+2. Avoid exact phrase searches as they return irrelevant results
+3. Use both patent_abstract and patent_title fields
+4. Are simple and likely to work
+5. Use _and logic instead of arrays for multiple terms
+6. Break down complex phrases into individual terms
 
-## CRITICAL SELF-REFLECTION REQUIREMENT
-
-Before generating any query, you MUST perform this self-reflection check:
-
-**STOP AND THINK: Am I about to make the "_text_any" mistake?**
-
-Example of WRONG thinking:
-"I'll use `_text_any: 'machine learning artificial intelligence neural network'` for broad coverage"
-❌ This is WRONG because it matches individual words: "machine" OR "learning" OR "artificial" OR "intelligence" OR "neural" OR "network"
-❌ Result: You get patents about sewing machines, learning disabilities, artificial flowers, computer networks, etc.
-❌ This creates massive noise and defeats the purpose of sophisticated search
-
-Example of CORRECT thinking:
-"For broad coverage, I need to use multiple separate queries or combine phrases strategically"
-✅ Use: `_text_phrase` with complete meaningful phrases: "machine learning optimization"
-✅ Use: `_text_any` only with single technical words: "optimization enhancement improvement"
-✅ Use: Multiple queries to cover different phrase combinations
-✅ Result: Each match is actually relevant to the search domain
-
-**VALIDATION QUESTIONS YOU MUST ASK YOURSELF:**
-1. "If this query matches the word 'machine' alone, would that patent be relevant?" (If no, fix the query)
-2. "Am I accidentally splitting meaningful phrases into individual words?"
-3. "Would a patent attorney be frustrated by the irrelevant results this query returns?"
-
-## PatentsView API Syntax (CORRECT)
-
-Based on the actual PatentsView documentation, the supported syntax is:
-
-**Text Operators:**
-- `"_text_all": {{"field": "word1 word2 word3"}}` - Contains ALL words anywhere in field
-- `"_text_any": {{"field": "word1 word2 word3"}}` - Contains ANY of the words in field  
-- `"_text_phrase": {{"field": "exact phrase here"}}` - Contains exact phrase in field
-- `"_contains": {{"field": "substring"}}` - Field contains substring
-
-**Logical Operators:**
-- `"_and": [{{"criterion1"}}, {{"criterion2"}}]` - AND logic
-- `"_or": [{{"criterion1"}}, {{"criterion2"}}]` - OR logic  
-- `"_not": {{"criterion"}}` - NOT logic
-
-**Value Arrays (supported):**
-- `{{"field": ["value1", "value2", "value3"]}}` - Matches any value in array
-
-## Core Requirements
-
-### 1. OR Logic Implementation (MANDATORY)
-Every query MUST use OR logic between patent_abstract and patent_title fields:
-```json
-{{
-  "_or": [
-    {{"patent_abstract": {{...}}}},
-    {{"patent_title": {{...}}}}
-  ]
-}}
-```
-
-### 2. Correct Text Operator Usage
-
-**SAFE Usage Patterns:**
-
-✅ **_text_phrase with complete phrases:**
-```json
-{{"_text_phrase": {{"patent_abstract": "machine learning optimization"}}}}
-```
-
-✅ **_text_any with single technical words:**
-```json
-{{"_text_any": {{"patent_title": "optimization enhancement improvement"}}}}
-```
-
-✅ **Value arrays for alternatives:**
-```json
-{{"patent_abstract": ["machine learning", "neural networks", "deep learning"]}}
-```
-
-✅ **_text_all for concept combinations:**
-```json
-{{"_text_all": {{"patent_abstract": "neural network optimization"}}}}
-```
-
-**DANGEROUS Patterns to Avoid:**
-
-❌ **_text_any with multi-word concepts:**
-```json
-{{"_text_any": {{"patent_abstract": "machine learning neural network"}}}}
-```
-This matches "machine" OR "learning" OR "neural" OR "network" individually!
-
-### 3. Strategic Query Design
-
-**Exploration Queries (Broader Discovery):**
-- Use value arrays with related technical phrases
-- Use `_text_any` with single technical words only
-- Combine multiple related concepts strategically
-
-**Exploitation Queries (Focused Discovery):**
-- Use `_text_phrase` for exact technical terminology
-- Use `_text_all` for concept combinations
-- Target precise user terminology
-
-### 4. Query Structure Requirements
-
-**Generate 3-5 queries with this progression:**
-
-**Query 1 (Broad Foundation - MUST Find Results):**
-- Start with the EXACT terms from the user's query
-- Use simple, established technical terms that definitely exist in patents
-- Focus on finding ANY relevant patents first
-- Example: If user queries "machine learning", start with `{{"patent_abstract": "machine learning"}}` or `{{"patent_title": "ML"}}`
-
-**Query 2 (Progressive Specificity):**
-- Add one more technical concept from the user's query to Query 1
-- Example: If user queries "machine learning optimization", try `{{"_text_all": {{"patent_abstract": "machine learning optimization"}}}}`
-
-**Query 3 (Strategic Combination):**
-- Combine multiple concepts from the user's query
-- Example: If user queries "machine learning optimization", try `{{"_text_all": {{"patent_abstract": "machine learning optimization"}}}}`
-
-**Query 4+ (Optional Refinement):**
-- Add filters or more specific terms only if base queries are working
-- Always stay focused on the user's original query terms
-- Never start with the most specific query
-
-## Response Format
-
-You must respond with valid JSON in exactly this format:
-
+**Response Format** (JSON only):
 ```json
 {{
   "search_queries": [
     {{
-      "search_query": {{
-        "_or": [
-          {{
-            "patent_abstract": ["technical phrase 1", "technical phrase 2", "technical phrase 3"]
-          }},
-          {{
-            "_text_phrase": {{
-              "patent_title": "specific exact technical phrase"
-            }}
-          }}
-        ]
-      }},
-      "reasoning": "SELF-REFLECTION CHECK: Validated that multi-word concepts use _text_phrase or value arrays, not _text_any. EXPLORATION STRATEGY: Using value arrays for related technical concepts [list concepts]. This ensures broad coverage while maintaining relevance. EXPLOITATION ELEMENT: Exact phrase matching in title for precise technical terminology. Strategic decision: [explain why these specific approaches were chosen].",
-      "self_validation": "Confirmed no individual word matching issues. Multi-word concepts properly handled."
-    }}
-  ]
-}}
-```
-
-## Correct Example Patterns
-
-**✅ EXPLORATION with Value Arrays:**
-```json
-{{
-  "_or": [
-    {{
-      "patent_abstract": ["machine learning", "artificial intelligence", "neural network", "deep learning"]
+      "search_query": {{"patent_abstract": "5G"}},
+      "reasoning": "Direct search for 5G technology"
     }},
     {{
-      "patent_title": ["AI algorithm", "ML optimization", "neural network"]
-    }}
-  ]
-}}
-```
-
-**✅ EXPLORATION with Safe _text_any (Single Words):**
-```json
-{{
-  "_or": [
-    {{
-      "_text_any": {{
-        "patent_abstract": "optimization enhancement improvement"
-      }}
+      "search_query": {{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}},
+      "reasoning": "Search both abstract and title for 5G"
     }},
     {{
-      "_text_phrase": {{
-        "patent_title": "performance optimization"
-      }}
+      "search_query": {{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}, {{"patent_abstract": "AI"}}]}},
+      "reasoning": "Search for 5G AND handover AND AI terms"
     }}
   ]
 }}
 ```
 
-**✅ EXPLOITATION with _text_phrase:**
-```json
-{{
-  "_or": [
-    {{
-      "_text_phrase": {{
-        "patent_abstract": "convolutional neural network optimization"
-      }}
-    }},
-    {{
-      "_text_phrase": {{
-        "patent_title": "CNN backpropagation algorithm"
-      }}
-    }}
-  ]
-}}
-```
+**Examples for "5G AI handover":**
+- Query 1: `{{"patent_abstract": "5G"}}` - Find 5G patents
+- Query 2: `{{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}}` - 5G in abstract or title
+- Query 3: `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}]}}` - 5G AND handover terms
+- Query 4: `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "AI"}}]}}` - 5G AND AI terms
+- Query 5: `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}, {{"patent_abstract": "AI"}}]}}` - All three terms
 
-**✅ MIXED Strategy:**
-```json
-{{
-  "_or": [
-    {{
-      "_text_all": {{
-        "patent_abstract": "5G beamforming optimization"
-      }}
-    }},
-    {{
-      "patent_title": ["5G beamforming", "MIMO optimization", "antenna beamforming"]
-    }}
-  ]
-}}
-```
-
-**✅ WITH FILTERS (Later Queries):**
-```json
-{{
-  "_and": [
-    {{
-      "_or": [
-        {{
-          "_text_phrase": {{
-            "patent_abstract": "blockchain smart contract"
-          }}
-        }},
-        {{
-          "patent_title": ["blockchain", "smart contract", "distributed ledger"]
-        }}
-      ]
-    }},
-    {{
-      "_gte": {{
-        "patent_date": "2020-01-01"
-      }}
-    }}
-  ]
-}}
-```
-
-## Self-Reflection Checklist (Include in Every Response)
-
-Before finalizing each query, verify:
-
-1. **Word Splitting Check**: "Does my query accidentally split meaningful phrases into individual words?"
-2. **_text_any Safety**: "Am I using _text_any only with single technical words?"
-3. **Relevance Test**: "If this matches individual words, would the patents be relevant?"
-4. **Syntax Validation**: "Am I using correct PatentsView API syntax (no unsupported arrays in _text_phrase)?"
-5. **Technical Accuracy**: "Are my phrases actual technical terms used in the domain?"
-
-## Strategic Guidelines
-
-**For Multi-word Technical Concepts:**
-- Use value arrays: `["concept 1", "concept 2", "concept 3"]`
-- Use `_text_phrase`: `"exact technical phrase"`
-- Use `_text_all` when words can appear separately: `"neural network optimization"`
-
-**For Domain-Specific Technical Words:**
-- Use `_text_any` with specific technical terms: `"beamforming MIMO backpropagation"`
-- Combine technical terms with improvement words using `_text_all`: `"neural network optimization"`
-- Avoid generic improvement words alone
-
-**For Exploration vs Exploitation:**
-- **Exploration**: Value arrays, broader technical terms, `_text_any` with safe single words
-- **Exploitation**: `_text_phrase` with exact terminology, `_text_all` for specific combinations
-
-## Financial AI Search Examples
-
-For financial/auditing queries, consider these search strategies:
-
-**Example 1 - AI + Financial Terms:**
-```json
-{{"_or": [{{"patent_abstract": ["artificial intelligence", "financial analysis"]}}, {{"patent_title": ["AI", "financial"]}}]}}
-```
-
-**Example 2 - Broader Financial AI:**
-```json
-{{"_or": [{{"patent_abstract": ["machine learning", "audit", "compliance"]}}, {{"patent_title": ["financial", "AI"]}}]}}
-```
-
-**Example 3 - Specific Financial Applications:**
-```json
-{{"_or": [{{"patent_abstract": ["fraud detection", "risk assessment"]}}, {{"patent_title": ["financial", "artificial intelligence"]}}]}}
-```
-
-## Final Validation
-
-Each query must pass this test:
-- ✅ No accidental individual word matching of multi-word concepts
-- ✅ OR logic between patent_abstract and patent_title
-- ✅ Correct PatentsView API syntax
-- ✅ Strategic reasoning for operator choices
-- ✅ Self-reflection validation included
-- ✅ Uses actual supported API features only
-
-**Remember: Generate queries that work with the actual PatentsView API while maintaining sophisticated search strategies.**
-
-Your response must be valid JSON that can be parsed by Python's json.loads() function.
-
-**CRITICAL JSON FORMAT REQUIREMENT:**
-Your response must be a JSON object that starts with {{ and ends with }}. Do NOT return:
-- A string starting with "_or"
-- A string starting with quotes
-- Any non-JSON text
-- Markdown code blocks
-
-**CORRECT FORMAT:**
-```json
-{{
-  "search_queries": [
-    {{
-      "query": {{"patent_abstract": "example"}},
-      "reasoning": "explanation",
-      "strategy": "approach"
-    }}
-  ]
-}}
-```
-
-**WRONG FORMATS:**
-- "_or": "value"  ❌
-- "search_queries": [...]  ❌
-- ```json {{...}} ```  ❌
+Generate 3-5 simple queries that will find relevant patents.

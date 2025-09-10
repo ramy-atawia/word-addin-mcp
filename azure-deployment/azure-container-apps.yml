@@ -1,0 +1,269 @@
+# Azure Container Apps deployment configuration
+# Deploy: az deployment group create --resource-group <rg> --template-file azure-container-apps.yml --parameters @parameters.json
+
+apiVersion: 2021-03-01
+kind: Template
+parameters:
+  environment:
+    type: string
+    defaultValue: dev
+    allowedValues:
+      - dev
+      - staging
+      - prod
+  location:
+    type: string
+    defaultValue: East US 2
+  resourceGroupName:
+    type: string
+  containerAppsEnvironmentName:
+    type: string
+    defaultValue: wordaddin-mcp-env
+  backendAppName:
+    type: string
+    defaultValue: wordaddin-backend
+  frontendAppName:
+    type: string
+    defaultValue: wordaddin-frontend
+  containerRegistryName:
+    type: string
+  azureOpenAIApiKey:
+    type: securestring
+  azureOpenAIEndpoint:
+    type: string
+  googleApiKey:
+    type: securestring
+  googleCSEId:
+    type: string
+  patentsViewApiKey:
+    type: securestring
+    defaultValue: ''
+  secretKey:
+    type: securestring
+
+variables:
+  environmentSuffix: '[if(equals(parameters(''environment''), ''prod''), '''', concat(''-'', parameters(''environment'')))]'
+  fullBackendAppName: '[concat(parameters(''backendAppName''), variables(''environmentSuffix''))]'
+  fullFrontendAppName: '[concat(parameters(''frontendAppName''), variables(''environmentSuffix''))]'
+  fullEnvironmentName: '[concat(parameters(''containerAppsEnvironmentName''), variables(''environmentSuffix''))]'
+
+resources:
+  # Log Analytics Workspace
+  - type: Microsoft.OperationalInsights/workspaces
+    apiVersion: 2021-12-01-preview
+    name: '[concat(''logs-'', variables(''fullEnvironmentName''))]'
+    location: '[parameters(''location'')]'
+    properties:
+      sku:
+        name: PerGB2018
+      retentionInDays: 30
+
+  # Container Apps Environment
+  - type: Microsoft.App/managedEnvironments
+    apiVersion: 2022-03-01
+    name: '[variables(''fullEnvironmentName'')]'
+    location: '[parameters(''location'')]'
+    dependsOn:
+      - '[resourceId(''Microsoft.OperationalInsights/workspaces'', concat(''logs-'', variables(''fullEnvironmentName'')))]'
+    properties:
+      appLogsConfiguration:
+        destination: log-analytics
+        logAnalyticsConfiguration:
+          customerId: '[reference(resourceId(''Microsoft.OperationalInsights/workspaces'', concat(''logs-'', variables(''fullEnvironmentName'')))).customerId]'
+          sharedKey: '[listKeys(resourceId(''Microsoft.OperationalInsights/workspaces'', concat(''logs-'', variables(''fullEnvironmentName''))), ''2021-12-01-preview'').primarySharedKey]'
+
+  # PostgreSQL Flexible Server
+  - type: Microsoft.DBforPostgreSQL/flexibleServers
+    apiVersion: 2021-06-01
+    name: '[concat(''postgres-'', variables(''fullEnvironmentName''))]'
+    location: '[parameters(''location'')]'
+    sku:
+      name: Standard_B1ms
+      tier: Burstable
+    properties:
+      administratorLogin: wordadmin
+      administratorLoginPassword: '[parameters(''secretKey'')]'
+      version: '15'
+      storage:
+        storageSizeGB: 32
+      backup:
+        backupRetentionDays: 7
+        geoRedundantBackup: Disabled
+      highAvailability:
+        mode: Disabled
+
+  # PostgreSQL Database
+  - type: Microsoft.DBforPostgreSQL/flexibleServers/databases
+    apiVersion: 2021-06-01
+    name: '[concat(''postgres-'', variables(''fullEnvironmentName''), ''/wordaddin'')]'
+    dependsOn:
+      - '[resourceId(''Microsoft.DBforPostgreSQL/flexibleServers'', concat(''postgres-'', variables(''fullEnvironmentName'')))]'
+    properties:
+      charset: utf8
+      collation: en_US.utf8
+
+  # Redis Cache
+  - type: Microsoft.Cache/Redis
+    apiVersion: 2021-06-01
+    name: '[concat(''redis-'', variables(''fullEnvironmentName''))]'
+    location: '[parameters(''location'')]'
+    properties:
+      sku:
+        name: Basic
+        family: C
+        capacity: 0
+      enableNonSslPort: false
+      minimumTlsVersion: '1.2'
+
+  # Backend Container App
+  - type: Microsoft.App/containerApps
+    apiVersion: 2022-03-01
+    name: '[variables(''fullBackendAppName'')]'
+    location: '[parameters(''location'')]'
+    dependsOn:
+      - '[resourceId(''Microsoft.App/managedEnvironments'', variables(''fullEnvironmentName''))]'
+      - '[resourceId(''Microsoft.DBforPostgreSQL/flexibleServers/databases'', concat(''postgres-'', variables(''fullEnvironmentName'')), ''wordaddin'')]'
+      - '[resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName'')))]'
+    properties:
+      managedEnvironmentId: '[resourceId(''Microsoft.App/managedEnvironments'', variables(''fullEnvironmentName''))]'
+      configuration:
+        activeRevisionsMode: Single
+        ingress:
+          external: true
+          targetPort: 9000
+          transport: http
+          allowInsecure: false
+        secrets:
+          - name: azure-openai-api-key
+            value: '[parameters(''azureOpenAIApiKey'')]'
+          - name: google-api-key
+            value: '[parameters(''googleApiKey'')]'
+          - name: patents-view-api-key
+            value: '[parameters(''patentsViewApiKey'')]'
+          - name: secret-key
+            value: '[parameters(''secretKey'')]'
+          - name: database-url
+            value: '[concat(''postgresql://wordadmin:'', parameters(''secretKey''), ''@'', reference(resourceId(''Microsoft.DBforPostgreSQL/flexibleServers'', concat(''postgres-'', variables(''fullEnvironmentName'')))).fullyQualifiedDomainName, ''/wordaddin'')]'
+          - name: redis-url
+            value: '[concat(''rediss://:'', listKeys(resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName''))), ''2021-06-01'').primaryKey, ''@'', reference(resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName'')))).hostName, '':6380'')]'
+      template:
+        containers:
+          - name: backend
+            image: '[concat(parameters(''containerRegistryName''), ''.azurecr.io/wordaddin-backend:'', parameters(''environment''))]'
+            env:
+              - name: ENVIRONMENT
+                value: '[parameters(''environment'')]'
+              - name: FASTAPI_HOST
+                value: 0.0.0.0
+              - name: FASTAPI_PORT
+                value: '9000'
+              - name: DATABASE_URL
+                secretRef: database-url
+              - name: REDIS_URL
+                secretRef: redis-url
+              - name: AZURE_OPENAI_API_KEY
+                secretRef: azure-openai-api-key
+              - name: AZURE_OPENAI_ENDPOINT
+                value: '[parameters(''azureOpenAIEndpoint'')]'
+              - name: GOOGLE_API_KEY
+                secretRef: google-api-key
+              - name: GOOGLE_CSE_ID
+                value: '[parameters(''googleCSEId'')]'
+              - name: PATENTSVIEW_API_KEY
+                secretRef: patents-view-api-key
+              - name: SECRET_KEY
+                secretRef: secret-key
+              - name: ALLOWED_ORIGINS
+                value: '[concat(''["https://'', variables(''fullFrontendAppName''), ''.'', variables(''fullEnvironmentName''), ''.azurecontainerapps.io"]'')]'
+            resources:
+              cpu: 1.0
+              memory: 2Gi
+            probes:
+              - type: Liveness
+                httpGet:
+                  path: /health
+                  port: 9000
+                initialDelaySeconds: 30
+                periodSeconds: 30
+              - type: Readiness
+                httpGet:
+                  path: /health
+                  port: 9000
+                initialDelaySeconds: 10
+                periodSeconds: 10
+        scale:
+          minReplicas: 1
+          maxReplicas: 10
+          rules:
+            - name: http-requests
+              http:
+                metadata:
+                  concurrentRequests: 100
+
+  # Frontend Container App
+  - type: Microsoft.App/containerApps
+    apiVersion: 2022-03-01
+    name: '[variables(''fullFrontendAppName'')]'
+    location: '[parameters(''location'')]'
+    dependsOn:
+      - '[resourceId(''Microsoft.App/managedEnvironments'', variables(''fullEnvironmentName''))]'
+      - '[resourceId(''Microsoft.App/containerApps'', variables(''fullBackendAppName''))]'
+    properties:
+      managedEnvironmentId: '[resourceId(''Microsoft.App/managedEnvironments'', variables(''fullEnvironmentName''))]'
+      configuration:
+        activeRevisionsMode: Single
+        ingress:
+          external: true
+          targetPort: 80
+          transport: http
+          allowInsecure: false
+          customDomains:
+            - name: '[concat(variables(''fullFrontendAppName''), ''.'', variables(''fullEnvironmentName''), ''.azurecontainerapps.io'')]'
+              certificateId: null
+      template:
+        containers:
+          - name: frontend
+            image: '[concat(parameters(''containerRegistryName''), ''.azurecr.io/wordaddin-frontend:'', parameters(''environment''))]'
+            env:
+              - name: NODE_ENV
+                value: production
+              - name: REACT_APP_API_BASE_URL
+                value: '[concat(''https://'', variables(''fullBackendAppName''), ''.'', variables(''fullEnvironmentName''), ''.azurecontainerapps.io'')]'
+            resources:
+              cpu: 0.5
+              memory: 1Gi
+            probes:
+              - type: Liveness
+                httpGet:
+                  path: /health
+                  port: 80
+                initialDelaySeconds: 30
+                periodSeconds: 30
+              - type: Readiness
+                httpGet:
+                  path: /health
+                  port: 80
+                initialDelaySeconds: 10
+                periodSeconds: 10
+        scale:
+          minReplicas: 1
+          maxReplicas: 5
+          rules:
+            - name: http-requests
+              http:
+                metadata:
+                  concurrentRequests: 200
+
+outputs:
+  backendUrl:
+    type: string
+    value: '[concat(''https://'', variables(''fullBackendAppName''), ''.'', variables(''fullEnvironmentName''), ''.azurecontainerapps.io'')]'
+  frontendUrl:
+    type: string
+    value: '[concat(''https://'', variables(''fullFrontendAppName''), ''.'', variables(''fullEnvironmentName''), ''.azurecontainerapps.io'')]'
+  postgresHost:
+    type: string
+    value: '[reference(resourceId(''Microsoft.DBforPostgreSQL/flexibleServers'', concat(''postgres-'', variables(''fullEnvironmentName'')))).fullyQualifiedDomainName]'
+  redisHost:
+    type: string
+    value: '[reference(resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName'')))).hostName]'

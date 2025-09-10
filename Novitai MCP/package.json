@@ -16,6 +16,7 @@
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "dev-server": "webpack serve --mode development",
+    "dev-simple": "webpack serve --config webpack.config.simple.js --mode development",
     "start": "office-addin-debugging start manifest.xml",
     "start:https": "HTTPS=true SSL_CRT_FILE=~/.office-addin-dev-certs/localhost.crt SSL_KEY_FILE=~/.office-addin-dev-certs/localhost.key webpack serve --mode development",
     "start:dev": "webpack serve --mode development --port 3002",

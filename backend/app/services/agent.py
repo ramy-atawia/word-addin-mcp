@@ -49,9 +49,6 @@ class ConversationMemory:
         """Clear conversation memory."""
         self.messages.clear()
     
-    def get_memory_size(self) -> int:
-        """Get current memory size."""
-        return len(self.messages)
 
 
 class AgentService:
@@ -302,33 +299,41 @@ class AgentService:
         {context}
 
         IMPORTANT RULES:
-        1. Use context from conversation history and document content to infer what the user wants
-        2. If user says "prior art search" or "patent search" but doesn't specify what to search for:
-           - Check if there's relevant content in the document or conversation history
-           - If yes, use that content as the search query
-           - If no, ask "What technology would you like to search for patents about?"
-        3. If user says "draft claims" but doesn't specify what to draft:
-           - Check if there's relevant content in the document or conversation history  
-           - If yes, use that content as the invention description
-           - If no, ask "What invention would you like me to draft claims for?"
-        4. NEVER invent random queries - only use context or ask for clarification
+        1. For web search requests like "web search [query]" or "search for [query]":
+           - Extract the query after "web search" or "search for"
+           - Use web_search_tool with {{"query": "extracted_query"}}
+           - Example: "web search ramy Atawia" → {{"action": "tool_call", "tool_name": "web_search_tool", "parameters": {{"query": "ramy Atawia"}}}}
+        
+        2. For prior art search or patent search:
+           - Use prior_art_search_tool with the invention/technology as query
+           - Example: "prior art search 5G" → {{"action": "tool_call", "tool_name": "prior_art_search_tool", "parameters": {{"query": "5G"}}}}
+        
+        3. For claim drafting:
+           - Use claim_drafting_tool with user query, conversation context, and document reference
+           - ALWAYS include the document content in document_reference parameter
+           - ALWAYS include conversation history in conversation_context parameter
+           - Extract the relevant context from the document and conversation
+           - Example: "draft claims for AI system" → {{"action": "tool_call", "tool_name": "claim_drafting_tool", "parameters": {{"user_query": "draft claims for AI system", "conversation_context": "extracted_conversation_context", "document_reference": "extracted_document_content"}}}}
+        
+        4. Always extract the actual content/query from user messages - don't leave parameters empty
+        5. For claim drafting, ALWAYS use the document content and conversation context to create relevant, specific claims
 
         Respond with JSON in one of two formats:
 
-        Tool Call (if you can infer parameters from context):
-        {{
+        Tool Call (with extracted parameters):
+        {{{{
             "action": "tool_call",
             "tool_name": "exact_tool_name_from_available_tools",
-            "parameters": {{
-                "param1": "value1"
-            }}
-        }}
+            "parameters": {{{{
+                "query": "extracted_search_term_or_content"
+            }}}}
+        }}}}
 
-        Conversational Response (if you need clarification):
-        {{
+        Conversational Response (if unclear):
+        {{{{
             "action": "conversational_response",
             "response": "Your response text"
-        }}
+        }}}}
 
         Only output valid JSON.
         '''
@@ -343,7 +348,7 @@ Choose the most appropriate tool or provide a conversational response."""
         try:
             raw_llm_response = llm_client.generate_text(
                 prompt=user_prompt,
-                max_tokens=800,
+                max_tokens=2000,
                 temperature=0.0,
                 system_message=system_prompt
             )
@@ -372,6 +377,30 @@ Choose the most appropriate tool or provide a conversational response."""
                 parameters = parsed_response.get("parameters", {})
                 if not tool_name or not isinstance(parameters, dict):
                     return "conversation", None, {}, "I'm not sure how to process that tool request."
+                
+                # For claim drafting tool, ensure context is properly passed
+                if tool_name == "claim_drafting_tool":
+                    # Extract context from the prepared context string
+                    context_lines = context.split('\n')
+                    conversation_context = ""
+                    document_reference = ""
+                    
+                    for line in context_lines:
+                        if line.startswith("Conversation History"):
+                            conversation_context = line.split(":", 1)[1].strip() if ":" in line else ""
+                        elif line.startswith("Current Document Content"):
+                            # Find the document content between the triple quotes
+                            doc_start = context.find("'''")
+                            if doc_start != -1:
+                                doc_end = context.find("'''", doc_start + 3)
+                                if doc_end != -1:
+                                    document_reference = context[doc_start + 3:doc_end].strip()
+                    
+                    # Update parameters with extracted context
+                    if conversation_context:
+                        parameters["conversation_context"] = conversation_context
+                    if document_reference:
+                        parameters["document_reference"] = document_reference
                 
                 reasoning = f"Tool call: {tool_name}"
                 return "tool_execution", tool_name, parameters, reasoning

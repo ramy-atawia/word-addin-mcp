@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 import structlog
 import mcp.types
-from mcp.types import Tool, TextContent, ContentBlock, ToolAnnotations
+from mcp.types import Tool, TextContent
 
 logger = structlog.get_logger()
 

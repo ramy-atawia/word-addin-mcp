@@ -205,7 +205,7 @@ const MCPToolManager: React.FC = () => {
       const refreshData = async () => {
         try {
           // Load tools first
-          const toolsResponse = await fetch('https://localhost:9000/api/v1/mcp/tools');
+          const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
           if (toolsResponse.ok) {
             const toolsData = await toolsResponse.json();
             if (toolsData.tools) {
@@ -224,7 +224,7 @@ const MCPToolManager: React.FC = () => {
           };
 
           // Load external servers
-          const serversResponse = await fetch('https://localhost:9000/api/v1/mcp/external/servers');
+          const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
           if (serversResponse.ok) {
             const serversData = await serversResponse.json();
             if (serversData.servers) {
@@ -260,7 +260,7 @@ const MCPToolManager: React.FC = () => {
 
   useEffect(() => {
     // Initialize with mcpToolService
-    mcpToolService.setBaseUrl('https://localhost:9000');
+    mcpToolService.setBaseUrl('http://localhost:9000');
     checkConnection(mcpToolService);
     loadTools(mcpToolService);
   }, []);
@@ -401,7 +401,7 @@ const MCPToolManager: React.FC = () => {
       setIsLoading(true);
       try {
         // Load tools first
-        const toolsResponse = await fetch('https://localhost:9000/api/v1/mcp/tools');
+        const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
         if (toolsResponse.ok) {
           const toolsData = await toolsResponse.json();
           if (toolsData.tools) {
@@ -420,7 +420,7 @@ const MCPToolManager: React.FC = () => {
         };
 
         // Load external servers
-        const serversResponse = await fetch('https://localhost:9000/api/v1/mcp/external/servers');
+        const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
         if (serversResponse.ok) {
           const serversData = await serversResponse.json();
           if (serversData.servers) {
@@ -503,7 +503,28 @@ const MCPToolManager: React.FC = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        // Handle nested error messages from backend
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        if (errorData) {
+          if (typeof errorData.message === 'string') {
+            errorMessage = errorData.message;
+          } else if (errorData.message && typeof errorData.message === 'object') {
+            // Handle nested error objects from backend
+            errorMessage = errorData.message.message || errorData.message.error || JSON.stringify(errorData.message);
+          } else if (errorData.error) {
+            errorMessage = errorData.error;
+          } else if (errorData.detail) {
+            // Handle FastAPI HTTPException detail format
+            if (typeof errorData.detail === 'string') {
+              errorMessage = errorData.detail;
+            } else if (errorData.detail.message) {
+              errorMessage = errorData.detail.message;
+            } else {
+              errorMessage = JSON.stringify(errorData.detail);
+            }
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -524,7 +545,7 @@ const MCPToolManager: React.FC = () => {
       const refreshData = async () => {
         try {
           // Load tools first
-          const toolsResponse = await fetch('https://localhost:9000/api/v1/mcp/tools');
+          const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
           if (toolsResponse.ok) {
             const toolsData = await toolsResponse.json();
             if (toolsData.tools) {
@@ -543,7 +564,7 @@ const MCPToolManager: React.FC = () => {
           };
 
           // Load external servers
-          const serversResponse = await fetch('https://localhost:9000/api/v1/mcp/external/servers');
+          const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
           if (serversResponse.ok) {
             const serversData = await serversResponse.json();
             if (serversData.servers) {
@@ -649,7 +670,7 @@ const MCPToolManager: React.FC = () => {
                     const loadData = async () => {
                       try {
                         // Load tools first
-                        const toolsResponse = await fetch('https://localhost:9000/api/v1/mcp/tools');
+                        const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
                         if (toolsResponse.ok) {
                           const toolsData = await toolsResponse.json();
                           if (toolsData.tools) {
@@ -668,7 +689,7 @@ const MCPToolManager: React.FC = () => {
                         };
 
                         // Load external servers
-                        const serversResponse = await fetch('https://localhost:9000/api/v1/mcp/external/servers');
+                        const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
                         if (serversResponse.ok) {
                           const serversData = await serversResponse.json();
                           if (serversData.servers) {

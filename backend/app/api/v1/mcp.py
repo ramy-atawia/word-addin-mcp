@@ -16,7 +16,6 @@ from ...services.mcp.orchestrator import get_initialized_mcp_orchestrator
 from ...schemas.agent import AgentChatRequest, AgentChatResponse
 from ...services.agent import agent_service
 from ...schemas.mcp import ExternalServerRequest
-from .legal_tools import router as legal_tools_router
 
 logger = logging.getLogger(__name__)
 

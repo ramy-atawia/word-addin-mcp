@@ -82,7 +82,7 @@ class MCPOrchestrator:
             # Initialize connection manager for persistent connections
             from app.core.mcp_connection_manager import get_connection_manager
             await get_connection_manager()
-            logger.info("MCP Connection Manager initialized")
+            logger.info("MCP Connection Manager initialized with real FastMCP API")
             
             # Initialize server registry
             await self.server_registry.initialize()
