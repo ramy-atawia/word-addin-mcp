@@ -316,7 +316,7 @@ jobs:
         ENDPOINTS=(
           "/health"
           "/api/v1/mcp/tools"
-          "/debug/config"
+          "/api/v1/debug/config"
         )
         
         for endpoint in "${ENDPOINTS[@]}"; do
