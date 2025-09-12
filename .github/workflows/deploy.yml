@@ -289,26 +289,29 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{"message": "Search for test", "session_id": "deployment-test"}')
         
-        # Extract values safely using jq with raw output and error handling
-        SEARCH_SUCCESS=$(echo "$SEARCH_RESPONSE" | jq -r '.success // "false"')
-        SEARCH_TOOL=$(echo "$SEARCH_RESPONSE" | jq -r '.tool_name // "unknown"')
+        # Extract values using a more robust approach
+        SEARCH_SUCCESS=$(echo "$SEARCH_RESPONSE" | grep -o '"success":[^,]*' | cut -d: -f2 | tr -d ' "')
+        SEARCH_TOOL=$(echo "$SEARCH_RESPONSE" | grep -o '"tool_name":"[^"]*"' | cut -d: -f2 | tr -d ' "')
         
         # Check if response contains search results (basic validation)
         if echo "$SEARCH_RESPONSE" | grep -q "Web Search Results"; then
           SEARCH_HAS_RESULTS="true"
+          SEARCH_LENGTH=$(echo "$SEARCH_RESPONSE" | grep -o '"response":"[^"]*"' | wc -c)
         else
           SEARCH_HAS_RESULTS="false"
+          SEARCH_LENGTH="0"
         fi
         
-        if [ "$SEARCH_SUCCESS" != "true" ] || [ "$SEARCH_TOOL" != "web_search_tool" ] || [ "$SEARCH_HAS_RESULTS" != "true" ]; then
+        if [ "$SEARCH_SUCCESS" != "True" ] || [ "$SEARCH_TOOL" != "web_search_tool" ] || [ "$SEARCH_LENGTH" -lt 100 ]; then
           echo "❌ Web search test failed:"
           echo "  Success: $SEARCH_SUCCESS"
           echo "  Tool: $SEARCH_TOOL"
+          echo "  Length: $SEARCH_LENGTH"
           echo "  Has Results: $SEARCH_HAS_RESULTS"
           echo "  Response preview: $(echo "$SEARCH_RESPONSE" | head -c 200)..."
           exit 1
         fi
-        echo "✅ Web search test passed: Search results returned successfully"
+        echo "✅ Web search test passed: $SEARCH_LENGTH characters returned"
         
         # Test 4: Frontend Configuration
         echo "🔍 Testing frontend configuration..."
