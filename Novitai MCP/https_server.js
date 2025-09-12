@@ -101,7 +101,7 @@ server.on('error', (err) => {
 });
 
 // Start server
-const PORT = 3002;
+const PORT = 3000;
 server.listen(PORT, () => {
     console.log(`🚀 HTTPS server running on https://localhost:${PORT}`);
     console.log(`📁 Serving files from: ${path.join(__dirname, 'dist')}`);

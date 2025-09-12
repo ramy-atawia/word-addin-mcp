@@ -47,8 +47,8 @@ const server = https.createServer(httpsOptions, (req, res) => {
 });
 
 // Start server
-server.listen(3002, () => {
-  console.log('🔒 HTTPS proxy server running on https://localhost:3002');
+server.listen(3000, () => {
+  console.log('🔒 HTTPS proxy server running on https://localhost:3000');
   console.log('📡 Proxying to http://localhost:3001');
   console.log('📱 Word Add-in manifest: ./Novitai MCP/manifest.xml');
 });

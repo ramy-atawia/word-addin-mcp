@@ -18,6 +18,15 @@ Enterprise-grade Word Add-in with Model Context Protocol (MCP) integration, prov
 - Docker and Docker Compose
 - Azure OpenAI API access
 
+### 🚀 One-Command Build
+```bash
+./build.sh
+```
+
+### 📚 Build Documentation
+- **[BUILD_GUIDELINES.md](BUILD_GUIDELINES.md)** - Comprehensive build instructions
+- **[QUICK_START.md](QUICK_START.md)** - Essential commands and troubleshooting
+
 ### Development Setup
 ```bash
 # Clone repository

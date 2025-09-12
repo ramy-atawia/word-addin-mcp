@@ -61,7 +61,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 9000
 
 # Default command with reload for development
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000", "--reload"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port 9000"]
 
 # Production stage
 FROM python:3.12-slim as production
@@ -104,4 +104,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 9000
 
 # Default command
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port 9000"]

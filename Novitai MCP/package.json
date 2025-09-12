@@ -10,7 +10,7 @@
   "config": {
     "app_to_debug": "word",
     "app_type_to_debug": "desktop",
-    "dev_server_port": 3002
+    "dev_server_port": 3000
   },
   "scripts": {
     "build": "webpack --mode production",
@@ -19,7 +19,7 @@
     "dev-simple": "webpack serve --config webpack.config.simple.js --mode development",
     "start": "office-addin-debugging start manifest.xml",
     "start:https": "HTTPS=true SSL_CRT_FILE=~/.office-addin-dev-certs/localhost.crt SSL_KEY_FILE=~/.office-addin-dev-certs/localhost.key webpack serve --mode development",
-    "start:dev": "webpack serve --mode development --port 3002",
+    "start:dev": "webpack serve --mode development --port 3000",
     "stop": "office-addin-debugging stop manifest.xml",
     "validate": "office-addin-manifest validate manifest.xml",
     "watch": "webpack --mode development --watch",
@@ -31,11 +31,13 @@
     "signout": "office-addin-dev-settings m365-account logout"
   },
   "dependencies": {
+    "@auth0/auth0-spa-js": "^2.4.0",
     "@fluentui/react-components": "^9.55.1",
     "@fluentui/react-icons": "^2.0.264",
     "axios": "^1.6.0",
     "core-js": "^3.36.0",
     "es6-promise": "^4.2.8",
+    "jwt-decode": "^4.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
@@ -47,6 +49,7 @@
     "@babel/core": "^7.24.0",
     "@babel/preset-env": "^7.25.4",
     "@babel/preset-typescript": "^7.23.3",
+    "@types/jwt-decode": "^2.2.1",
     "@types/office-js": "^1.0.377",
     "@types/office-runtime": "^1.0.35",
     "@types/react": "^18.2.64",
@@ -55,6 +58,7 @@
     "acorn": "^8.11.3",
     "babel-loader": "^9.1.3",
     "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^7.1.2",
     "eslint-plugin-office-addins": "^4.0.3",
     "eslint-plugin-react": "^7.28.0",
     "file-loader": "^6.2.0",
@@ -71,6 +75,7 @@
     "os-browserify": "^0.3.0",
     "process": "^0.11.10",
     "source-map-loader": "^5.0.0",
+    "style-loader": "^4.0.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.4.2",
     "webpack": "^5.95.0",

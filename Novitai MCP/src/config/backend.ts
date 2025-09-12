@@ -1,3 +1,5 @@
+import { getEnvironmentConfig } from './environment';
+
 // Backend configuration and utilities
 export interface BackendConfig {
   baseUrl: string;
@@ -16,10 +18,11 @@ export const defaultBackendConfig: BackendConfig = {
 
 // Environment-based configuration
 const getBackendConfig = (): BackendConfig => {
-  // Use default configuration for now - environment variables will be handled by webpack
+  // Use environment configuration for dynamic backend URL
+  const envConfig = getEnvironmentConfig();
   return {
     ...defaultBackendConfig,
-    baseUrl: defaultBackendConfig.baseUrl,
+    baseUrl: envConfig.backend.baseUrl,
     timeout: defaultBackendConfig.timeout,
     retryAttempts: defaultBackendConfig.retryAttempts,
   };

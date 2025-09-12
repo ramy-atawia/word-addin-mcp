@@ -5,17 +5,18 @@ This module provides the main FastAPI application with all API routes
 and middleware configured for MCP compliance.
 """
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer
 import logging
 import time
 from contextlib import asynccontextmanager
 
 from .core.config import settings
+from .middleware.auth0_middleware import init_auth0_middleware, verify_token_optional
 from .core.logging import setup_logging
-from .api.v1 import mcp, external_mcp, document, session, auth, health
+from .api.v1 import mcp, external_mcp, document, session, health
 
 # Setup logging
 setup_logging()
@@ -27,8 +28,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info("Starting Word Add-in MCP Backend")
-    logger.info(f"Environment: {settings.ENVIRONMENT}")
-    logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info(f"Environment: {settings.environment}")
+    logger.info(f"Debug mode: {settings.debug}")
+    
+    # Initialize Auth0 middleware
+    auth0_domain = getattr(settings, 'AUTH0_DOMAIN', 'dev-bktskx5kbc655wcl.us.auth0.com')
+    auth0_audience = getattr(settings, 'AUTH0_AUDIENCE', 'https://word-addin-backend.azurewebsites.net')
+    init_auth0_middleware(auth0_domain, auth0_audience)
+    logger.info(f"Auth0 middleware initialized with domain: {auth0_domain}")
     
     # Initialize MCP Orchestrator
     try:
@@ -64,24 +71,35 @@ app = FastAPI(
     title="Word Add-in MCP Backend",
     description="Backend service for Word Add-in MCP integration",
     version="1.0.0",
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None,
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS disabled for development - will be handled in infrastructure
+@app.middleware("http")
+async def disable_cors(request: Request, call_next):
+    """Disable CORS completely for development."""
+    response = await call_next(request)
+    
+    # Add permissive CORS headers
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        response.status_code = 200
+        return response
+    
+    return response
 
 # Add trusted host middleware
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=settings.ALLOWED_HOSTS
+    allowed_hosts=settings.allowed_hosts
 )
 
 
@@ -193,11 +211,7 @@ app.include_router(
     tags=["session"]
 )
 
-app.include_router(
-    auth.router,
-    prefix="/api/v1",
-    tags=["auth"]
-)
+# Auth router removed - no auth module exists
 
 app.include_router(
     health.router,
@@ -253,8 +267,8 @@ async def info():
         "name": "Word Add-in MCP Backend",
         "version": "1.0.0",
         "description": "Backend service for Word Add-in MCP integration",
-        "environment": settings.ENVIRONMENT,
-        "debug": settings.DEBUG,
+        "environment": settings.environment,
+        "debug": settings.debug,
         "mcp_compliance": "2025-06-18",
         "features": [
             "MCP Protocol Compliance",
@@ -273,8 +287,8 @@ if __name__ == "__main__":
     
     uvicorn.run(
         "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
+        host=settings.fastapi_host,
+        port=settings.fastapi_port,
+        reload=settings.debug,
         log_level="info"
     )

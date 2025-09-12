@@ -69,7 +69,7 @@ module.exports = {
     static: {
       directory: path.join(__dirname, 'dist')
     },
-    port: 3002,
+    port: 3000,
     host: '0.0.0.0',
     allowedHosts: 'all',
     hot: true,

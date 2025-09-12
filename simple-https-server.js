@@ -43,8 +43,8 @@ proxy.on('error', (err, req, res) => {
 });
 
 // Start server
-server.listen(3002, () => {
-  console.log('🔒 HTTPS proxy server running on https://localhost:3002');
+server.listen(3000, () => {
+  console.log('🔒 HTTPS proxy server running on https://localhost:3000');
   console.log('📡 Proxying to http://localhost:3001');
 });
 

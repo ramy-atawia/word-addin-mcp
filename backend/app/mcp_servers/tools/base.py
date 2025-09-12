@@ -9,8 +9,19 @@ import time
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 import structlog
-import mcp.types
-from mcp.types import Tool, TextContent
+
+# Define MCP types locally to avoid dependency issues
+class ToolAnnotations:
+    def __init__(self, name: str, description: str):
+        self.name = name
+        self.description = description
+
+class Tool:
+    def __init__(self, name: str, description: str, inputSchema: Dict[str, Any], annotations: ToolAnnotations):
+        self.name = name
+        self.description = description
+        self.inputSchema = inputSchema
+        self.annotations = annotations
 
 logger = structlog.get_logger()
 

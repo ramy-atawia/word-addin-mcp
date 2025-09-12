@@ -1,7 +1,9 @@
 import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus } from './types';
+import { getAccessToken } from '../../services/authTokenStore';
+import { getEnvironmentConfig } from '../../config/environment';
 
 class MCPToolService {
-  private baseUrl: string = 'http://localhost:9000';
+  private baseUrl: string = getEnvironmentConfig().backend.baseUrl;
   private connectionStatus: MCPConnectionStatus = 'disconnected';
 
   setBaseUrl(url: string) {
@@ -20,11 +22,18 @@ class MCPToolService {
     try {
       this.connectionStatus = 'connecting';
       
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${this.baseUrl}/api/v1/mcp/tools`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -43,11 +52,18 @@ class MCPToolService {
 
   async executeTool(toolName: string, arguments_: any): Promise<MCPToolExecutionResult> {
     try {
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${this.baseUrl}/api/v1/mcp/tools/${toolName}/execute`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           parameters: arguments_,
         }),
@@ -67,11 +83,18 @@ class MCPToolService {
 
   async getToolSchema(toolName: string): Promise<any> {
     try {
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${this.baseUrl}/api/v1/mcp/tools/${toolName}/schema`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -121,11 +144,18 @@ class MCPToolService {
     error?: string;
   }> {
     try {
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${this.baseUrl}/api/v1/mcp/agent/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(params),
       });
 

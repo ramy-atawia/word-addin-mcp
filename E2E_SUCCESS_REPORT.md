@@ -9,7 +9,7 @@ Your complete End-to-End Word Add-in MCP application is now **FULLY OPERATIONAL*
 ## 🚀 **WHAT'S WORKING RIGHT NOW:**
 
 ### 🌐 **Frontend (Word Add-in) - LIVE**
-- **URL**: https://localhost:3002
+- **URL**: https://localhost:3000
 - **Status**: ✅ HTTPS running with Office.js certificates
 - **Features**: Full Word Add-in UI with MCP integration
 - **Office.js**: ✅ Properly integrated
@@ -94,7 +94,7 @@ curl -X POST "http://localhost:9000/api/v1/mcp/tools/claim_drafting_tool/execute
 ```
 
 ### **Test Frontend:**
-- Open https://localhost:3002 in browser
+- Open https://localhost:3000 in browser
 - Verify HTTPS certificate works
 - Test MCP tool integration
 
@@ -103,7 +103,7 @@ curl -X POST "http://localhost:9000/api/v1/mcp/tools/claim_drafting_tool/execute
 ## 📋 **SYSTEM ARCHITECTURE:**
 
 ### **Native Development (Currently Running):**
-- **Frontend**: Webpack Dev Server with Office.js certificates (Port 3002)
+- **Frontend**: Webpack Dev Server with Office.js certificates (Port 3000)
 - **Backend**: Docker container with FastAPI + MCP (Port 9000)  
 - **Database**: Docker PostgreSQL (Port 5432)
 - **Cache**: Docker Redis (Port 6379)

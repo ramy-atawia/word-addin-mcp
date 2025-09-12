@@ -7,7 +7,7 @@ This document contains the exact steps used to resolve HTTPS certificate trust i
 - macOS system with admin privileges
 - Office Add-in development certificates installed via `office-addin-dev-certs install`
 - Backend running on `https://localhost:9000`
-- Frontend running on `https://localhost:3002`
+- Frontend running on `https://localhost:3000`
 
 ## Problem Description
 The Word Add-in was experiencing `ERR_CERT_AUTHORITY_INVALID` errors when trying to connect to the backend, even though both servers were running with HTTPS. This was caused by the certificates not being trusted by the macOS system.
@@ -73,13 +73,13 @@ cd /Users/Mariam/word-addin-mcp/Novitai\ MCP
 
 # Start HTTPS server
 node https_server.js
-# Expected: "🚀 HTTPS server running on https://localhost:3002"
+# Expected: "🚀 HTTPS server running on https://localhost:3000"
 ```
 
 ### Step 8: Test Frontend Certificate Trust
 ```bash
 # Test frontend without -k flag
-curl -I https://localhost:3002/taskpane.html
+curl -I https://localhost:3000/taskpane.html
 # Expected: HTTP/1.1 200 OK (no certificate errors)
 ```
 
@@ -87,11 +87,11 @@ curl -I https://localhost:3002/taskpane.html
 
 ### Check Running Processes
 ```bash
-# Check if port 3002 is in use
-lsof -ti:3002
+# Check if port 3000 is in use
+lsof -ti:3000
 
 # Kill process if needed
-lsof -ti:3002 | xargs kill -9
+lsof -ti:3000 | xargs kill -9
 ```
 
 ### Test Certificate Trust
@@ -100,7 +100,7 @@ lsof -ti:3002 | xargs kill -9
 curl https://localhost:9000/api/v1/mcp/tools
 
 # Frontend test  
-curl https://localhost:3002/taskpane.html
+curl https://localhost:3000/taskpane.html
 ```
 
 ### Check Certificate Files
@@ -114,8 +114,8 @@ ls -la ~/.office-addin-dev-certs/
 
 ### After Successful Setup:
 1. **Backend**: `curl https://localhost:9000/api/v1/mcp/tools` works without `-k` flag
-2. **Frontend**: `curl https://localhost:3002/taskpane.html` works without `-k` flag
-3. **Browser**: No certificate warnings when accessing https://localhost:3002/taskpane.html
+2. **Frontend**: `curl https://localhost:3000/taskpane.html` works without `-k` flag
+3. **Browser**: No certificate warnings when accessing https://localhost:3000/taskpane.html
 4. **Word Add-in**: Loads without certificate errors and connects to backend successfully
 
 ### Backend Response Example:
@@ -144,7 +144,7 @@ ls -la ~/.office-addin-dev-certs/
 
 1. **Port Already in Use**:
    ```bash
-   lsof -ti:3002 | xargs kill -9
+   lsof -ti:3000 | xargs kill -9
    ```
 
 2. **Certificate Still Not Trusted**:

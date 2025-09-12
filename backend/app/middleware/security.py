@@ -254,37 +254,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return limit_config["window"]
 
 
-class CORSMiddleware(BaseHTTPMiddleware):
-    """Enhanced CORS middleware with security considerations."""
-    
-    def __init__(self, app, **kwargs):
-        super().__init__(app, **kwargs)
-        self.allowed_origins = settings.ALLOWED_ORIGINS
-        self.allowed_methods = settings.ALLOWED_METHODS
-        self.allowed_headers = settings.ALLOWED_HEADERS
-    
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """Process request through CORS middleware."""
-        response = await call_next(request)
-        
-        # Handle preflight requests
-        if request.method == "OPTIONS":
-            origin = request.headers.get("origin")
-            if origin in self.allowed_origins:
-                response.headers["Access-Control-Allow-Origin"] = origin
-                response.headers["Access-Control-Allow-Methods"] = ", ".join(self.allowed_methods)
-                response.headers["Access-Control-Allow-Headers"] = ", ".join(self.allowed_headers)
-                response.headers["Access-Control-Allow-Credentials"] = "true"
-                response.headers["Access-Control-Max-Age"] = "86400"  # 24 hours
-        
-        # Handle actual requests
-        else:
-            origin = request.headers.get("origin")
-            if origin in self.allowed_origins:
-                response.headers["Access-Control-Allow-Origin"] = origin
-                response.headers["Access-Control-Allow-Credentials"] = "true"
-        
-        return response
+# Custom CORS middleware removed - using FastAPI CORS middleware instead
 
 
 # Security utilities

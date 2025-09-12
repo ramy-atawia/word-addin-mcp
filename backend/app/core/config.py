@@ -3,8 +3,10 @@ Configuration settings for the Word Add-in MCP project.
 """
 
 import os
-from typing import Optional
+import json
+from typing import Optional, List
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from dotenv import load_dotenv
 import pathlib
 
@@ -75,9 +77,21 @@ class Settings(BaseSettings):
     database_url: Optional[str] = os.getenv("DATABASE_URL")
     
     # CORS Configuration
-    allowed_origins: list = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "https://localhost:3000", "https://localhost:3001", "https://localhost:3002"]
-    allowed_methods: list = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allowed_headers: list = ["*"]
+    allowed_origins: List[str] = ["*"]  # Allow all origins for development
+    allowed_methods: List[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allowed_headers: List[str] = ["*"]
+    
+    @field_validator('allowed_origins', 'allowed_methods', 'allowed_headers', mode='before')
+    @classmethod
+    def parse_list_fields(cls, v):
+        """Parse JSON string environment variables to lists."""
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                # If it's not JSON, split by comma
+                return [item.strip() for item in v.split(',')]
+        return v
     
     # Langfuse Configuration (optional)
     langfuse_secret_key: Optional[str] = os.getenv("LANGFUSE_SECRET_KEY")
@@ -116,5 +130,24 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+
+def is_azure_openai_configured() -> bool:
+    """Check if Azure OpenAI is properly configured."""
+    return (
+        settings.azure_openai_api_key is not None and
+        settings.azure_openai_endpoint is not None and
+        settings.azure_openai_deployment is not None
+    )
+
+
+def get_azure_openai_config() -> dict:
+    """Get Azure OpenAI configuration."""
+    return {
+        'api_key': settings.azure_openai_api_key,
+        'endpoint': settings.azure_openai_endpoint,
+        'deployment': settings.azure_openai_deployment,
+        'api_version': settings.azure_openai_api_version
+    }
 
 

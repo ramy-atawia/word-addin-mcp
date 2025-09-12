@@ -27,7 +27,7 @@ class PatentSearchService:
         self.llm_client = LLMClient(
             azure_openai_api_key=settings.azure_openai_api_key,
             azure_openai_endpoint=settings.azure_openai_endpoint,
-            azure_openai_deployment=settings.azure_openai_deployment_name
+            azure_openai_deployment=settings.azure_openai_deployment
         )
         self.api_key = settings.patentsview_api_key
         self.base_url = "https://search.patentsview.org/api/v1"

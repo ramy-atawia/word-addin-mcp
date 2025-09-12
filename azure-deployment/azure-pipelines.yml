@@ -1,0 +1,186 @@
+# Azure DevOps Pipeline for Word Add-in MCP
+# This pipeline builds and deploys the application to Azure
+# Branch-based deployment: dev -> Development, main -> Production
+
+trigger:
+- main
+- dev
+
+variables:
+  azureServiceConnection: 'novitai-word-mcp-connection'
+  # Production environment
+  prodResourceGroupName: 'novitai-word-mcp-rg'
+  prodAcrName: 'novitaiwordmcp'
+  prodBackendAppName: 'novitai-word-mcp-backend'
+  prodFrontendAppName: 'novitai-word-mcp-frontend'
+  # Development environment
+  devResourceGroupName: 'novitai-word-mcp-dev-rg'
+  devAcrName: 'novitaiwordmcpdev'
+  devBackendAppName: 'novitai-word-mcp-backend-dev'
+  devFrontendAppName: 'novitai-word-mcp-frontend-dev'
+
+stages:
+- stage: Build
+  displayName: 'Build and Push Images'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Docker Images'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: PowerShell@2
+      displayName: 'Set Environment Variables'
+      inputs:
+        targetType: 'inline'
+        script: |
+          if ("$(Build.SourceBranch)" -eq "refs/heads/main") {
+            Write-Host "##vso[task.setvariable variable=ResourceGroupName]$(prodResourceGroupName)"
+            Write-Host "##vso[task.setvariable variable=AcrName]$(prodAcrName)"
+            Write-Host "##vso[task.setvariable variable=BackendAppName]$(prodBackendAppName)"
+            Write-Host "##vso[task.setvariable variable=FrontendAppName]$(prodFrontendAppName)"
+            Write-Host "##vso[task.setvariable variable=Environment]production"
+            Write-Host "Deploying to PRODUCTION environment"
+          } elseif ("$(Build.SourceBranch)" -eq "refs/heads/dev") {
+            Write-Host "##vso[task.setvariable variable=ResourceGroupName]$(devResourceGroupName)"
+            Write-Host "##vso[task.setvariable variable=AcrName]$(devAcrName)"
+            Write-Host "##vso[task.setvariable variable=BackendAppName]$(devBackendAppName)"
+            Write-Host "##vso[task.setvariable variable=FrontendAppName]$(devFrontendAppName)"
+            Write-Host "##vso[task.setvariable variable=Environment]development"
+            Write-Host "Deploying to DEVELOPMENT environment"
+          } else {
+            Write-Host "Unknown branch: $(Build.SourceBranch)"
+            exit 1
+          }
+    
+    - task: Docker@2
+      displayName: 'Build Backend Image'
+      inputs:
+        command: 'build'
+        dockerfile: 'backend/Dockerfile'
+        tags: |
+          $(AcrName).azurecr.io/backend:$(Build.BuildId)
+          $(AcrName).azurecr.io/backend:latest
+        arguments: '--target production'
+    
+    - task: Docker@2
+      displayName: 'Build Frontend Image'
+      inputs:
+        command: 'build'
+        dockerfile: 'Novitai MCP/Dockerfile'
+        tags: |
+          $(AcrName).azurecr.io/frontend:$(Build.BuildId)
+          $(AcrName).azurecr.io/frontend:latest
+        arguments: '--target production'
+    
+    - task: Docker@2
+      displayName: 'Push Backend Image'
+      inputs:
+        command: 'push'
+        repository: '$(AcrName).azurecr.io/backend'
+        tags: |
+          $(Build.BuildId)
+          latest
+    
+    - task: Docker@2
+      displayName: 'Push Frontend Image'
+      inputs:
+        command: 'push'
+        repository: '$(AcrName).azurecr.io/frontend'
+        tags: |
+          $(Build.BuildId)
+          latest
+
+- stage: Deploy
+  displayName: 'Deploy to Azure'
+  dependsOn: Build
+  condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.SourceBranch'], 'refs/heads/dev')))
+  jobs:
+  - deployment: DeployJob
+    displayName: 'Deploy to Azure App Service'
+    environment: ${{ eq(variables['Build.SourceBranch'], 'refs/heads/main') && 'production' || 'development' }}
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: PowerShell@2
+            displayName: 'Set Environment Variables'
+            inputs:
+              targetType: 'inline'
+              script: |
+                if ("$(Build.SourceBranch)" -eq "refs/heads/main") {
+                  Write-Host "##vso[task.setvariable variable=ResourceGroupName]$(prodResourceGroupName)"
+                  Write-Host "##vso[task.setvariable variable=AcrName]$(prodAcrName)"
+                  Write-Host "##vso[task.setvariable variable=BackendAppName]$(prodBackendAppName)"
+                  Write-Host "##vso[task.setvariable variable=FrontendAppName]$(prodFrontendAppName)"
+                  Write-Host "##vso[task.setvariable variable=Environment]production"
+                  Write-Host "Deploying to PRODUCTION environment"
+                } elseif ("$(Build.SourceBranch)" -eq "refs/heads/dev") {
+                  Write-Host "##vso[task.setvariable variable=ResourceGroupName]$(devResourceGroupName)"
+                  Write-Host "##vso[task.setvariable variable=AcrName]$(devAcrName)"
+                  Write-Host "##vso[task.setvariable variable=BackendAppName]$(devBackendAppName)"
+                  Write-Host "##vso[task.setvariable variable=FrontendAppName]$(devFrontendAppName)"
+                  Write-Host "##vso[task.setvariable variable=Environment]development"
+                  Write-Host "Deploying to DEVELOPMENT environment"
+                } else {
+                  Write-Host "Unknown branch: $(Build.SourceBranch)"
+                  exit 1
+                }
+          
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy Backend'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              appName: '$(BackendAppName)'
+              containers: '$(AcrName).azurecr.io/backend:$(Build.BuildId)'
+          
+          - task: AzureWebAppContainer@1
+            displayName: 'Deploy Frontend'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              appName: '$(FrontendAppName)'
+              containers: '$(AcrName).azurecr.io/frontend:$(Build.BuildId)'
+          
+          - task: AzureCLI@2
+            displayName: 'Update App Settings'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Updating app settings for $(Environment) environment"
+                
+                # Update backend CORS settings
+                az webapp config appsettings set \
+                  --resource-group $(ResourceGroupName) \
+                  --name $(BackendAppName) \
+                  --settings ALLOWED_ORIGINS="https://$(FrontendAppName).azurewebsites.net"
+                
+                # Update frontend API URL
+                az webapp config appsettings set \
+                  --resource-group $(ResourceGroupName) \
+                  --name $(FrontendAppName) \
+                  --settings REACT_APP_API_BASE_URL="https://$(BackendAppName).azurewebsites.net"
+                
+                # Set environment-specific settings
+                if [ "$(Environment)" = "development" ]; then
+                  echo "Setting development-specific settings"
+                  az webapp config appsettings set \
+                    --resource-group $(ResourceGroupName) \
+                    --name $(BackendAppName) \
+                    --settings ENVIRONMENT="development" LOG_LEVEL="DEBUG"
+                else
+                  echo "Setting production-specific settings"
+                  az webapp config appsettings set \
+                    --resource-group $(ResourceGroupName) \
+                    --name $(BackendAppName) \
+                    --settings ENVIRONMENT="production" LOG_LEVEL="INFO"
+                fi
+          
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Deployment Info'
+            inputs:
+              pathToPublish: '$(System.DefaultWorkingDirectory)'
+              artifactName: 'deployment-info-$(Environment)'

@@ -25,8 +25,8 @@ async def health_check() -> Dict[str, Any]:
     return {
         "status": "healthy",
         "timestamp": time.time(),
-        "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT,
+        "version": settings.app_version,
+        "environment": settings.environment,
         "service": "Word Add-in MCP API"
     }
 
@@ -42,8 +42,8 @@ async def detailed_health_check() -> Dict[str, Any]:
     health_status = {
         "status": "healthy",
         "timestamp": time.time(),
-        "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT,
+        "version": settings.app_version,
+        "environment": settings.environment,
         "service": "Word Add-in MCP API",
         "dependencies": {}
     }
@@ -117,7 +117,7 @@ async def detailed_health_check() -> Dict[str, Any]:
         health_status["status"] = "degraded"
     
     # Log health check
-    logger.info(f"Health check completed - Status: {health_status['status']}, Environment: {settings.ENVIRONMENT}")
+    logger.info(f"Health check completed - Status: {health_status['status']}, Environment: {settings.environment}")
     
     return health_status
 
@@ -177,8 +177,8 @@ async def metrics() -> Dict[str, Any]:
     # TODO: Implement actual metrics collection
     return {
         "timestamp": time.time(),
-        "version": settings.APP_VERSION,
-        "environment": settings.ENVIRONMENT,
+        "version": settings.app_version,
+        "environment": settings.environment,
         "metrics": {
             "requests_total": 0,  # TODO: Implement request counter
             "requests_active": 0,  # TODO: Implement active request counter

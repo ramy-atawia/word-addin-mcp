@@ -7,11 +7,12 @@ const webpack = require("webpack");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const EnvInjectionPlugin = require("./webpack-env-plugin");
 
 const REACT_APP_API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000';
 // const NODE_ENV = process.env.NODE_ENV || 'development'; // Removed as webpack handles NODE_ENV via mode option
 
-const urlDev = "https://localhost:3002/";
+const urlDev = "https://localhost:3000/";
 const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
 
 async function getHttpsOptions() {
@@ -52,6 +53,8 @@ module.exports = async (env, options) => {
     },
     output: {
       clean: true,
+      filename: '[name].[contenthash].js',
+      chunkFilename: '[name].[contenthash].js',
     },
     resolve: {
       extensions: [".ts", ".tsx", ".html", ".js"],
@@ -77,6 +80,10 @@ module.exports = async (env, options) => {
           use: "html-loader",
         },
         {
+          test: /\.css$/,
+          use: ["style-loader", "css-loader"],
+        },
+        {
           test: /\.(png|jpg|jpeg|ttf|woff|woff2|gif|ico)$/,
           type: "asset/resource",
           generator: {
@@ -86,6 +93,7 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      new EnvInjectionPlugin(),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: "./src/taskpane/taskpane.html",
@@ -107,6 +115,10 @@ module.exports = async (env, options) => {
                 return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
               }
             },
+          },
+          {
+            from: "public/*.html",
+            to: "[name][ext]",
           },
         ],
       }),
@@ -131,7 +143,7 @@ module.exports = async (env, options) => {
         type: "https",
         options: env.WEBPACK_BUILD || options.https !== undefined ? options.https : await getHttpsOptions(),
       },
-      port: 3002, // Fixed port for consistency
+      port: 3000, // Fixed port for consistency
       host: 'localhost',
       allowedHosts: 'all',
     },

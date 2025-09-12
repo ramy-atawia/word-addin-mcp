@@ -16,7 +16,7 @@ The application consists of:
 ### Prerequisites
 1. Docker and Docker Compose installed
 2. `.env` file configured with API keys
-3. Ports 3002, 9000, 5432, 6379 available
+3. Ports 3000, 9000, 5432, 6379 available
 
 ### Start Development Environment
 ```bash
@@ -24,7 +24,7 @@ The application consists of:
 ./docker-scripts/dev-start.sh
 
 # Access points:
-# - Word Add-in: https://localhost:3002
+# - Word Add-in: https://localhost:3000
 # - Backend API: http://localhost:9000
 # - API Docs: http://localhost:9000/docs
 ```
@@ -64,7 +64,7 @@ The application consists of:
 #### Frontend (`wordaddin-frontend-dev/prod`)
 - **Development**: Node.js with webpack-dev-server
 - **Production**: nginx with optimized static assets
-- **Port**: 3002 (HTTPS)
+- **Port**: 3000 (HTTPS)
 - **Features**: React SPA, Office.js integration
 
 #### Database (`postgres`)
@@ -210,7 +210,7 @@ The Azure deployment creates:
 
 ### Health Endpoints
 - Backend: `http://localhost:9000/health`
-- Frontend: `https://localhost:3002/health` (production)
+- Frontend: `https://localhost:3000/health` (production)
 
 ### Monitoring Tools
 ```bash
@@ -271,7 +271,7 @@ docker stats
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 3002, 9000, 5432, 6379 are available
+1. **Port conflicts**: Ensure ports 3000, 9000, 5432, 6379 are available
 2. **SSL certificate errors**: Try `./docker-scripts/clean.sh` and restart
 3. **API key errors**: Verify `.env` file configuration
 4. **Memory issues**: Increase Docker memory allocation

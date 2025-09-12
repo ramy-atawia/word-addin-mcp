@@ -19,7 +19,7 @@ def setup_logging() -> None:
     """Setup structured logging configuration."""
     
     # Create logs directory if it doesn't exist
-    log_dir = Path(settings.LOG_FILE).parent
+    log_dir = Path(settings.log_file).parent
     log_dir.mkdir(parents=True, exist_ok=True)
     
     # Configure structlog
@@ -45,12 +45,12 @@ def setup_logging() -> None:
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
-        level=getattr(logging, settings.LOG_LEVEL.upper())
+        level=getattr(logging, settings.log_level.upper())
     )
     
     # Get the root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, settings.LOG_LEVEL.upper()))
+    root_logger.setLevel(getattr(logging, settings.log_level.upper()))
     
     # Remove existing handlers
     for handler in root_logger.handlers[:]:
@@ -58,9 +58,9 @@ def setup_logging() -> None:
     
     # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(getattr(logging, settings.LOG_LEVEL.upper()))
+    console_handler.setLevel(getattr(logging, settings.log_level.upper()))
     
-    if settings.LOG_FORMAT == "json":
+    if settings.log_format == "json":
         console_formatter = logging.Formatter('%(message)s')
     else:
         console_formatter = logging.Formatter(
@@ -71,16 +71,16 @@ def setup_logging() -> None:
     root_logger.addHandler(console_handler)
     
     # File handler with rotation
-    if settings.LOG_FILE:
+    if settings.log_file:
         file_handler = logging.handlers.RotatingFileHandler(
-            settings.LOG_FILE,
-            maxBytes=settings.LOG_MAX_SIZE,
-            backupCount=settings.LOG_BACKUP_COUNT,
+            settings.log_file,
+            maxBytes=settings.log_max_size,
+            backupCount=settings.log_backup_count,
             encoding='utf-8'
         )
-        file_handler.setLevel(getattr(logging, settings.LOG_LEVEL.upper()))
+        file_handler.setLevel(getattr(logging, settings.log_level.upper()))
         
-        if settings.LOG_FORMAT == "json":
+        if settings.log_format == "json":
             file_formatter = logging.Formatter('%(message)s')
         else:
             file_formatter = logging.Formatter(
@@ -102,9 +102,9 @@ def setup_logging() -> None:
     logger = structlog.get_logger()
     logger.info(
         "Logging configured",
-        level=settings.LOG_LEVEL,
-        format=settings.LOG_FORMAT,
-        file=settings.LOG_FILE if settings.LOG_FILE else "console only"
+        level=settings.log_level,
+        format=settings.log_format,
+        file=settings.log_file if settings.log_file else "console only"
     )
 
 

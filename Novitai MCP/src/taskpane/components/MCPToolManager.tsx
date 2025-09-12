@@ -21,6 +21,8 @@ import {
 // Import our new modular components
 import ChatInterface from './ChatInterface/ChatInterface';
 import ToolLibrary from './ToolLibrary/ToolLibrary';
+import { LoginForm } from './LoginForm';
+import { useAuth } from '../../contexts/AuthContext';
 
 import { ExternalMCPServerManager } from './ExternalMCPServerManager';
 import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus } from '../services/types';
@@ -28,6 +30,7 @@ import { AddServerModal } from './ExternalMCPServerManager/AddServerModal';
 import ServerToolsList from './ServerToolsList/ServerToolsList';
 import mcpToolService from '../services/mcpToolService';
 import { getApiUrl } from '../../config/backend';
+import { getEnvironmentConfig } from '../../config/environment';
 
 const useStyles = makeStyles({
   root: {
@@ -167,7 +170,11 @@ const globalStyles = `
 type TabValue = 'chat' | 'history' | 'settings';
 
 const MCPToolManager: React.FC = () => {
+  const { isAuthenticated, user } = useAuth();
   const styles = useStyles();
+  
+  // Get backend URL from environment config
+  const getBackendUrl = () => getEnvironmentConfig().backend.baseUrl;
   const [selectedTab, setSelectedTab] = useState<TabValue>('chat');
   const [tools, setTools] = useState<MCPTool[]>([]);
   const [selectedTool, setSelectedTool] = useState<MCPTool | null>(null);
@@ -205,7 +212,7 @@ const MCPToolManager: React.FC = () => {
       const refreshData = async () => {
         try {
           // Load tools first
-          const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
+          const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
           if (toolsResponse.ok) {
             const toolsData = await toolsResponse.json();
             if (toolsData.tools) {
@@ -217,14 +224,14 @@ const MCPToolManager: React.FC = () => {
           const internalServer = {
             id: 'internal',
             name: 'Internal Server',
-            url: 'localhost:9000',
+            url: getBackendUrl(),
             status: 'healthy',
             connected: true,
             toolCount: 0
           };
 
           // Load external servers
-          const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
+          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
           if (serversResponse.ok) {
             const serversData = await serversResponse.json();
             if (serversData.servers) {
@@ -260,7 +267,7 @@ const MCPToolManager: React.FC = () => {
 
   useEffect(() => {
     // Initialize with mcpToolService
-    mcpToolService.setBaseUrl('http://localhost:9000');
+    mcpToolService.setBaseUrl(getBackendUrl());
     checkConnection(mcpToolService);
     loadTools(mcpToolService);
   }, []);
@@ -401,7 +408,7 @@ const MCPToolManager: React.FC = () => {
       setIsLoading(true);
       try {
         // Load tools first
-        const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
+        const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
         if (toolsResponse.ok) {
           const toolsData = await toolsResponse.json();
           if (toolsData.tools) {
@@ -413,14 +420,14 @@ const MCPToolManager: React.FC = () => {
         const internalServer = {
           id: 'internal',
           name: 'Internal Server',
-          url: 'localhost:9000',
+          url: getBackendUrl(),
           status: 'healthy',
           connected: true,
           toolCount: 0 // Will be updated after tools are loaded
         };
 
         // Load external servers
-        const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
+        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
         if (serversResponse.ok) {
           const serversData = await serversResponse.json();
           if (serversData.servers) {
@@ -445,7 +452,7 @@ const MCPToolManager: React.FC = () => {
         setServers([{
           id: 'internal',
           name: 'Internal Server',
-          url: 'localhost:9000',
+          url: getBackendUrl(),
           status: 'healthy',
           connected: true,
           toolCount: 0
@@ -545,7 +552,7 @@ const MCPToolManager: React.FC = () => {
       const refreshData = async () => {
         try {
           // Load tools first
-          const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
+          const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
           if (toolsResponse.ok) {
             const toolsData = await toolsResponse.json();
             if (toolsData.tools) {
@@ -557,14 +564,14 @@ const MCPToolManager: React.FC = () => {
           const internalServer = {
             id: 'internal',
             name: 'Internal Server',
-            url: 'localhost:9000',
+            url: getBackendUrl(),
             status: 'healthy',
             connected: true,
             toolCount: 0
           };
 
           // Load external servers
-          const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
+          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
           if (serversResponse.ok) {
             const serversData = await serversResponse.json();
             if (serversData.servers) {
@@ -670,7 +677,7 @@ const MCPToolManager: React.FC = () => {
                     const loadData = async () => {
                       try {
                         // Load tools first
-                        const toolsResponse = await fetch('http://localhost:9000/api/v1/mcp/tools');
+                        const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
                         if (toolsResponse.ok) {
                           const toolsData = await toolsResponse.json();
                           if (toolsData.tools) {
@@ -682,14 +689,14 @@ const MCPToolManager: React.FC = () => {
                         const internalServer = {
                           id: 'internal',
                           name: 'Internal Server',
-                          url: 'localhost:9000',
+                          url: getBackendUrl(),
                           status: 'healthy',
                           connected: true,
                           toolCount: 0
                         };
 
                         // Load external servers
-                        const serversResponse = await fetch('http://localhost:9000/api/v1/mcp/external/servers');
+                        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
                         if (serversResponse.ok) {
                           const serversData = await serversResponse.json();
                           if (serversData.servers) {
@@ -792,6 +799,15 @@ const MCPToolManager: React.FC = () => {
       )}
     </div>
   );
+
+  // Add authentication check
+  if (!isAuthenticated) {
+    return (
+      <div className={styles.root}>
+        <LoginForm />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.root}>

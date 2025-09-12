@@ -169,15 +169,15 @@ class SecurityService:
     
     def __init__(self):
         self.config = SecurityConfig(
-            secret_key=settings.SECRET_KEY,
-            algorithm=settings.JWT_ALGORITHM,
-            access_token_expire_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
-            refresh_token_expire_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,
-            password_min_length=settings.PASSWORD_MIN_LENGTH,
-            password_require_special=settings.PASSWORD_REQUIRE_SPECIAL,
-            password_require_numbers=settings.PASSWORD_REQUIRE_NUMBERS,
-            max_login_attempts=settings.MAX_LOGIN_ATTEMPTS,
-            lockout_duration_minutes=settings.LOCKOUT_DURATION_MINUTES
+            secret_key=settings.secret_key,
+            algorithm=settings.algorithm,
+            access_token_expire_minutes=settings.access_token_expire_minutes,
+            refresh_token_expire_days=settings.refresh_token_expire_days,
+            password_min_length=settings.password_min_length,
+            password_require_special=settings.password_require_special,
+            password_require_numbers=settings.password_require_numbers,
+            max_login_attempts=settings.max_login_attempts,
+            lockout_duration_minutes=settings.lockout_duration_minutes
         )
         
         # In-memory storage for failed login attempts (in production, use Redis)
