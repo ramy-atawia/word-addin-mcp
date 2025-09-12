@@ -174,16 +174,50 @@ async def debug_config() -> Dict[str, Any]:
     Returns:
         Dict containing configuration values for debugging
     """
-    return {
-        "timestamp": time.time(),
-        "environment": settings.environment,
-        "google_search_api_key": "***" if settings.google_search_api_key else None,
-        "google_search_engine_id": settings.google_search_engine_id,
-        "google_api_configured": bool(settings.google_search_api_key and settings.google_search_engine_id),
-        "azure_openai_configured": bool(settings.azure_openai_api_key and settings.azure_openai_endpoint),
-        "auth0_domain": settings.AUTH0_DOMAIN,
-        "auth0_audience": settings.AUTH0_AUDIENCE
-    }
+    try:
+        # Test basic settings access
+        basic_info = {
+            "timestamp": time.time(),
+            "test": "debug endpoint working"
+        }
+        
+        # Test environment setting
+        try:
+            basic_info["environment"] = settings.environment
+        except Exception as e:
+            basic_info["environment_error"] = str(e)
+        
+        # Test other settings safely
+        try:
+            basic_info["google_search_api_key"] = "***" if settings.google_search_api_key else None
+        except Exception as e:
+            basic_info["google_api_error"] = str(e)
+            
+        try:
+            basic_info["google_search_engine_id"] = settings.google_search_engine_id
+        except Exception as e:
+            basic_info["google_engine_error"] = str(e)
+            
+        try:
+            basic_info["azure_openai_configured"] = bool(settings.azure_openai_api_key and settings.azure_openai_endpoint)
+        except Exception as e:
+            basic_info["azure_error"] = str(e)
+            
+        try:
+            basic_info["auth0_domain"] = getattr(settings, 'AUTH0_DOMAIN', None)
+            basic_info["auth0_audience"] = getattr(settings, 'AUTH0_AUDIENCE', None)
+        except Exception as e:
+            basic_info["auth0_error"] = str(e)
+        
+        return basic_info
+        
+    except Exception as e:
+        return {
+            "error": "Debug endpoint failed",
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "timestamp": time.time()
+        }
 
 
 @router.get("/metrics")
