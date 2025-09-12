@@ -93,28 +93,11 @@ jobs:
 
     - name: Validate Environment Variables
       run: |
-        echo "Validating required environment variables..."
+        echo "Validating environment variable configuration..."
         
-        # Check if all required secrets are available
-        required_secrets=(
-          "AZURE_CREDENTIALS"
-          "ACR_USERNAME" 
-          "ACR_PASSWORD"
-          "AZURE_OPENAI_API_KEY"
-          "AZURE_OPENAI_ENDPOINT"
-          "GOOGLE_API_KEY"
-          "GOOGLE_CSE_ID"
-          "PATENTSVIEW_API_KEY"
-        )
-        
-        for secret in "${required_secrets[@]}"; do
-          if [ -z "${!secret:-}" ]; then
-            echo "❌ Missing required secret: $secret"
-            exit 1
-          fi
-        done
-        
-        echo "✅ All required secrets are available"
+        # Check if environment variable references are properly configured in workflow
+        echo "✅ Environment variable validation will be performed during deployment"
+        echo "✅ Secrets validation will be handled by Azure deployment step"
 
     - name: Test Results Summary
       id: test-results
@@ -135,6 +118,46 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+
+    - name: Validate Required Secrets
+      run: |
+        echo "Validating all required secrets are available..."
+        
+        # Check if all required secrets are available
+        if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+          echo "❌ Missing required secret: AZURE_CREDENTIALS"
+          exit 1
+        fi
+        if [ -z "${{ secrets.ACR_USERNAME }}" ]; then
+          echo "❌ Missing required secret: ACR_USERNAME"
+          exit 1
+        fi
+        if [ -z "${{ secrets.ACR_PASSWORD }}" ]; then
+          echo "❌ Missing required secret: ACR_PASSWORD"
+          exit 1
+        fi
+        if [ -z "${{ secrets.AZURE_OPENAI_API_KEY }}" ]; then
+          echo "❌ Missing required secret: AZURE_OPENAI_API_KEY"
+          exit 1
+        fi
+        if [ -z "${{ secrets.AZURE_OPENAI_ENDPOINT }}" ]; then
+          echo "❌ Missing required secret: AZURE_OPENAI_ENDPOINT"
+          exit 1
+        fi
+        if [ -z "${{ secrets.GOOGLE_API_KEY }}" ]; then
+          echo "❌ Missing required secret: GOOGLE_API_KEY"
+          exit 1
+        fi
+        if [ -z "${{ secrets.GOOGLE_CSE_ID }}" ]; then
+          echo "❌ Missing required secret: GOOGLE_CSE_ID"
+          exit 1
+        fi
+        if [ -z "${{ secrets.PATENTSVIEW_API_KEY }}" ]; then
+          echo "❌ Missing required secret: PATENTSVIEW_API_KEY"
+          exit 1
+        fi
+        
+        echo "✅ All required secrets are available"
 
     - name: Login to Azure
       uses: azure/login@v1
