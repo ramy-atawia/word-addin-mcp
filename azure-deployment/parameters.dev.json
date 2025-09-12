@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": {
+      "value": "novitai-word-mcp-dev-rg"
+    },
+    "acrName": {
+      "value": "novitaiwordmcpdev"
+    },
+    "backendAppName": {
+      "value": "novitai-word-mcp-backend-dev"
+    },
+    "frontendAppName": {
+      "value": "novitai-word-mcp-frontend-dev"
+    },
+    "servicePlanName": {
+      "value": "novitai-word-mcp-dev-plan"
+    },
+    "location": {
+      "value": "East US 2"
+    },
+    "environment": {
+      "value": "development"
+    },
+    "logLevel": {
+      "value": "DEBUG"
+    },
+    "azureOpenAiApiKey": {
+      "value": "YOUR_AZURE_OPENAI_API_KEY"
+    },
+    "azureOpenAiEndpoint": {
+      "value": "https://your-azure-openai-endpoint.cognitiveservices.azure.com"
+    },
+    "azureOpenAiDeployment": {
+      "value": "gpt-4o-mini"
+    },
+    "auth0Domain": {
+      "value": "your-dev-auth0-domain.us.auth0.com"
+    },
+    "auth0ClientId": {
+      "value": "your-dev-client-id"
+    },
+    "auth0ClientSecret": {
+      "value": "your-dev-client-secret"
+    },
+    "auth0Audience": {
+      "value": "your-dev-api-identifier"
+    }
+  }
+}
