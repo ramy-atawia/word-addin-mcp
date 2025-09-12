@@ -86,8 +86,9 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
-# Copy application code
+# Copy application code (excluding .env files)
 COPY . .
+RUN rm -f .env.local .env
 
 # Create necessary directories
 RUN mkdir -p logs uploads && \

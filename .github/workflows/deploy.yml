@@ -16,11 +16,11 @@ on:
 
 env:
   # Use Azure Container Registry for both environments
-  ACR_NAME: ${{ github.ref == 'refs/heads/main' && 'novitaiwordmcp' || 'novitaiwordmcpdev' }}
-  ACR_LOGIN_SERVER: ${{ github.ref == 'refs/heads/main' && 'novitaiwordmcp.azurecr.io' || 'novitaiwordmcpdev.azurecr.io' }}
+  ACR_NAME: novitaiwordmcp
+  ACR_LOGIN_SERVER: novitaiwordmcp.azurecr.io
   BACKEND_APP_NAME: ${{ github.ref == 'refs/heads/main' && 'novitai-word-mcp-backend' || 'novitai-word-mcp-backend-dev' }}
   FRONTEND_APP_NAME: ${{ github.ref == 'refs/heads/main' && 'novitai-word-mcp-frontend' || 'novitai-word-mcp-frontend-dev' }}
-  RESOURCE_GROUP: ${{ github.ref == 'refs/heads/main' && 'novitai-word-mcp-rg' || 'novitai-word-mcp-dev-rg' }}
+  RESOURCE_GROUP: novitai-word-mcp-rg
 
 jobs:
   # Deploy to Development
@@ -36,6 +36,11 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     - name: Login to Azure Container Registry
       uses: azure/docker-login@v1
       with:
@@ -48,6 +53,7 @@ jobs:
       with:
         context: ./backend
         push: true
+        platforms: linux/amd64
         tags: |
           ${{ env.ACR_LOGIN_SERVER }}/backend:dev
           ${{ env.ACR_LOGIN_SERVER }}/backend:${{ github.sha }}
@@ -59,6 +65,12 @@ jobs:
       with:
         context: ./Novitai MCP
         push: true
+        platforms: linux/amd64
+        build-args: |
+          REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net
+          REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
+          REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
+          REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
         tags: |
           ${{ env.ACR_LOGIN_SERVER }}/frontend:dev
           ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }}
@@ -71,11 +83,57 @@ jobs:
         app-name: ${{ env.BACKEND_APP_NAME }}
         images: ${{ env.ACR_LOGIN_SERVER }}/backend:${{ github.sha }}
 
+    - name: Configure Backend Environment Variables
+      run: |
+        echo "Setting up backend environment variables..."
+        az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings \
+          ENVIRONMENT=development \
+          LOG_LEVEL=DEBUG \
+          DEBUG=false \
+          PORT=9000 \
+          SECRET_KEY=K9MHoSnUTr7ia6L9jaXQD8MZF4Eo/bxciBHmlTQQySg= \
+          ALLOWED_ORIGINS='["https://novitai-word-mcp-frontend-dev.azurewebsites.net"]' \
+          ALLOWED_HOSTS='["*"]' \
+          AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
+          AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
+          AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini \
+          AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini \
+          AZURE_OPENAI_API_VERSION=2024-02-15-preview \
+          AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
+          AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
+          GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
+          GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }} \
+          PATENTSVIEW_API_KEY=${{ secrets.PATENTSVIEW_API_KEY }} \
+          MAX_FILE_SIZE=10485760 \
+          WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
+          WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
+          DOCKER_ENABLE_CI=true \
+          SCM_DO_BUILD_DURING_DEPLOYMENT=1
+
+    - name: Set ACR Password for Backend
+      run: |
+        echo "Setting ACR password for backend..."
+        ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" --output tsv)
+        az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings DOCKER_REGISTRY_SERVER_PASSWORD="$ACR_PASSWORD"
+
     - name: Deploy Frontend to Azure App Service
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.FRONTEND_APP_NAME }}
         images: ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }}
+
+    - name: Configure Frontend Environment Variables
+      run: |
+        echo "Setting up frontend environment variables..."
+        az webapp config appsettings set --name ${{ env.FRONTEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings \
+          REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net \
+          REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net \
+          REACT_APP_FRONTEND_URL=https://novitai-word-mcp-frontend-dev.azurewebsites.net \
+          REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
+          REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
+          REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
+          NODE_ENV=production \
+          DOCKER_ENABLE_CI=true
 
     - name: Run development smoke tests
       run: |
@@ -104,6 +162,11 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     - name: Login to Azure Container Registry
       uses: azure/docker-login@v1
       with:
@@ -116,6 +179,7 @@ jobs:
       with:
         context: ./backend
         push: true
+        platforms: linux/amd64
         tags: |
           ${{ env.ACR_LOGIN_SERVER }}/backend:latest
           ${{ env.ACR_LOGIN_SERVER }}/backend:${{ github.sha }}
@@ -127,6 +191,12 @@ jobs:
       with:
         context: ./Novitai MCP
         push: true
+        platforms: linux/amd64
+        build-args: |
+          REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend.azurewebsites.net
+          REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
+          REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
+          REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
         tags: |
           ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
           ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }}

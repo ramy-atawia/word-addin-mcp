@@ -166,6 +166,26 @@ async def liveness_check() -> Dict[str, Any]:
     }
 
 
+@router.get("/debug/config")
+async def debug_config() -> Dict[str, Any]:
+    """
+    Debug endpoint to check configuration values.
+    
+    Returns:
+        Dict containing configuration values for debugging
+    """
+    return {
+        "timestamp": time.time(),
+        "environment": settings.environment,
+        "google_search_api_key": "***" if settings.google_search_api_key else None,
+        "google_search_engine_id": settings.google_search_engine_id,
+        "google_api_configured": bool(settings.google_search_api_key and settings.google_search_engine_id),
+        "azure_openai_configured": bool(settings.azure_openai_api_key and settings.azure_openai_endpoint),
+        "auth0_domain": settings.AUTH0_DOMAIN,
+        "auth0_audience": settings.AUTH0_AUDIENCE
+    }
+
+
 @router.get("/metrics")
 async def metrics() -> Dict[str, Any]:
     """

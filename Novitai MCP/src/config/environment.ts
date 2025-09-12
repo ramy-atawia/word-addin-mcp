@@ -28,7 +28,11 @@ export function getEnvironmentConfig(): EnvironmentConfig {
   
   // Override with environment-specific URLs if we're in dev
   const getDevUrl = (baseUrl: string) => {
-    return baseUrl.replace('novitai-word-mcp-', 'novitai-word-mcp-').replace('.azurewebsites.net', '-dev.azurewebsites.net');
+    // Only transform if the URL doesn't already contain '-dev'
+    if (baseUrl.includes('-dev.azurewebsites.net')) {
+      return baseUrl; // Already a dev URL, return as-is
+    }
+    return baseUrl.replace('.azurewebsites.net', '-dev.azurewebsites.net');
   };
   
   // Get base URLs from window globals or defaults

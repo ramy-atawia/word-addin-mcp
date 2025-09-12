@@ -120,7 +120,7 @@ class Settings(BaseSettings):
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # Host Configuration
-    allowed_hosts: list = ["localhost", "127.0.0.1", "0.0.0.0"]
+    allowed_hosts: list = ["localhost", "127.0.0.1", "0.0.0.0", "*.azurewebsites.net"]
     
     class Config:
         env_file = [".env", "../.env", "/Users/Mariam/word-addin-mcp/.env"]
