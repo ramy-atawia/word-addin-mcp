@@ -171,9 +171,6 @@ jobs:
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
 
-    - name: Wait to avoid Docker Hub rate limits
-      run: sleep 30
-
     - name: Build and push Backend image
       uses: docker/build-push-action@v4
       with:
@@ -382,9 +379,6 @@ jobs:
         login-server: ${{ env.ACR_LOGIN_SERVER }}
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
-
-    - name: Wait to avoid Docker Hub rate limits
-      run: sleep 30
 
     - name: Build and push Backend image
       uses: docker/build-push-action@v4
