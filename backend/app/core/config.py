@@ -130,7 +130,7 @@ class Settings(BaseSettings):
     auth0_domain: str = os.getenv("AUTH0_DOMAIN", "dev-bktskx5kbc655wcl.us.auth0.com")
     auth0_client_id: str = os.getenv("AUTH0_CLIENT_ID", "")
     auth0_client_secret: str = os.getenv("AUTH0_CLIENT_SECRET", "")
-    auth0_audience: str = os.getenv("AUTH0_AUDIENCE", "https://word-addin-backend.azurewebsites.net")
+    auth0_audience: str = os.getenv("AUTH0_AUDIENCE", "INws849yDXaC6MZVXnLhMJi6CZC4nx6U")
     
     # API Configuration
     api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:9000")

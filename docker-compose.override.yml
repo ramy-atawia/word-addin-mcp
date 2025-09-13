@@ -19,7 +19,7 @@ services:
       
       # Auth0 for local development
       - AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
-      - AUTH0_AUDIENCE=https://word-addin-backend.azurewebsites.net
+      - AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
       
       # CORS for local development
       - ALLOWED_ORIGINS=["https://localhost:3000", "http://localhost:3000"]
@@ -41,7 +41,7 @@ services:
       - REACT_APP_FRONTEND_URL=https://localhost:3000
       - REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
       - REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
-      - REACT_APP_AUTH0_AUDIENCE=https://word-addin-backend.azurewebsites.net
+      - REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
       
       # Webpack dev server settings
       - WEBPACK_DEV_SERVER_HOST=0.0.0.0
