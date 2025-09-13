@@ -65,18 +65,7 @@ ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --resource-group $RESOURCE_GROUP
 print_status "Creating App Service Plan..."
 az appservice plan create --resource-group $RESOURCE_GROUP --name word-addin-plan --sku B1 --is-linux
 
-# Create PostgreSQL Database
-print_status "Creating PostgreSQL Database..."
-DB_PASSWORD=$(openssl rand -base64 32)
-az postgres flexible-server create \
-    --resource-group $RESOURCE_GROUP \
-    --name word-addin-db \
-    --admin-user wordaddin \
-    --admin-password $DB_PASSWORD \
-    --sku-name Standard_B1ms \
-    --tier Burstable \
-    --public-access 0.0.0.0 \
-    --storage-size 32
+# Database removed - using stateless architecture
 
 # Create Redis Cache
 print_status "Creating Redis Cache..."
@@ -120,7 +109,6 @@ az webapp config appsettings set \
     --resource-group $RESOURCE_GROUP \
     --name $BACKEND_APP_NAME \
     --settings \
-        DATABASE_URL="postgresql://wordaddin:$DB_PASSWORD@word-addin-db.postgres.database.azure.com:5432/wordaddin" \
         REDIS_URL="redis://word-addin-redis.redis.cache.windows.net:6380" \
         AZURE_OPENAI_API_KEY="${AZURE_OPENAI_API_KEY}" \
         AZURE_OPENAI_ENDPOINT="${AZURE_OPENAI_ENDPOINT}" \
@@ -170,7 +158,6 @@ echo "   Frontend: https://$FRONTEND_APP_NAME.azurewebsites.net"
 echo "   Backend:  https://$BACKEND_APP_NAME.azurewebsites.net"
 echo "   API Docs: https://$BACKEND_APP_NAME.azurewebsites.net/docs"
 echo ""
-echo "🔑 Database Password: $DB_PASSWORD"
 echo "🔑 Redis Key: $REDIS_CONNECTION_STRING"
 echo ""
 echo "📝 Next steps:"

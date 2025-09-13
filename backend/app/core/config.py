@@ -73,8 +73,6 @@ class Settings(BaseSettings):
     max_login_attempts: int = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
     lockout_duration_minutes: int = int(os.getenv("LOCKOUT_DURATION_MINUTES", "15"))
     
-    # Database Configuration
-    database_url: Optional[str] = os.getenv("DATABASE_URL")
     
     # CORS Configuration
     allowed_origins: List[str] = ["*"]  # Allow all origins for development

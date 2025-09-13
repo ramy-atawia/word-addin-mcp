@@ -72,35 +72,7 @@ resources:
           customerId: '[reference(resourceId(''Microsoft.OperationalInsights/workspaces'', concat(''logs-'', variables(''fullEnvironmentName'')))).customerId]'
           sharedKey: '[listKeys(resourceId(''Microsoft.OperationalInsights/workspaces'', concat(''logs-'', variables(''fullEnvironmentName''))), ''2021-12-01-preview'').primarySharedKey]'
 
-  # PostgreSQL Flexible Server
-  - type: Microsoft.DBforPostgreSQL/flexibleServers
-    apiVersion: 2021-06-01
-    name: '[concat(''postgres-'', variables(''fullEnvironmentName''))]'
-    location: '[parameters(''location'')]'
-    sku:
-      name: Standard_B1ms
-      tier: Burstable
-    properties:
-      administratorLogin: wordadmin
-      administratorLoginPassword: '[parameters(''secretKey'')]'
-      version: '15'
-      storage:
-        storageSizeGB: 32
-      backup:
-        backupRetentionDays: 7
-        geoRedundantBackup: Disabled
-      highAvailability:
-        mode: Disabled
-
-  # PostgreSQL Database
-  - type: Microsoft.DBforPostgreSQL/flexibleServers/databases
-    apiVersion: 2021-06-01
-    name: '[concat(''postgres-'', variables(''fullEnvironmentName''), ''/wordaddin'')]'
-    dependsOn:
-      - '[resourceId(''Microsoft.DBforPostgreSQL/flexibleServers'', concat(''postgres-'', variables(''fullEnvironmentName'')))]'
-    properties:
-      charset: utf8
-      collation: en_US.utf8
+  # Database removed - using stateless architecture
 
   # Redis Cache
   - type: Microsoft.Cache/Redis
@@ -122,7 +94,6 @@ resources:
     location: '[parameters(''location'')]'
     dependsOn:
       - '[resourceId(''Microsoft.App/managedEnvironments'', variables(''fullEnvironmentName''))]'
-      - '[resourceId(''Microsoft.DBforPostgreSQL/flexibleServers/databases'', concat(''postgres-'', variables(''fullEnvironmentName'')), ''wordaddin'')]'
       - '[resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName'')))]'
     properties:
       managedEnvironmentId: '[resourceId(''Microsoft.App/managedEnvironments'', variables(''fullEnvironmentName''))]'
@@ -142,8 +113,6 @@ resources:
             value: '[parameters(''patentsViewApiKey'')]'
           - name: secret-key
             value: '[parameters(''secretKey'')]'
-          - name: database-url
-            value: '[concat(''postgresql://wordadmin:'', parameters(''secretKey''), ''@'', reference(resourceId(''Microsoft.DBforPostgreSQL/flexibleServers'', concat(''postgres-'', variables(''fullEnvironmentName'')))).fullyQualifiedDomainName, ''/wordaddin'')]'
           - name: redis-url
             value: '[concat(''rediss://:'', listKeys(resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName''))), ''2021-06-01'').primaryKey, ''@'', reference(resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName'')))).hostName, '':6380'')]'
       template:
@@ -157,8 +126,6 @@ resources:
                 value: 0.0.0.0
               - name: FASTAPI_PORT
                 value: '9000'
-              - name: DATABASE_URL
-                secretRef: database-url
               - name: REDIS_URL
                 secretRef: redis-url
               - name: AZURE_OPENAI_API_KEY
@@ -261,9 +228,6 @@ outputs:
   frontendUrl:
     type: string
     value: '[concat(''https://'', variables(''fullFrontendAppName''), ''.'', variables(''fullEnvironmentName''), ''.azurecontainerapps.io'')]'
-  postgresHost:
-    type: string
-    value: '[reference(resourceId(''Microsoft.DBforPostgreSQL/flexibleServers'', concat(''postgres-'', variables(''fullEnvironmentName'')))).fullyQualifiedDomainName]'
   redisHost:
     type: string
     value: '[reference(resourceId(''Microsoft.Cache/Redis'', concat(''redis-'', variables(''fullEnvironmentName'')))).hostName]'

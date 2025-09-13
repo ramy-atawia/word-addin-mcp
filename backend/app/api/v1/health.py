@@ -48,22 +48,6 @@ async def detailed_health_check() -> Dict[str, Any]:
         "dependencies": {}
     }
     
-    # Check database health
-    try:
-        # TODO: Implement actual database health check
-        # db_health = await check_database_health()
-        health_status["dependencies"]["database"] = {
-            "status": "healthy",
-            "response_time": 0.001,
-            "details": "PostgreSQL connection pool active"
-        }
-    except Exception as e:
-        health_status["dependencies"]["database"] = {
-            "status": "unhealthy",
-            "error": str(e),
-            "details": "Database connection failed"
-        }
-        health_status["status"] = "degraded"
     
     # Check Redis health
     try:
@@ -84,13 +68,27 @@ async def detailed_health_check() -> Dict[str, Any]:
     
     # Check MCP server health
     try:
-        # TODO: Implement actual MCP server health check
-        # mcp_health = await check_mcp_server_health()
+        # Get actual MCP orchestrator health status
+        from app.services.mcp.orchestrator import mcp_orchestrator
+        mcp_health = await mcp_orchestrator.get_server_health()
+        
+        # Extract response time from MCP health metrics
+        response_time = 0.001  # Default fallback
+        if "metrics" in mcp_health and "average_execution_time" in mcp_health["metrics"]:
+            response_time = mcp_health["metrics"]["average_execution_time"]
+        
         health_status["dependencies"]["mcp_server"] = {
-            "status": "healthy",
-            "response_time": 0.001,
-            "details": "MCP server connection active"
+            "status": mcp_health.get("status", "unknown"),
+            "response_time": response_time,
+            "details": f"MCP orchestrator status: {mcp_health.get('status', 'unknown')}",
+            "components": mcp_health.get("components", {}),
+            "metrics": mcp_health.get("metrics", {})
         }
+        
+        # If MCP server is not healthy, mark overall status as degraded
+        if mcp_health.get("status") != "healthy":
+            health_status["status"] = "degraded"
+            
     except Exception as e:
         health_status["dependencies"]["mcp_server"] = {
             "status": "unhealthy",

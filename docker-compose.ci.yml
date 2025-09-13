@@ -1,22 +1,6 @@
 version: '3.8'
 
 services:
-  # CI/CD Database
-  ci-postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: ci_test_db
-      POSTGRES_USER: ci_user
-      POSTGRES_PASSWORD: ci_password
-    ports:
-      - "5432:5432"
-    volumes:
-      - ci-postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ci_user -d ci_test_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # CI/CD Redis
   ci-redis:
@@ -38,7 +22,6 @@ services:
       dockerfile: Dockerfile
       target: test
     environment:
-      - DATABASE_URL=postgresql://ci_user:ci_password@ci-postgres:5432/ci_test_db
       - REDIS_URL=redis://ci-redend:6379
       - AZURE_OPENAI_API_KEY=ci-test-key
       - AZURE_OPENAI_ENDPOINT=https://ci-test.openai.azure.com
@@ -118,7 +101,6 @@ services:
       "
 
 volumes:
-  ci-postgres-data:
   ci-redis-data:
   ci-backend-cache:
   ci-frontend-cache:

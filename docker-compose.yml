@@ -1,27 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: wordaddin-postgres
-    environment:
-      POSTGRES_DB: wordaddin
-      POSTGRES_USER: wordaddin_user
-      POSTGRES_PASSWORD: wordaddin_password
-      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - wordaddin-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wordaddin_user -d wordaddin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
 
   # Redis Cache
   redis:
@@ -48,8 +27,7 @@ services:
       target: production
     container_name: wordaddin-backend
     environment:
-      # Database
-      - DATABASE_URL=postgresql://wordaddin_user:wordaddin_password@postgres:5432/wordaddin
+      # Cache
       - REDIS_URL=redis://redis:6379
       
       # FastAPI Configuration
@@ -82,8 +60,6 @@ services:
       - ./logs:/app/logs
       - uploads_data:/app/uploads
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -194,8 +170,6 @@ services:
     restart: "no"
 
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
     driver: local
   uploads_data:

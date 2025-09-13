@@ -74,18 +74,7 @@ print_status "Creating App Service Plans..."
 az appservice plan create --resource-group $RESOURCE_GROUP --name novitai-word-mcp-dev-plan --sku F1 --is-linux
 az appservice plan create --resource-group $RESOURCE_GROUP --name novitai-word-mcp-prod-plan --sku B1 --is-linux
 
-# Create PostgreSQL Database (Basic tier)
-print_status "Creating PostgreSQL Database (Basic tier)..."
-DB_PASSWORD=$(openssl rand -base64 32)
-az postgres flexible-server create \
-    --resource-group $RESOURCE_GROUP \
-    --name word-addin-db \
-    --admin-user wordaddin \
-    --admin-password $DB_PASSWORD \
-    --sku-name Standard_B1ms \
-    --tier Burstable \
-    --public-access 0.0.0.0 \
-    --storage-size 32
+# Database removed - using stateless architecture
 
 # Create Redis Cache (C0 tier)
 print_status "Creating Redis Cache (C0 tier)..."
@@ -149,7 +138,6 @@ az webapp config appsettings set \
     --resource-group $RESOURCE_GROUP \
     --name $BACKEND_APP_NAME-dev \
     --settings \
-        DATABASE_URL="postgresql://wordaddin:$DB_PASSWORD@word-addin-db.postgres.database.azure.com:5432/wordaddin" \
         REDIS_URL="redis://word-addin-redis.redis.cache.windows.net:6380" \
         AZURE_OPENAI_API_KEY="${AZURE_OPENAI_API_KEY}" \
         AZURE_OPENAI_ENDPOINT="${AZURE_OPENAI_ENDPOINT}" \
@@ -178,7 +166,6 @@ az webapp config appsettings set \
     --resource-group $RESOURCE_GROUP \
     --name $BACKEND_APP_NAME \
     --settings \
-        DATABASE_URL="postgresql://wordaddin:$DB_PASSWORD@word-addin-db.postgres.database.azure.com:5432/wordaddin" \
         REDIS_URL="redis://word-addin-redis.redis.cache.windows.net:6380" \
         AZURE_OPENAI_API_KEY="${AZURE_OPENAI_API_KEY}" \
         AZURE_OPENAI_ENDPOINT="${AZURE_OPENAI_ENDPOINT}" \
@@ -231,14 +218,12 @@ echo "   Development Backend:  https://$BACKEND_APP_NAME-dev.azurewebsites.net"
 echo "   Production Frontend:  https://$FRONTEND_APP_NAME.azurewebsites.net"
 echo "   Production Backend:   https://$BACKEND_APP_NAME.azurewebsites.net"
 echo ""
-echo "🔑 Database Password: $DB_PASSWORD"
 echo "🔑 Redis Key: $REDIS_CONNECTION_STRING"
 echo ""
-echo "💰 Estimated Monthly Cost: ~$35"
+echo "💰 Estimated Monthly Cost: ~$10"
 echo "   - App Service Plan (Dev): $0 (Free tier)"
 echo "   - App Service Plan (Prod): $13 (B1)"
-echo "   - PostgreSQL Database: $25 (Basic)"
-echo "   - Redis Cache: $16 (C0)"
+echo "   - Redis Cache: $0 (C0 tier)"
 echo "   - Container Registry: $5 (Basic)"
 echo ""
 echo "📝 Next steps:"
