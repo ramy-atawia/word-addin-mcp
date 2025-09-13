@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
+  <Id>b627dfec-d640-41a8-960d-7faad1c57df5</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Novitai</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Novitai MCP"/>
+  <Description DefaultValue="AI-powered Word Add-in with MCP integration for enhanced document processing and research capabilities"/>
+  <IconUrl DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/assets/icon-64.png"/>
+  <SupportUrl DefaultValue="https://github.com/ramy-atawia/word-addin-mcp"/>
+  <AppDomains>
+    <AppDomain>https://novitai-word-mcp-frontend.azurewebsites.net</AppDomain>
+    <AppDomain>https://novitai-word-mcp-backend.azurewebsites.net</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document"/>
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/taskpane.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
+          <FunctionFile resid="Commands.Url"/>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="CommandsGroup">
+                <Label resid="CommandsGroup.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="TaskpaneButton">
+                  <Label resid="TaskpaneButton.Label"/>
+                  <Supertip>
+                    <Title resid="TaskpaneButton.Label"/>
+                    <Description resid="TaskpaneButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>ButtonId1</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/assets/icon-80.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/assets/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://github.com/ramy-atawia/word-addin-mcp"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://novitai-word-mcp-frontend.azurewebsites.net/taskpane.html"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Welcome to Novitai MCP!"/>
+        <bt:String id="CommandsGroup.Label" DefaultValue="Novitai MCP"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Open Novitai MCP"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Your AI-powered Word Add-in with MCP integration is ready! Go to the HOME tab and click 'Open Novitai MCP' to get started with enhanced document processing and research capabilities."/>
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Click to open Novitai MCP - AI-powered document processing and research"/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>
