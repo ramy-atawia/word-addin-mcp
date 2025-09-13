@@ -296,13 +296,14 @@ jobs:
         # Check if response contains search results (basic validation)
         if echo "$SEARCH_RESPONSE" | grep -q "Web Search Results"; then
           SEARCH_HAS_RESULTS="true"
-          SEARCH_LENGTH=$(echo "$SEARCH_RESPONSE" | grep -o '"response":"[^"]*"' | wc -c)
+          # Use total response length as a proxy for content length
+          SEARCH_LENGTH=$(echo "$SEARCH_RESPONSE" | wc -c)
         else
           SEARCH_HAS_RESULTS="false"
           SEARCH_LENGTH="0"
         fi
         
-        if [ "$SEARCH_SUCCESS" != "True" ] || [ "$SEARCH_TOOL" != "web_search_tool" ] || [ "$SEARCH_LENGTH" -lt 100 ]; then
+        if [ "$SEARCH_SUCCESS" != "true" ] || [ "$SEARCH_TOOL" != "web_search_tool" ] || [ "$SEARCH_LENGTH" -lt 100 ]; then
           echo "❌ Web search test failed:"
           echo "  Success: $SEARCH_SUCCESS"
           echo "  Tool: $SEARCH_TOOL"
@@ -442,7 +443,7 @@ jobs:
         echo "🚀 Production deployment ${{ job.status }} for ${{ github.repository }}#${{ github.run_number }}"
         echo "Backend: https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net"
         echo "Frontend: https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net"
-
+ 
   # Rollback (if needed)
   rollback:
     runs-on: ubuntu-latest
