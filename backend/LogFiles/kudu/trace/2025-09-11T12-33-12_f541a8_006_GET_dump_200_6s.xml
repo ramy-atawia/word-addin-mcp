@@ -1,4 +1,0 @@
-<step title="Incoming Request" date="2025-09-11T12:33:12.978" instance="f541a8" url="/dump" method="GET" type="request" pid="770,1,48" Host="novitai-word-mcp-backend.scm.azurewebsites.net" User-Agent="AZURECLI/2.75.0 (HOMEBREW)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="7816b39a-8f0b-11f0-b17d-bee5e14eede1" X-ARR-LOG-ID="7816b39a-8f0b-11f0-b17d-bee5e14eede1" CLIENT-IP="174.113.19.144:60333" X-SITE-DEPLOYMENT-ID="novitai-word-mcp-backend" WAS-DEFAULT-HOSTNAME="novitai-word-mcp-backend.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/dump" X-Client-IP="174.113.19.144" X-Client-Port="60333" >
-  <step title="Cleanup Xml Logs" date="2025-09-11T12:33:13.014" /><!-- duration: 48ms -->
-  <step title="Outgoing response" date="2025-09-11T12:33:18.513" type="response" statusCode="200" statusText="OK" /><!-- duration: 18ms -->
-</step><!-- duration: 5565ms -->

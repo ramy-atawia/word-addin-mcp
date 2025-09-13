@@ -32,10 +32,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"Debug mode: {settings.debug}")
     
     # Initialize Auth0 middleware
-    auth0_domain = getattr(settings, 'AUTH0_DOMAIN', 'dev-bktskx5kbc655wcl.us.auth0.com')
-    auth0_audience = getattr(settings, 'AUTH0_AUDIENCE', 'https://word-addin-backend.azurewebsites.net')
-    init_auth0_middleware(auth0_domain, auth0_audience)
-    logger.info(f"Auth0 middleware initialized with domain: {auth0_domain}")
+    init_auth0_middleware(settings.auth0_domain, settings.auth0_audience)
+    logger.info(f"Auth0 middleware initialized with domain: {settings.auth0_domain}")
     
     # Initialize MCP Orchestrator
     try:

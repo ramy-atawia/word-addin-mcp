@@ -122,6 +122,20 @@ class Settings(BaseSettings):
     # Host Configuration
     allowed_hosts: list = ["localhost", "127.0.0.1", "0.0.0.0", "*.azurewebsites.net"]
     
+    # Frontend Configuration
+    frontend_url: str = os.getenv("FRONTEND_URL", "https://localhost:3000")
+    frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "https://localhost:3000")
+    
+    # Auth0 Configuration
+    auth0_domain: str = os.getenv("AUTH0_DOMAIN", "dev-bktskx5kbc655wcl.us.auth0.com")
+    auth0_client_id: str = os.getenv("AUTH0_CLIENT_ID", "")
+    auth0_client_secret: str = os.getenv("AUTH0_CLIENT_SECRET", "")
+    auth0_audience: str = os.getenv("AUTH0_AUDIENCE", "https://word-addin-backend.azurewebsites.net")
+    
+    # API Configuration
+    api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:9000")
+    api_docs_url: str = os.getenv("API_DOCS_URL", "http://localhost:9000/docs")
+    
     class Config:
         env_file = [".env", "../.env", "/Users/Mariam/word-addin-mcp/.env"]
         case_sensitive = False

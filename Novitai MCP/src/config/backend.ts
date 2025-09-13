@@ -10,7 +10,7 @@ export interface BackendConfig {
 
 // Default backend configuration
 export const defaultBackendConfig: BackendConfig = {
-  baseUrl: 'http://localhost:9000',
+  baseUrl: process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000',
   apiVersion: 'v1',
   timeout: 30000, // 30 seconds
   retryAttempts: 3,

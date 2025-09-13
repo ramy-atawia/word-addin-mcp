@@ -1,10 +1,10 @@
 // Auth0 configuration - will be set by environment
 const auth0Config = {
-  domain: window.AUTH0_DOMAIN || "dev-bktskx5kbc655wcl.us.auth0.com",
-  clientId: window.AUTH0_CLIENT_ID || "INws849yDXaC6MZVXnLhMJi6CZC4nx6U",
+  domain: window.AUTH0_DOMAIN || process.env.REACT_APP_AUTH0_DOMAIN || "dev-bktskx5kbc655wcl.us.auth0.com",
+  clientId: window.AUTH0_CLIENT_ID || process.env.REACT_APP_AUTH0_CLIENT_ID || "INws849yDXaC6MZVXnLhMJi6CZC4nx6U",
   redirectUri: window.location.origin + "/auth-callback.html",
   scope: "openid profile email",
-  audience: window.AUTH0_AUDIENCE || (window.location.hostname.includes('dev') ? 
+  audience: window.AUTH0_AUDIENCE || process.env.REACT_APP_AUTH0_AUDIENCE || (window.location.hostname.includes('dev') ? 
     "https://novitai-word-mcp-backend-dev.azurewebsites.net" : 
     "https://novitai-word-mcp-backend.azurewebsites.net"),
   cacheLocation: "memory",

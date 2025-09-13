@@ -1,3 +1,0 @@
-<step title="Startup Request" date="2025-09-12T01:44:36.201" instance="f541a8" url="/dump" method="GET" type="request" pid="770,1,22" SCM_DO_BUILD_DURING_DEPLOYMENT="1" ScmType="None" >
-  <step title="Cleanup Xml Logs" date="2025-09-12T01:44:36.342" /><!-- duration: 100ms -->
-</step><!-- duration: 310ms -->

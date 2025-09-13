@@ -1,7 +1,0 @@
-<step title="Incoming Request" date="2025-09-11T06:09:59.815" instance="f541a8" url="/logstream" method="GET" type="request" pid="770,1,18" Host="novitai-word-mcp-backend.scm.azurewebsites.net" User-Agent="AZURECLI/2.75.0 (HOMEBREW)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="78d2be86-8ed5-11f0-8ebd-bee5e14eede1" X-ARR-LOG-ID="78d2be86-8ed5-11f0-8ebd-bee5e14eede1" CLIENT-IP="174.113.19.144:61495" X-SITE-DEPLOYMENT-ID="novitai-word-mcp-backend" WAS-DEFAULT-HOSTNAME="novitai-word-mcp-backend.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-Client-IP="174.113.19.144" X-Client-Port="61495" >
-  <step title="LogStreamHandlerMiddleware.Invoke" date="2025-09-11T06:09:59.838" /><!-- duration: 139ms -->
-  <step title="Error occurred" date="2025-09-11T08:09:59.974" type="error" text="LogStreamManager: Inside TerminateClient" /><!-- duration: 34ms -->
-  <step title="Error occurred" date="2025-09-11T08:10:00.075" type="error" text="LogStreamManager: Inside Reset" /><!-- duration: 8ms -->
-  <step title="Error occurred" date="2025-09-11T08:10:00.348" type="error" text="LogStreamManager: ProcessRequest end due to timeout" /><!-- duration: 6ms -->
-  <step title="Outgoing response" date="2025-09-11T08:10:00.460" type="response" statusCode="200" statusText="OK" /><!-- duration: 7ms -->
-</step><!-- duration: 7200661ms -->
