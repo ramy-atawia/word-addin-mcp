@@ -3,6 +3,9 @@ Comprehensive MCP E2E Testing with Realistic Values
 
 This test suite covers ALL MCP tools with realistic input scenarios,
 real-world use cases, and comprehensive validation.
+
+For detailed patent search integration tests with validated test cases,
+see: test_patent_search_integration.py
 """
 
 import pytest

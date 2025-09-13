@@ -12,7 +12,12 @@ Create a markdown report with this structure:
 
 ## Search Results
 - **Total Patents**: [number]
-- **Search Queries Used**: [list]
+- **Search Queries Used** (with result counts):
+  - [query1] → [count] patents
+  - [query2] → [count] patents
+  - [query3] → [count] patents
+  - [query4] → [count] patents
+  - [query5] → [count] patents
 - **Date Range**: [earliest] to [latest]
 
 ## Key Patents (Top 5)
@@ -21,8 +26,9 @@ For each patent:
 - **Title**: [title]
 - **Date**: [date]
 - **Assignee**: [assignee]
-- **Abstract**: [first 200 chars]
+- **Abstract**: [full abstract]
 - **Claims Count**: [number]
+- **Key Claims**: [first 3 claims with full text]
 - **Relevance**: HIGH/MEDIUM/LOW
 - **Risk Assessment**: [reasoning]
 
@@ -38,6 +44,8 @@ For each patent:
 
 **Requirements:**
 - Use only data provided in the patents found
+- Include full claim text analysis for each key patent
+- Analyze claim elements and their relevance to the search query
 - Be specific and actionable
 - Focus on practical implications
 - Keep language clear and professional

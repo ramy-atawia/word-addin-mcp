@@ -64,7 +64,7 @@ class PatentSearchService:
             
             # Step 2: Search for patents
             logger.info("Step 2: Searching for patents...")
-            all_patents = await self._search_all_queries(search_queries)
+            all_patents, query_results = await self._search_all_queries(search_queries)
             logger.info(f"Step 2 completed: Found {len(all_patents)} total patents")
             
             # Step 3: Deduplicate and limit results
@@ -79,7 +79,7 @@ class PatentSearchService:
             
             # Step 5: Generate report
             logger.info("Step 5: Generating report...")
-            report = await self._generate_report(query, search_queries, patents_with_claims)
+            report = await self._generate_report(query, query_results, patents_with_claims)
             logger.info(f"Step 5 completed: Generated report of {len(report)} characters")
             
             search_result = {
@@ -118,8 +118,8 @@ class PatentSearchService:
             
             response = self.llm_client.generate_text(
                 prompt=prompt,
-                system_message="You are a patent search expert. Generate diverse, effective search queries.",
-                max_tokens=1500,
+                system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
+                max_tokens=2500,
                 temperature=0.3
             )
             
@@ -158,23 +158,36 @@ class PatentSearchService:
             raise ValueError(f"Failed to generate search queries: {e}")
     
     
-    async def _search_all_queries(self, search_queries: List[Dict]) -> List[Dict[str, Any]]:
+    async def _search_all_queries(self, search_queries: List[Dict]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Execute all search queries and collect results."""
         
         all_patents = []
+        query_results = []
         
         for i, search_query in enumerate(search_queries):
             try:
                 query_data = search_query.get("search_query", {})
                 patents = await self._search_patents_api(query_data)
                 all_patents.extend(patents)
+                
+                # Track query results with counts
+                query_text = search_query.get("reasoning", f"Query {i+1}")
+                query_results.append({
+                    "query_text": query_text,
+                    "result_count": len(patents)
+                })
+                
                 logger.info(f"Query {i+1} returned {len(patents)} patents")
                 
             except Exception as e:
                 logger.warning(f"Query {i+1} failed: {e}")
+                query_results.append({
+                    "query_text": f"Query {i+1} (failed)",
+                    "result_count": 0
+                })
                 continue
         
-        return all_patents
+        return all_patents, query_results
     
     async def _search_patents_api(self, search_query: Dict) -> List[Dict[str, Any]]:
         """Call PatentsView API to search patents."""
@@ -345,19 +358,28 @@ class PatentSearchService:
         except Exception as e:
             raise ValueError(f"Unexpected Error fetching claims for patent '{patent_id}': {str(e)}")
     
-    async def _generate_report(self, query: str, search_queries: List[Dict], 
+    async def _generate_report(self, query: str, query_results: List[Dict], 
                              patents: List[Dict]) -> str:
         """Generate markdown report using LLM with prompt template."""
         
         # Prepare data for report
         patent_summaries = []
         for patent in patents:
+            # Extract claims text for analysis
+            claims_text = []
+            for claim in patent.get("claims", []):
+                claim_text = claim.get("claim_text", "")
+                claim_number = claim.get("claim_number", "")
+                if claim_text and claim_number:
+                    claims_text.append(f"Claim {claim_number}: {claim_text}")
+            
             patent_summaries.append({
                 "id": patent.get("patent_id", "Unknown"),
                 "title": patent.get("patent_title", "No title"),
                 "date": patent.get("patent_date", "Unknown"),
-                "abstract": (patent.get("patent_abstract", "")[:200] + "...") if patent.get("patent_abstract") else "No abstract",
+                "abstract": patent.get("patent_abstract", "No abstract"),  # Full abstract now
                 "claims_count": len(patent.get("claims", [])),
+                "claims_text": claims_text,  # ADD: Full claims text
                 "inventor": self._extract_inventor(patent.get("inventors", [])),
                 "assignee": self._extract_assignee(patent.get("assignees", []))
             })
@@ -366,10 +388,16 @@ class PatentSearchService:
             # Load the system prompt template
             system_prompt = load_prompt_template("prior_art_search_system")
             
+            # Format query results for the report
+            query_info = []
+            for i, result in enumerate(query_results, 1):
+                query_info.append(f"  - {result['query_text']} → {result['result_count']} patents")
+            query_summary = "\n".join(query_info)
+            
             # Load the user prompt template with parameters
             user_prompt = load_prompt_template("prior_art_search_comprehensive",
                                               user_query=query,
-                                              conversation_context=f"Search Queries Used:\n{json.dumps(search_queries, indent=2)}\n\nPatents Found:\n{json.dumps(patent_summaries, indent=2)}",
+                                              conversation_context=f"Search Queries Used (with result counts):\n{query_summary}\n\nPatents Found:\n{json.dumps(patent_summaries, indent=2)}",
                                               document_reference="Patent Search Results")
             
             response = self.llm_client.generate_text(

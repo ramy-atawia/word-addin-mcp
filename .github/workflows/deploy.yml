@@ -51,6 +51,11 @@ jobs:
         echo "Running backend unit tests..."
         python -m pytest tests/ -v --tb=short || echo "No unit tests found, skipping..."
 
+    - name: Run Patent Search Tests
+      run: |
+        echo "Running patent search integration tests..."
+        python3 tests/standalone_patent_search_tests.py
+
     - name: Run Frontend Linting
       run: |
         cd "Novitai MCP"
@@ -339,6 +344,20 @@ jobs:
           fi
           echo "✅ API endpoint $endpoint is accessible (HTTP $HTTP_CODE)"
         done
+        
+        # Test 6: Patent Search Functionality
+        echo "🔍 Testing patent search functionality..."
+        PATENT_SEARCH_RESPONSE=$(curl -s -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools/prior_art_search_tool/execute" \
+          -H "Content-Type: application/json" \
+          -d '{"parameters": {"query": "5G handover using AI"}}')
+        
+        if echo "$PATENT_SEARCH_RESPONSE" | grep -q "Prior Art Search Report"; then
+          echo "✅ Patent search test passed: Report generated successfully"
+        else
+          echo "❌ Patent search test failed: No report generated"
+          echo "Response: $(echo "$PATENT_SEARCH_RESPONSE" | head -c 200)..."
+          exit 1
+        fi
         
         echo "🎉 All post-deployment tests passed successfully!"
 
