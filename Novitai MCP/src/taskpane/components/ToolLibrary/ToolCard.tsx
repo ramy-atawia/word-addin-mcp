@@ -155,8 +155,6 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onSelect, isSelected = false 
         return <Globe24Regular />;
       case 'text_processor':
         return <DocumentText24Regular />;
-      case 'file_reader':
-        return <DocumentText24Regular />;
       case 'document_analyzer':
         return <DocumentText24Regular />;
       case 'data_formatter':
@@ -171,8 +169,6 @@ const ToolCard: React.FC<ToolCardProps> = ({ tool, onSelect, isSelected = false 
       case 'web_content_fetcher':
         return { bg: tokens.colorStatusSuccessBackground1, color: tokens.colorStatusSuccessForeground1 };
       case 'text_processor':
-        return { bg: tokens.colorStatusWarningBackground1, color: tokens.colorStatusWarningForeground1 };
-      case 'file_reader':
         return { bg: tokens.colorStatusWarningBackground1, color: tokens.colorStatusWarningForeground1 };
       case 'document_analyzer':
         return { bg: tokens.colorBrandBackground2, color: tokens.colorBrandForeground1 };

@@ -477,7 +477,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         context: {
           document_content: documentContent,
           chat_history: chatHistoryString,
-          available_tools: "web_search,prior_art_search,claim_drafting,claim_analysis,file_reader"
+          available_tools: "web_search,prior_art_search,claim_drafting,claim_analysis"
         },
         sessionId: "default-session"
       });

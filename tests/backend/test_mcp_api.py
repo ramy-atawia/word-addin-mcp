@@ -26,12 +26,11 @@ class TestMCPToolEndpoints:
         # Check tools list
         tools = data["tools"]
         assert isinstance(tools, list)
-        assert len(tools) == 5  # We have 5 tools implemented
+        assert len(tools) == 4  # We have 4 tools implemented
         
         # Check tool definitions
         tool_names = [tool["name"] for tool in tools]
         expected_tools = [
-            "file_reader",
             "text_processor", 
             "document_analyzer",
             "web_content_fetcher",
@@ -69,20 +68,6 @@ class TestMCPToolEndpoints:
         assert "properties" in input_schema
         assert "required" in input_schema
     
-    def test_execute_mcp_tool_file_reader(self, test_client: TestClient, sample_mcp_tool_request):
-        """Test executing file_reader MCP tool."""
-        response = test_client.post(
-            "/api/v1/mcp/tools/execute",
-            json=sample_mcp_tool_request
-        )
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data["tool_name"] == "file_reader"
-        assert data["session_id"] == "test-session-123"
-        assert data["status"] == "success"
-        assert data["mcp_protocol_version"] == "2024-11-05"
         assert "execution_time" in data
         assert "result" in data
         
@@ -268,8 +253,8 @@ class TestMCPToolEndpoints:
     def test_execute_mcp_tool_missing_parameters(self, test_client: TestClient):
         """Test executing MCP tool with missing required parameters."""
         request_data = {
-            "tool_name": "file_reader",
-            "parameters": {},  # Missing required 'path' parameter
+            "tool_name": "text_processor",
+            "parameters": {},  # Missing required 'text' parameter
             "session_id": "test-session-123"
         }
         
@@ -288,8 +273,8 @@ class TestMCPToolEndpoints:
     def test_execute_mcp_tool_invalid_session_id(self, test_client: TestClient):
         """Test executing MCP tool with invalid session ID."""
         request_data = {
-            "tool_name": "file_reader",
-            "parameters": {"path": "./test.txt"},
+            "tool_name": "text_processor",
+            "parameters": {"text": "test text"},
             "session_id": "",  # Empty session ID
             "request_id": "test-request-404"
         }
@@ -337,8 +322,8 @@ class TestMCPToolExecutionPerformance:
         import time
         
         request_data = {
-            "tool_name": "file_reader",
-            "parameters": {"path": "./test.txt"},
+            "tool_name": "text_processor",
+            "parameters": {"text": "test text"},
             "session_id": "test-session-123"
         }
         
@@ -396,7 +381,6 @@ class TestMCPToolExecutionPerformance:
         
         # Execute different tools concurrently
         tools_to_test = [
-            ("file_reader", {"path": "./test1.txt"}),
             ("text_processor", {"text": "Test text 1", "operation": "summarize"}),
             ("document_analyzer", {"content": "Test content 1", "analysis_type": "readability"}),
             ("web_content_fetcher", {"url": "https://example1.com"}),
@@ -453,8 +437,8 @@ class TestMCPToolErrorHandling:
     def test_tool_execution_with_missing_session_id(self, test_client: TestClient):
         """Test MCP tool execution with missing session ID."""
         request_data = {
-            "tool_name": "file_reader",
-            "parameters": {"path": "./test.txt"}
+            "tool_name": "text_processor",
+            "parameters": {"text": "test text"}
         }
         
         response = test_client.post(
@@ -467,7 +451,7 @@ class TestMCPToolErrorHandling:
     def test_tool_execution_with_empty_parameters(self, test_client: TestClient):
         """Test MCP tool execution with empty parameters."""
         request_data = {
-            "tool_name": "file_reader",
+            "tool_name": "text_processor",
             "parameters": None,
             "session_id": "test-session-123"
         }
@@ -486,14 +470,14 @@ class TestMCPToolErrorHandling:
 class TestMCPToolValidation:
     """Test class for MCP tool parameter validation."""
     
-    def test_file_reader_parameter_validation(self, test_client: TestClient):
-        """Test file_reader tool parameter validation."""
+    def test_text_processor_parameter_validation(self, test_client: TestClient):
+        """Test text_processor tool parameter validation."""
         # Test with valid parameters
         valid_request = {
-            "tool_name": "file_reader",
+            "tool_name": "text_processor",
             "parameters": {
-                "path": "./test.txt",
-                "encoding": "utf-8"
+                "text": "test text",
+                "operation": "summarize"
             },
             "session_id": "test-session-123"
         }
@@ -507,11 +491,11 @@ class TestMCPToolValidation:
         
         # Test with additional parameters (should be ignored by placeholder)
         extended_request = {
-            "tool_name": "file_reader",
+            "tool_name": "text_processor",
             "parameters": {
-                "path": "./test.txt",
-                "encoding": "utf-8",
-                "max_size": 1024,
+                "text": "test text",
+                "operation": "summarize",
+                "max_length": 100,
                 "extra_param": "should_be_ignored"
             },
             "session_id": "test-session-123"

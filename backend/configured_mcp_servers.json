@@ -35,13 +35,6 @@
           "requires_auth": false,
           "usage_count": 0
         },
-        {
-          "name": "file_reader_tool",
-          "description": "Read and process files",
-          "category": "general",
-          "requires_auth": false,
-          "usage_count": 0
-        }
       ]
     },
     "sequentialthinking": {
@@ -154,8 +147,8 @@
     "total_servers": 5,
     "internal_servers": 1,
     "external_servers": 4,
-    "total_tools": 9,
-    "internal_tools": 4,
+    "total_tools": 8,
+    "internal_tools": 3,
     "external_tools": 5,
     "healthy_servers": 5,
     "connected_servers": 5

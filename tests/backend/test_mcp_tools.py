@@ -21,7 +21,6 @@ from backend.app.core.mcp_tool_interface import (
     ToolErrorCode,
     ToolExecutionContext
 )
-from backend.app.tools.file_reader import FileReaderTool
 from backend.app.tools.text_processor import TextProcessorTool
 from backend.app.tools.document_analyzer import DocumentAnalyzerTool
 from backend.app.tools.web_content_fetcher import WebContentFetcherTool
@@ -296,12 +295,6 @@ class TestToolExecutionEngine:
 class TestBuiltInTools:
     """Test the built-in MCP tools."""
     
-    def test_file_reader_tool(self):
-        """Test FileReaderTool initialization and metadata."""
-        tool = FileReaderTool()
-        assert tool.metadata.name == "file_reader"
-        assert tool.metadata.description is not None
-        assert tool.metadata.input_schema is not None
     
     def test_text_processor_tool(self):
         """Test TextProcessorTool initialization and metadata."""
@@ -331,15 +324,6 @@ class TestBuiltInTools:
         assert tool.metadata.description is not None
         assert tool.metadata.input_schema is not None
     
-    @pytest.mark.asyncio
-    async def test_file_reader_execution(self):
-        """Test FileReaderTool execution with mock file."""
-        tool = FileReaderTool()
-        
-        # For now, just test that the tool can be created and has proper metadata
-        # The execution test is complex due to file system mocking
-        assert tool.metadata.name == "file_reader"
-        assert tool.metadata.description is not None
         assert tool.metadata.input_schema is not None
         
         # Test that the tool can be instantiated without errors

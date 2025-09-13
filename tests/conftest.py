@@ -95,8 +95,7 @@ def test_tools():
     return [
         "web_search_tool",
         "text_analysis_tool", 
-        "document_analysis_tool",
-        "file_reader_tool"
+        "document_analysis_tool"
     ]
 
 class TestResult:

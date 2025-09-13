@@ -40,7 +40,6 @@ class ComprehensiveE2ETestRunner:
         
         # Test categories to run
         test_categories = [
-            ("File Reader Tests", self._run_file_reader_tests),
             ("Text Processor Tests", self._run_text_processor_tests),
             ("Document Analyzer Tests", self._run_document_analyzer_tests),
             ("Web Content Fetcher Tests", self._run_web_content_fetcher_tests),
@@ -84,99 +83,6 @@ class ComprehensiveE2ETestRunner:
         
         return self._generate_and_save_reports()
     
-    def _run_file_reader_tests(self) -> List[TestResult]:
-        """Run file reader tool tests."""
-        results = []
-        
-        # Test 1: Text file reading
-        test_name = "test_file_reader_text_file_processing"
-        start_time = time.time()
-        try:
-            # Create a test text file
-            test_file_path = self.output_dir / "test_text_file.txt"
-            test_content = "This is a test text file for E2E testing of the file reader tool."
-            with open(test_file_path, 'w') as f:
-                f.write(test_content)
-            
-            # Execute file reading
-            output = file_system_service.read_file(str(test_file_path), 'utf-8')
-            execution_time = time.time() - start_time
-            
-            # Score the test
-            status = "passed" if output.get("status") == "success" else "failed"
-            result = test_scoring_service.score_test_output(
-                test_name, output, execution_time, status
-            )
-            results.append(result)
-            
-            # Cleanup
-            test_file_path.unlink(missing_ok=True)
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            output = {"error": str(e)}
-            result = test_scoring_service.score_test_output(
-                test_name, output, execution_time, "error"
-            )
-            results.append(result)
-        
-        # Test 2: JSON file reading
-        test_name = "test_file_reader_json_file_processing"
-        start_time = time.time()
-        try:
-            # Create a test JSON file
-            test_file_path = self.output_dir / "test_json_file.json"
-            test_data = {"name": "Test", "value": 42, "nested": {"key": "value"}}
-            with open(test_file_path, 'w') as f:
-                json.dump(test_data, f)
-            
-            # Execute file reading
-            output = file_system_service.read_file(str(test_file_path), 'utf-8')
-            execution_time = time.time() - start_time
-            
-            # Score the test
-            status = "passed" if output.get("status") == "success" else "failed"
-            result = test_scoring_service.score_test_output(
-                test_name, output, execution_time, status
-            )
-            results.append(result)
-            
-            # Cleanup
-            test_file_path.unlink(missing_ok=True)
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            output = {"error": str(e)}
-            result = test_scoring_service.score_test_output(
-                test_name, output, execution_time, "error"
-            )
-            results.append(result)
-        
-        # Test 3: Security validation
-        test_name = "test_file_reader_security_validation"
-        start_time = time.time()
-        try:
-            # Test malicious path
-            malicious_path = "../../../etc/passwd"
-            output = file_system_service.read_file(malicious_path, 'utf-8')
-            execution_time = time.time() - start_time
-            
-            # Score the test (should fail with security error)
-            status = "passed" if output.get("status") == "error" else "failed"
-            result = test_scoring_service.score_test_output(
-                test_name, output, execution_time, status
-            )
-            results.append(result)
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            output = {"error": str(e)}
-            result = test_scoring_service.score_test_output(
-                test_name, output, execution_time, "error"
-            )
-            results.append(result)
-        
-        return results
     
     def _run_text_processor_tests(self) -> List[TestResult]:
         """Run text processor tool tests."""
@@ -541,7 +447,7 @@ class ComprehensiveE2ETestRunner:
                 "status": "success",
                 "workflow": "business_intelligence",
                 "steps": workflow_steps,
-                "tools_used": ["file_reader", "text_processor", "data_formatter"],
+                "tools_used": ["text_processor", "data_formatter"],
                 "result": "Business intelligence workflow completed successfully"
             }
             execution_time = time.time() - start_time
