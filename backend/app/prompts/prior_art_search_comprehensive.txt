@@ -1,77 +1,43 @@
-Generate a comprehensive prior art search report for the following invention:
-
-**Invention Description**: {user_query}
+Generate a prior art search report for: {user_query}
 
 **Search Context**: {conversation_context}
+**Patents Found**: {document_reference}
 
-**Document Reference**: {document_reference}
+Create a markdown report with this structure:
 
-Please create a detailed markdown report with the following structure:
+## Executive Summary
+- Total patents found: [number]
+- Key findings and relevance assessment
+- Risk level: HIGH/MEDIUM/LOW
 
-## 1. Executive Summary
-- Brief overview of the search scope and key findings
-- Total patents found and relevance assessment
-- High-level risk assessment (HIGH/MEDIUM/LOW)
+## Search Results
+- **Total Patents**: [number]
+- **Search Queries Used**: [list]
+- **Date Range**: [earliest] to [latest]
 
-## 2. Search Methodology
-- Detailed description of search strategy
-- Query terms and search approaches used
-- Databases and sources searched
-- Search limitations and scope
+## Key Patents (Top 5)
+For each patent:
+- **Patent ID**: [id]
+- **Title**: [title]
+- **Date**: [date]
+- **Assignee**: [assignee]
+- **Abstract**: [first 200 chars]
+- **Claims Count**: [number]
+- **Relevance**: HIGH/MEDIUM/LOW
+- **Risk Assessment**: [reasoning]
 
-## 3. Search Results Overview
-- Total number of patents found
-- Breakdown by relevance categories
-- Geographic distribution of patents
-- Timeline analysis of patent filings
-
-## 4. Key Patents Analysis (Top 10)
-For each key patent, provide:
-- Patent ID, Title, Date, Inventor, Assignee
-- Abstract summary
-- Claims count and key claim elements
-- Relevance score and reasoning
-- Potential conflict assessment
-
-## 5. Competitive Landscape
-- Major players and assignees
-- Patent filing trends over time
-- Geographic distribution of innovation
-- Technology evolution patterns
-
-## 6. Risk Assessment
-- **HIGH RISK**: Patents that directly conflict with the invention
-- **MEDIUM RISK**: Patents with potential overlap or design-around challenges
+## Risk Analysis
+- **HIGH RISK**: Patents with direct conflicts
+- **MEDIUM RISK**: Patents with potential overlap
 - **LOW RISK**: Patents with minimal relevance
-- Freedom to operate analysis
 
-## 7. Technical Analysis
-- Core technical concepts identified
-- Common inventive elements across patents
-- Technology gaps and opportunities
-- Emerging trends and future directions
-
-## 8. Legal and Strategic Implications
-- Patent validity considerations
-- Potential infringement risks
-- Design-around opportunities
-- Strategic recommendations for patent prosecution
-
-## 9. Recommendations
-- Immediate actions required
-- Long-term strategic considerations
+## Recommendations
+- Immediate actions needed
 - Areas for further investigation
-- Patent filing strategy suggestions
-
-## 10. Appendices
-- Complete patent list with full details
-- Search query details
-- Additional technical references
-- Glossary of technical terms
+- Strategic considerations
 
 **Requirements:**
-- Use professional legal and technical language
-- Provide specific patent citations and references
-- Include actionable insights and recommendations
-- Maintain objectivity and analytical rigor
-- Focus on practical implications for patent strategy
+- Use only data provided in the patents found
+- Be specific and actionable
+- Focus on practical implications
+- Keep language clear and professional

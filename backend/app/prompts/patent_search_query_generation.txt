@@ -1,52 +1,41 @@
-You are a patent search expert. Generate simple, effective PatentsView API queries for the user's search.
+You are a patent search expert. Generate effective PatentsView API queries.
 
 **USER QUERY**: {query}
 **CONTEXT**: {context}
 **CONVERSATION HISTORY**: {conversation_history}
 
-**TASK**: Generate 3-5 PatentsView API queries that will find patents related to: "{query}"
+**TASK**: Generate 3-5 PatentsView API queries for: "{query}"
 
-**IMPORTANT**: Use simple, basic query formats that work with the PatentsView API. Focus on finding patents that contain the key terms from the user's query.
-
-**PatentsView API Format**:
-- Simple field searches: `{{"patent_abstract": "search term"}}`
+**PatentsView API Format** (use these exact patterns):
+- Single field: `{{"patent_abstract": "term"}}`
 - OR logic: `{{"_or": [{{"patent_abstract": "term1"}}, {{"patent_title": "term2"}}]}}`
 - AND logic: `{{"_and": [{{"patent_abstract": "term1"}}, {{"patent_abstract": "term2"}}]}}`
-- Value arrays (OR): `{{"patent_abstract": ["term1", "term2", "term3"]}}`
 
-**Generate queries that:**
-1. Use _and logic to combine multiple terms from the user's query
-2. Avoid exact phrase searches as they return irrelevant results
-3. Use both patent_abstract and patent_title fields
-4. Are simple and likely to work
-5. Use _and logic instead of arrays for multiple terms
-6. Break down complex phrases into individual terms
+**Rules**:
+1. Use simple, proven query patterns
+2. Focus on patent_abstract and patent_title fields
+3. Break complex phrases into individual terms
+4. Use AND logic for multiple terms
+5. Avoid exact phrase searches
 
 **Response Format** (JSON only):
 ```json
 {{
   "search_queries": [
     {{
-      "search_query": {{"patent_abstract": "5G"}},
-      "reasoning": "Direct search for 5G technology"
+      "search_query": {{"patent_abstract": "term1"}},
+      "reasoning": "Direct search for term1"
     }},
     {{
-      "search_query": {{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}},
-      "reasoning": "Search both abstract and title for 5G"
+      "search_query": {{"_or": [{{"patent_abstract": "term1"}}, {{"patent_title": "term1"}}]}},
+      "reasoning": "Search both abstract and title"
     }},
     {{
-      "search_query": {{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}, {{"patent_abstract": "AI"}}]}},
-      "reasoning": "Search for 5G AND handover AND AI terms"
+      "search_query": {{"_and": [{{"patent_abstract": "term1"}}, {{"patent_abstract": "term2"}}]}},
+      "reasoning": "Search for term1 AND term2"
     }}
   ]
 }}
 ```
 
-**Examples for "5G AI handover":**
-- Query 1: `{{"patent_abstract": "5G"}}` - Find 5G patents
-- Query 2: `{{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}}` - 5G in abstract or title
-- Query 3: `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}]}}` - 5G AND handover terms
-- Query 4: `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "AI"}}]}}` - 5G AND AI terms
-- Query 5: `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}, {{"patent_abstract": "AI"}}]}}` - All three terms
-
-Generate 3-5 simple queries that will find relevant patents.
+Generate 3-5 queries that will find relevant patents.

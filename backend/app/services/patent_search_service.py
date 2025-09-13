@@ -119,7 +119,8 @@ class PatentSearchService:
             response = self.llm_client.generate_text(
                 prompt=prompt,
                 system_message="You are a patent search expert. Generate diverse, effective search queries.",
-                max_tokens=2000
+                max_tokens=1500,
+                temperature=0.3
             )
             
             logger.info(f"LLM response: {response}")
@@ -374,7 +375,8 @@ class PatentSearchService:
             response = self.llm_client.generate_text(
                 prompt=user_prompt,
                 system_message=system_prompt,
-                max_tokens=12000
+                max_tokens=8000,
+                temperature=0.3
             )
             
             if response.get("success"):
