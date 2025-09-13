@@ -8,7 +8,8 @@ MCP hub implementation.
 import json
 import logging
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from ...services.mcp.orchestrator import get_initialized_mcp_orchestrator
@@ -232,6 +233,71 @@ async def execute_mcp_tool(tool_name: str, request: ToolExecutionRequest):
                 "error": "Tool Execution Error",
                 "message": str(e),
                 "tool_name": tool_name
+            }
+        )
+
+
+@router.post("/proxy")
+async def mcp_proxy(request: Request):
+    """
+    Proxy MCP requests to the internal MCP server.
+    
+    This endpoint allows external MCP clients to connect to the internal
+    MCP server through the main backend, making it accessible from Azure.
+    
+    Args:
+        request: Raw MCP JSON-RPC request
+        
+    Returns:
+        MCP JSON-RPC response from internal server
+    """
+    try:
+        import aiohttp
+        
+        # Get the request body
+        body = await request.body()
+        
+        # Forward the request to the internal MCP server
+        internal_mcp_url = "http://localhost:8001/mcp"
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                internal_mcp_url,
+                data=body,
+                headers={"Content-Type": "application/json"}
+            ) as response:
+                response_data = await response.read()
+                
+                # Parse and return the response
+                if response_data:
+                    try:
+                        response_json = json.loads(response_data.decode())
+                        return JSONResponse(
+                            content=response_json,
+                            status_code=response.status
+                        )
+                    except json.JSONDecodeError:
+                        return JSONResponse(
+                            content={"error": "Invalid JSON response from internal server"},
+                            status_code=500
+                        )
+                else:
+                    return JSONResponse(
+                        content={},
+                        status_code=response.status
+                    )
+                
+    except Exception as e:
+        logger.error(f"MCP proxy error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": -32603,
+                    "message": "Internal error",
+                    "data": str(e)
+                }
             }
         )
 
