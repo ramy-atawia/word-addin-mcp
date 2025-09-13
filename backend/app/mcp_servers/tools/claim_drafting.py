@@ -144,7 +144,7 @@ class ClaimDraftingTool(BaseInternalTool):
                 execution_time = time.time() - start_time
                 self.update_usage_stats(execution_time)
                 
-                return f"# Claim Drafting Report\n\n**Invention**: {invention_description}\n\n**Error**: ClaimDraftingService not configured. Please configure LLM credentials."
+                return f"# Claim Drafting Report\n\n**Invention**: {user_query}\n\n**Error**: ClaimDraftingService not configured. Please configure LLM credentials."
                 
         except Exception as e:
             logger.error(f"Claim drafting tool execution failed: {e}")
@@ -170,3 +170,27 @@ class ClaimDraftingTool(BaseInternalTool):
         """Update usage statistics."""
         self.total_execution_time += execution_time
         self.last_used = time.time()
+    
+    def _load_user_prompt(self, user_query: str, conversation_context: Optional[str] = None, 
+                         document_reference: Optional[str] = None) -> str:
+        """Load user prompt for claim drafting."""
+        try:
+            with open("backend/app/prompts/claim_drafting_user.txt", "r") as f:
+                template = f.read().strip()
+            
+            return template.format(
+                user_query=user_query,
+                conversation_context=conversation_context or "No conversation context provided",
+                document_reference=document_reference or "No document reference provided"
+            )
+        except FileNotFoundError:
+            logger.warning("User prompt file not found, using default")
+            return f"""Draft patent claims for the following invention:
+
+User Query: {user_query}
+
+Conversation Context: {conversation_context or "No context provided"}
+
+Document Reference: {document_reference or "No document provided"}
+
+Please generate comprehensive patent claims that cover the invention described in the user query, taking into account any relevant context from the conversation and document."""

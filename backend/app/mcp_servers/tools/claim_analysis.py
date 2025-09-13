@@ -180,3 +180,41 @@ class ClaimAnalysisTool(BaseInternalTool):
         """Update usage statistics."""
         self.total_execution_time += execution_time
         self.last_used = time.time()
+    
+    def _load_user_prompt(self, claims: List[Dict[str, Any]], analysis_type: str, 
+                         focus_areas: Optional[List[str]]) -> str:
+        """Load user prompt for claim analysis."""
+        try:
+            with open("backend/app/prompts/claim_analysis_user.txt", "r") as f:
+                template = f.read().strip()
+            
+            # Format claims for the prompt
+            claims_text = ""
+            for i, claim in enumerate(claims, 1):
+                claims_text += f"Claim {i} ({claim.get('claim_type', 'unknown')}): {claim.get('claim_text', '')}\n\n"
+            
+            return template.format(
+                claims_text=claims_text,
+                analysis_type=analysis_type,
+                focus_areas=", ".join(focus_areas) if focus_areas else "General patent analysis"
+            )
+        except FileNotFoundError:
+            logger.warning("User prompt file not found, using default")
+            # Fallback prompt
+            claims_text = ""
+            for i, claim in enumerate(claims, 1):
+                claims_text += f"Claim {i}: {claim.get('claim_text', '')}\n\n"
+            
+            return f"""Analyze the following patent claims for validity, quality, and improvement opportunities:
+
+{claims_text}
+
+Analysis Type: {analysis_type}
+Focus Areas: {focus_areas or 'General patent analysis'}
+
+Provide comprehensive analysis covering:
+1. Claim structure and dependencies
+2. Validity assessment (35 USC 101, 112, 103, 102)
+3. Quality evaluation (clarity, breadth, defensibility)
+4. Improvement recommendations
+5. Risk assessment and mitigation strategies"""

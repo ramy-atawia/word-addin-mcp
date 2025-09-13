@@ -43,7 +43,8 @@ class LLMClient:
                 self.client = AzureOpenAI(
                     api_key=azure_openai_api_key,
                     api_version="2024-02-15-preview",
-                    azure_endpoint=azure_openai_endpoint
+                    azure_endpoint=azure_openai_endpoint,
+                    timeout=30.0
                 )
                 self.azure_deployment = azure_openai_deployment or "gpt-4o-mini"
                 self.llm_available = True
@@ -58,7 +59,8 @@ class LLMClient:
             logger.warning("Azure OpenAI not configured - LLM features disabled")
     
     def generate_text(self, prompt: str, max_tokens: int = 1000, 
-                     temperature: float = 0.7, system_message: Optional[str] = None) -> Dict[str, Any]:
+                     temperature: float = 0.7, system_message: Optional[str] = None, 
+                     max_retries: int = 3) -> Dict[str, Any]:
         """
         Generate text using the LLM.
         
@@ -81,13 +83,25 @@ class LLMClient:
                 messages.append({"role": "system", "content": system_message})
             messages.append({"role": "user", "content": prompt})
             
-            # Make API call
-            response = self.client.chat.completions.create(
-                model=self.azure_openai_deployment,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature
-            )
+            # Make API call with retry logic
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.azure_openai_deployment,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature
+                    )
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    last_error = e
+                    if attempt < max_retries - 1:
+                        logger.warning(f"LLM API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                        import time
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                    else:
+                        raise e
             
             # Debug logging
             logger.info(f"Azure OpenAI response type: {type(response)}")
