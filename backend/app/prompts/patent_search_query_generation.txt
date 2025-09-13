@@ -18,6 +18,20 @@ You are a patent search expert. Generate effective PatentsView API queries.
 4. Use AND logic for multiple terms
 5. Avoid exact phrase searches
 
+**GOOD EXAMPLES** (use these patterns):
+
+✅ **Simple single term**: `{{"patent_abstract": "5G"}}`
+✅ **OR search**: `{{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}}`
+✅ **AND search**: `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}]}}`
+✅ **Multiple terms**: `{{"_and": [{{"patent_abstract": "machine"}}, {{"patent_abstract": "learning"}}, {{"patent_abstract": "neural"}}]}}`
+
+**BAD EXAMPLES** (avoid these):
+
+❌ **Too complex**: `{{"_and": [{{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}}, {{"patent_abstract": "handover"}}]}}`
+❌ **Exact phrases**: `{{"patent_abstract": "5G handover system"}}`
+❌ **Wrong fields**: `{{"inventor_name": "Smith"}}`
+❌ **Nested arrays**: `{{"patent_abstract": ["5G", "handover", "AI"]}}`
+
 **Response Format** (JSON only):
 ```json
 {{
@@ -37,5 +51,19 @@ You are a patent search expert. Generate effective PatentsView API queries.
   ]
 }}
 ```
+
+**EXAMPLE FOR "5G AI handover":**
+
+✅ **Good queries**:
+1. `{{"patent_abstract": "5G"}}` - Find 5G patents
+2. `{{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}}` - 5G in abstract or title
+3. `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "handover"}}]}}` - 5G AND handover
+4. `{{"_and": [{{"patent_abstract": "5G"}}, {{"patent_abstract": "AI"}}]}}` - 5G AND AI
+5. `{{"_and": [{{"patent_abstract": "handover"}}, {{"patent_abstract": "AI"}}]}}` - handover AND AI
+
+❌ **Bad queries**:
+1. `{{"patent_abstract": "5G AI handover"}}` - Exact phrase (too restrictive)
+2. `{{"_and": [{{"_or": [{{"patent_abstract": "5G"}}, {{"patent_title": "5G"}}]}}, {{"patent_abstract": "handover"}}]}}` - Too complex
+3. `{{"patent_abstract": ["5G", "handover", "AI"]}}` - Wrong array format
 
 Generate 3-5 queries that will find relevant patents.
