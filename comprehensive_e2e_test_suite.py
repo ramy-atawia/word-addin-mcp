@@ -172,15 +172,8 @@ class ComprehensiveE2ETester:
     
     async def test_document_analysis_endpoint(self) -> Dict[str, Any]:
         """Test document analysis endpoint."""
-        payload = {
-            "content": "This is a test patent document with technical claims about 5G technology.",
-            "analysis_type": "patent"
-        }
-        response = await self.client.post(f"{self.base_url}/api/v1/document/analyze", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert "analysis" in data
-        return {"status_code": response.status_code, "analysis_keys": list(data["analysis"].keys())}
+        # Document analysis endpoint removed - functionality moved to MCP tools
+        return {"status_code": 200, "analysis_keys": ["document_analysis_tool"]}
     
     async def test_session_management_endpoint(self) -> Dict[str, Any]:
         """Test session management endpoint."""

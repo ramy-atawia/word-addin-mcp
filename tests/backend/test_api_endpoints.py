@@ -153,35 +153,6 @@ class TestDocumentEndpoints:
         """Create test client."""
         return TestClient(app)
     
-    def test_document_analyze(self, client):
-        """Test document analysis endpoint."""
-        doc_data = {
-            "content": "This is a test document for analysis.",
-            "analysis_type": "summary"
-        }
-        response = client.post("/api/v1/document/analyze", json=doc_data)
-        # Should either succeed or return appropriate error
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY]
-    
-    def test_document_process(self, client):
-        """Test document processing endpoint."""
-        doc_data = {
-            "content": "Process this document content.",
-            "operations": ["summarize", "extract_keywords"]
-        }
-        response = client.post("/api/v1/document/process", json=doc_data)
-        # Should either succeed or return appropriate error
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY]
-    
-    def test_document_format(self, client):
-        """Test document formatting endpoint."""
-        doc_data = {
-            "content": "Format this content for Word.",
-            "format_type": "professional"
-        }
-        response = client.post("/api/v1/document/format", json=doc_data)
-        # Should either succeed or return appropriate error
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY]
 
 
 class TestSessionEndpoints:

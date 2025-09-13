@@ -69,7 +69,7 @@
 ### **Files to Review:**
 - `backend/app/core/security.py` - 4 high priority fixes
 - `backend/app/api/v1/health.py` - Multiple TODO implementations
-- `backend/app/api/v1/document.py` - Multiple TODO implementations
+- `backend/app/api/v1/document.py` - **REMOVED** - Redundant with Office.js frontend integration
 - `backend/app/api/v1/session.py` - Placeholder message retrieval
 - `backend/app/mcp_servers/tools/*.py` - Placeholder responses
 

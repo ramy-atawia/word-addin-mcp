@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from .core.config import settings
 from .middleware.auth0_middleware import init_auth0_middleware, verify_token_optional
 from .core.logging import setup_logging
-from .api.v1 import mcp, external_mcp, document, session, health
+from .api.v1 import mcp, external_mcp, session, health
 
 # Setup logging
 setup_logging()
@@ -197,11 +197,6 @@ app.include_router(
 )
 
 
-app.include_router(
-    document.router,
-    prefix="/api/v1",
-    tags=["document"]
-)
 
 app.include_router(
     session.router,
