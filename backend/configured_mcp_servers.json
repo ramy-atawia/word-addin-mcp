@@ -8,9 +8,9 @@
   "servers": {
     "internal": {
       "name": "Internal MCP Server",
-      "server_id": "642c7a46-2bc6-4c85-91e0-059d02edb1f1",
+      "server_id": "internal-mcp-server-001",
       "type": "internal",
-      "url": "localhost:9000",
+      "url": "http://localhost:8001/mcp",
       "status": "healthy",
       "connected": true,
       "tools": [
@@ -19,22 +19,29 @@
           "description": "Search the web for information",
           "category": "general",
           "requires_auth": false,
-          "usage_count": 1
+          "usage_count": 0
         },
         {
-          "name": "text_analysis_tool",
-          "description": "Analyze and process text content",
-          "category": "general",
+          "name": "prior_art_search_tool",
+          "description": "Search for prior art and patents",
+          "category": "patent",
           "requires_auth": false,
           "usage_count": 0
         },
         {
-          "name": "document_analysis_tool",
-          "description": "Analyze document content and structure",
-          "category": "general",
+          "name": "claim_drafting_tool",
+          "description": "Draft patent claims based on input",
+          "category": "patent",
           "requires_auth": false,
           "usage_count": 0
         },
+        {
+          "name": "claim_analysis_tool",
+          "description": "Analyze patent claims for quality and structure",
+          "category": "patent",
+          "requires_auth": false,
+          "usage_count": 0
+        }
       ]
     },
     "sequentialthinking": {
@@ -148,8 +155,8 @@
     "internal_servers": 1,
     "external_servers": 4,
     "total_tools": 8,
-    "internal_tools": 3,
-    "external_tools": 5,
+    "internal_tools": 4,
+    "external_tools": 4,
     "healthy_servers": 5,
     "connected_servers": 5
   },

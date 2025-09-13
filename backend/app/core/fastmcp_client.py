@@ -108,15 +108,24 @@ class FastMCPClient:
         except Exception as e:
             logger.error(f"Error during disconnect: {e}")
     
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self.connect()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.disconnect()
+    
     async def list_tools(self) -> List[Dict[str, Any]]:
-        """List available tools using real FastMCP API with context manager."""
+        """List available tools using real FastMCP API with proper context manager."""
         if not self.client:
             raise MCPConnectionError("Client not initialized")
         
         try:
-            # Use async context manager for FastMCP client
-            async with self.client:
-                tools_result = await self.client.list_tools()
+            # Use context manager properly for FastMCP client
+            async with self.client as client:
+                tools_result = await client.list_tools()
                 
                 # Convert to expected format
                 tools = []
@@ -170,16 +179,16 @@ class FastMCPClient:
             }
     
     async def call_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Any:
-        """Call a tool using real FastMCP API."""
+        """Call a tool using real FastMCP API with proper context manager."""
         if not self.client or self.state != MCPConnectionState.CONNECTED:
             raise MCPConnectionError("Client not connected")
         
         try:
             logger.info(f"Calling tool {tool_name} with parameters: {parameters}")
             
-            # Use real FastMCP call_tool with context manager
-            async with self.client:
-                result = await self.client.call_tool(
+            # Use context manager properly for FastMCP client
+            async with self.client as client:
+                result = await client.call_tool(
                     name=tool_name,
                     arguments=parameters
                 )

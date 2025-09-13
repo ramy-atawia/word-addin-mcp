@@ -171,29 +171,15 @@ class MCPConnectionManager:
         """Create a new connection to an MCP server."""
         try:
             # Use real FastMCP Client through our wrapper
-            from app.core.fastmcp_client import FastMCPClientFactory
+            from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
             
             # Create client based on URL type
-            if server_url.startswith(('http://', 'https://')):
-                client = FastMCPClientFactory.create_http_client(
-                    server_url, 
-                    server_name, 
-                    timeout=30.0
-                )
-            elif server_url.startswith(('ws://', 'wss://')):
-                client = FastMCPClientFactory.create_websocket_client(
-                    server_url,
-                    server_name,
-                    timeout=30.0
-                )
-            else:
-                # Handle STDIO command
-                server_command = server_url.split() if isinstance(server_url, str) else server_url
-                client = FastMCPClientFactory.create_stdio_client(
-                    server_command, 
-                    server_name,
-                    timeout=30.0
-                )
+            config = MCPConnectionConfig(
+                server_url=server_url,
+                server_name=server_name,
+                timeout=30.0
+            )
+            client = FastMCPClient(config)
             
             # Connect to the server
             if await client.connect():

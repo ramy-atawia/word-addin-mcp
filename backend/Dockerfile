@@ -105,4 +105,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 9000
 
 # Default command
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port 9000"]
+CMD ["python", "-m", "app.app_starter"]

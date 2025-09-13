@@ -389,18 +389,38 @@ class ToolExecutionEngine:
         try:
             # Handle different result formats
             if isinstance(result, dict):
-                # Already a dictionary, ensure it has required fields
-                standardized = result.copy()
-                
-                # Ensure status field exists
-                if "status" not in standardized:
-                    standardized["status"] = "success"
-                
-                # Ensure timestamp exists
-                if "timestamp" not in standardized:
-                    standardized["timestamp"] = time.time()
-                
-                return standardized
+                # Check if this is an MCP response format
+                if "content" in result and "isError" in result:
+                    # MCP response format - extract the actual content
+                    content = result.get("content", [])
+                    is_error = result.get("isError", False)
+                    
+                    # Extract text content from MCP content array
+                    text_content = ""
+                    if isinstance(content, list):
+                        for item in content:
+                            if isinstance(item, dict) and item.get("type") == "text":
+                                text_content += item.get("text", "")
+                    
+                    return {
+                        "status": "error" if is_error else "success",
+                        "result": text_content,
+                        "timestamp": time.time(),
+                        "mcp_response": result  # Keep original MCP response for debugging
+                    }
+                else:
+                    # Regular dictionary, ensure it has required fields
+                    standardized = result.copy()
+                    
+                    # Ensure status field exists
+                    if "status" not in standardized:
+                        standardized["status"] = "success"
+                    
+                    # Ensure timestamp exists
+                    if "timestamp" not in standardized:
+                        standardized["timestamp"] = time.time()
+                    
+                    return standardized
                 
             elif isinstance(result, str):
                 # String result

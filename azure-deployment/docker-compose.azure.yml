@@ -19,8 +19,15 @@ services:
       - DEBUG=false
       - ALLOWED_ORIGINS=["https://novitai-word-mcp-frontend.azurewebsites.net"]
       - ALLOWED_HOSTS=["*"]
+      # Internal MCP Server Configuration
+      - INTERNAL_MCP_HOST=localhost
+      - INTERNAL_MCP_PORT=8001
+      - INTERNAL_MCP_PATH=/mcp
+      - INTERNAL_MCP_URL=http://localhost:8001/mcp
+      - EXPOSE_MCP_PUBLICLY=false
     ports:
-      - "8000:8000"
+      - "8000:8000"  # Backend API
+      - "8001:8001"  # Internal MCP Server
     restart: unless-stopped
 
   frontend:

@@ -142,6 +142,17 @@ resources:
                 secretRef: secret-key
               - name: ALLOWED_ORIGINS
                 value: '[concat(''["https://'', variables(''fullFrontendAppName''), ''.'', variables(''fullEnvironmentName''), ''.azurecontainerapps.io"]'')]'
+              # Internal MCP Server Configuration
+              - name: INTERNAL_MCP_HOST
+                value: localhost
+              - name: INTERNAL_MCP_PORT
+                value: '8001'
+              - name: INTERNAL_MCP_PATH
+                value: /mcp
+              - name: INTERNAL_MCP_URL
+                value: http://localhost:8001/mcp
+              - name: EXPOSE_MCP_PUBLICLY
+                value: 'false'
             resources:
               cpu: 1.0
               memory: 2Gi

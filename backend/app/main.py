@@ -23,6 +23,28 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
+async def _wait_for_internal_mcp_server():
+    """Wait for internal MCP server to be ready."""
+    import aiohttp
+    import asyncio
+    
+    max_retries = 30
+    retry_delay = 1
+    
+    for attempt in range(max_retries):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get("http://localhost:8001/health") as response:
+                    if response.status == 200:
+                        logger.info("Internal MCP server is ready")
+                        return
+        except Exception as e:
+            logger.debug(f"Waiting for internal MCP server... (attempt {attempt + 1}/{max_retries})")
+            await asyncio.sleep(retry_delay)
+    
+    raise RuntimeError("Internal MCP server failed to start within timeout")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
@@ -34,6 +56,9 @@ async def lifespan(app: FastAPI):
     # Initialize Auth0 middleware
     init_auth0_middleware(settings.auth0_domain, settings.auth0_audience)
     logger.info(f"Auth0 middleware initialized with domain: {settings.auth0_domain}")
+    
+    # Wait for internal MCP server to be ready
+    await _wait_for_internal_mcp_server()
     
     # Initialize MCP Orchestrator
     try:
@@ -52,9 +77,15 @@ async def lifespan(app: FastAPI):
     
     # Cleanup MCP Orchestrator
     try:
-        # Get external servers and disconnect them
         from .services.mcp.orchestrator import get_mcp_orchestrator
         mcp_orchestrator = get_mcp_orchestrator()
+        
+        # Stop internal MCP server
+        if mcp_orchestrator.internal_mcp_server:
+            await mcp_orchestrator.internal_mcp_server.stop()
+            logger.info("Internal MCP server stopped")
+        
+        # Get external servers and disconnect them
         external_servers = await mcp_orchestrator.get_external_servers()
         for server in external_servers:
             # Note: Server cleanup is handled by the registry

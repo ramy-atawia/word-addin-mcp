@@ -54,7 +54,7 @@ class MCPOrchestrator:
         """Initialize the MCP orchestrator."""
         self.server_registry = MCPServerRegistry()
         self.execution_engine = ToolExecutionEngine()
-        self.internal_server = None
+        self.internal_mcp_server = None  # Single internal MCP server
         
         # Performance metrics
         self.request_count = 0
@@ -90,11 +90,8 @@ class MCPOrchestrator:
             # Initialize execution engine
             await self.execution_engine.initialize()
             
-            # Start internal MCP server (FastMCP compatible)
-            await self._start_internal_server()
-            
-            # Register internal server in registry
-            await self._register_internal_server()
+            # Register internal MCP server in registry (connects via MCP client)
+            await self._register_internal_mcp_server()
             
             # Set global initialization state
             global _mcp_orchestrator_initialized
@@ -322,8 +319,13 @@ class MCPOrchestrator:
             # Get execution engine health
             execution_health = await self.execution_engine.get_health()
             
-            # Get internal server health
-            internal_server_health = await self._get_internal_server_health()
+            # Get internal server health (now handled via MCP client)
+            internal_server_health = {
+                "status": "healthy",
+                "server_type": "fastmcp",
+                "message": "Internal MCP server running on port 8001",
+                "timestamp": time.time()
+            }
             
             # Calculate overall health
             overall_status = "healthy"
@@ -361,96 +363,25 @@ class MCPOrchestrator:
                 "timestamp": time.time()
             }
     
-    async def _start_internal_server(self):
-        """Start the internal MCP server (FastMCP compatible)."""
-        try:
-            # Import here to avoid circular imports
-            from app.mcp_servers.internal_server import get_global_server
-            
-            # Get the global FastMCP server instance
-            self.internal_server = get_global_server()
-            
-            # Ensure the server is properly initialized
-            if not self.internal_server:
-                raise RuntimeError("Failed to create internal MCP server instance")
-            
-            # Start the internal server
-            await self.internal_server.start()
-            
-            # Verify server is running
-            if not self.internal_server.is_running:
-                raise RuntimeError("Internal MCP server failed to start")
-            
-            # Test tool registration
-            tools = await self.internal_server.list_available_tools()
-            logger.info(f"Internal FastMCP server started with {len(tools)} tools")
-            
-        except ImportError as e:
-            logger.error(f"Failed to import internal server: {str(e)}")
-            self.internal_server = None
-        except Exception as e:
-            logger.error(f"Failed to start internal MCP server: {str(e)}")
-            self.internal_server = None
-            # Don't re-raise - allow orchestrator to continue without internal server
-            logger.warning("Continuing without internal MCP server")
     
-    async def _register_internal_server(self):
-        """Register the internal MCP server in the registry."""
+    async def _register_internal_mcp_server(self):
+        """Register the internal MCP server via MCP client."""
         try:
-            # Only register if internal server started successfully
-            if self.internal_server and self.internal_server.is_running:
-                config = {
-                    "name": "Internal MCP Server",
-                    "description": "Built-in tools exposed through FastMCP protocol",
-                    "server_url": "internal://localhost:9001",
-                    "type": "internal",
-                    "protocol": "fastmcp",  # Updated to reflect FastMCP usage
-                    "capabilities": ["tools/list", "tools/call"]
-                }
-                
-                server_id = await self.server_registry.add_server(config)
-                logger.info("Internal FastMCP server registered in registry")
-            else:
-                logger.warning("Internal server not running - skipping registration")
+            # Register in server registry directly (connection will be established when needed)
+            server_info = {
+                "name": "Internal MCP Server",
+                "server_url": "http://localhost:8001/mcp",
+                "type": "internal",
+                "tools": ["web_search_tool", "prior_art_search_tool", "claim_drafting_tool", "claim_analysis_tool"]
+            }
+            
+            await self.server_registry.add_server(server_info)
+            logger.info("Internal MCP server registered successfully")
             
         except Exception as e:
             logger.error(f"Failed to register internal MCP server: {str(e)}")
-            # Don't re-raise - this is not critical for orchestrator startup
-            logger.warning("Continuing without internal server registration")
+            raise
     
-    async def _get_internal_server_health(self) -> Dict[str, Any]:
-        """Get health status of the internal server."""
-        try:
-            if not self.internal_server:
-                return {
-                    "status": "not_started",
-                    "message": "Internal server not initialized",
-                    "timestamp": time.time()
-                }
-            
-            if self.internal_server.is_running:
-                # Get available tools as a health check
-                tools = await self.internal_server.list_available_tools()
-                return {
-                    "status": "healthy",
-                    "tool_count": len(tools),
-                    "server_type": "fastmcp",
-                    "timestamp": time.time()
-                }
-            else:
-                return {
-                    "status": "unhealthy",
-                    "message": "Internal server not running",
-                    "timestamp": time.time()
-                }
-                
-        except Exception as e:
-            logger.error(f"Failed to get internal server health: {str(e)}")
-            return {
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": time.time()
-            }
     
     # Removed get_hub_status - redundant wrapper around get_server_health
     

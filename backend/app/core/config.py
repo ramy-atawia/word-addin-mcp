@@ -110,6 +110,23 @@ class Settings(BaseSettings):
     # MCP Configuration
     mcp_server_url: str = os.getenv("MCP_SERVER_URL", "https://localhost:9000")
     
+    # Internal MCP Server Configuration
+    internal_mcp_host: str = os.getenv("INTERNAL_MCP_HOST", "localhost")
+    internal_mcp_port: int = int(os.getenv("INTERNAL_MCP_PORT", "8001"))
+    internal_mcp_path: str = os.getenv("INTERNAL_MCP_PATH", "/mcp")
+    expose_mcp_publicly: bool = os.getenv("EXPOSE_MCP_PUBLICLY", "false").lower() == "true"
+    mcp_public_url: str = os.getenv("MCP_PUBLIC_URL", "https://mcp-tools.yourdomain.com/mcp")
+    
+    @property
+    def internal_mcp_url(self) -> str:
+        """Get internal MCP server URL based on environment."""
+        if self.expose_mcp_publicly:
+            return self.mcp_public_url
+        elif self.environment == "docker":
+            return f"http://internal-mcp:{self.internal_mcp_port}{self.internal_mcp_path}"
+        else:
+            return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
+    
     # Application Configuration
     app_version: str = os.getenv("APP_VERSION", "1.0.0")
     environment: str = os.getenv("ENVIRONMENT", "development")

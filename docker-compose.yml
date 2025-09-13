@@ -44,6 +44,13 @@ services:
       # MCP Configuration
       - MCP_SERVER_URL=https://localhost:9000
       
+      # Internal MCP Server Configuration
+      - INTERNAL_MCP_HOST=localhost
+      - INTERNAL_MCP_PORT=8001
+      - INTERNAL_MCP_PATH=/mcp
+      - INTERNAL_MCP_URL=http://localhost:8001/mcp
+      - EXPOSE_MCP_PUBLICLY=false
+      
       # Security
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here-change-in-production}
       
@@ -55,7 +62,8 @@ services:
       - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
       - PATENTSVIEW_API_KEY=${PATENTSVIEW_API_KEY}
     ports:
-      - "9000:9000"
+      - "9000:9000"  # Backend API
+      - "8001:8001"  # Internal MCP Server
     volumes:
       - ./logs:/app/logs
       - uploads_data:/app/uploads

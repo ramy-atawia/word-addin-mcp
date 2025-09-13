@@ -142,15 +142,24 @@ class MCPServerRegistry:
                 metadata=config.get('metadata', {})
             )
             
-            # Test connection
-            if await self._test_server_connection(server_info):
+            # For internal servers, skip connection test during registration
+            # Connection will be established when tools are executed
+            if server_info.type == "internal":
                 self.servers[server_id] = server_info
                 # Clear health cache since we have a new server
                 self.clear_health_cache(server_id)
-                logger.info(f"MCP server '{server_info.name}' added with ID: {server_id}")
+                logger.info(f"Internal MCP server '{server_info.name}' added with ID: {server_id}")
                 return server_id
             else:
-                raise ConnectionError(f"Failed to connect to server: {server_info.name}")
+                # Test connection for external servers
+                if await self._test_server_connection(server_info):
+                    self.servers[server_id] = server_info
+                    # Clear health cache since we have a new server
+                    self.clear_health_cache(server_id)
+                    logger.info(f"MCP server '{server_info.name}' added with ID: {server_id}")
+                    return server_id
+                else:
+                    raise ConnectionError(f"Failed to connect to server: {server_info.name}")
                 
         except Exception as e:
             logger.error(f"Failed to add MCP server: {e}")
@@ -287,33 +296,50 @@ class MCPServerRegistry:
             return []
     
     async def _discover_internal_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
-        """Discover tools from internal server."""
+        """Discover tools from internal MCP server via direct HTTP call."""
         try:
-            from app.mcp_servers.internal_server import get_global_server
-            internal_mcp_server = get_global_server()
+            import aiohttp
             
-            # Use the FastMCP server's list_available_tools method
-            tools_data = await internal_mcp_server.list_available_tools()
-            
-            unified_tools = []
-            for tool_data in tools_data:
-                unified_tool = UnifiedTool(
-                    name=tool_data.get("name", ""),
-                    description=tool_data.get("description", ""),
-                    server_id=server.server_id,
-                    server_name=server.name,
-                    source="internal",
-                    category=tool_data.get("category", "general"),
-                    input_schema=tool_data.get("input_schema", {}),
-                    requires_auth=tool_data.get("requires_auth", False),
-                    usage_count=tool_data.get("usage_count", 0)
-                )
-                unified_tools.append(unified_tool)
-            
-            return unified_tools
+            # Make direct HTTP call to internal MCP server
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "http://localhost:8001/mcp",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "tools/list"
+                    }
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        # Handle new MCP format where tools are returned as direct array
+                        tools_data = data.get("result", [])
+                        if not isinstance(tools_data, list):
+                            # Fallback for old format with "tools" wrapper
+                            tools_data = data.get("result", {}).get("tools", [])
+                        
+                        unified_tools = []
+                        for tool_data in tools_data:
+                            unified_tool = UnifiedTool(
+                                name=tool_data.get("name", ""),
+                                description=tool_data.get("description", ""),
+                                server_id=server.server_id,
+                                server_name=server.name,
+                                source="internal",
+                                category=tool_data.get("category", "general"),
+                                input_schema=tool_data.get("inputSchema", {}),
+                                requires_auth=tool_data.get("requires_auth", False),
+                                usage_count=tool_data.get("usage_count", 0)
+                            )
+                            unified_tools.append(unified_tool)
+                        
+                        return unified_tools
+                    else:
+                        logger.error(f"HTTP error {response.status} from internal MCP server")
+                        return []
             
         except Exception as e:
-            logger.error(f"Failed to discover internal tools: {e}")
+            logger.error(f"Failed to discover tools from internal MCP server: {e}")
             return []
     
     async def _discover_external_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
@@ -390,12 +416,38 @@ class MCPServerRegistry:
             return await self._execute_external_tool(server, tool_info, parameters)
     
     async def _execute_internal_tool(self, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a tool on internal server."""
-        # Use the InternalToolRegistry directly since FastMCP server doesn't have execute_tool
-        from app.mcp_servers.tool_registry import InternalToolRegistry
-        tool_registry = InternalToolRegistry()
-        
-        return await tool_registry.execute_tool(tool_info.name, parameters)
+        """Execute a tool on internal MCP server via direct HTTP call."""
+        try:
+            import aiohttp
+            
+            # Make direct HTTP call to internal MCP server
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "http://localhost:8001/mcp",
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "tools/call",
+                        "params": {
+                            "name": tool_info.name,
+                            "arguments": parameters
+                        }
+                    }
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if "result" in data:
+                            return data["result"]
+                        elif "error" in data:
+                            raise ConnectionError(f"MCP server error: {data['error']['message']}")
+                        else:
+                            raise ConnectionError("Invalid response from internal MCP server")
+                    else:
+                        raise ConnectionError(f"HTTP error {response.status} from internal MCP server")
+            
+        except Exception as e:
+            logger.error(f"Failed to execute tool on internal MCP server: {e}")
+            raise ConnectionError(f"Failed to execute tool: {e}")
     
     async def _execute_external_tool(self, server: MCPServerInfo, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool on external server using persistent connections."""
@@ -414,38 +466,37 @@ class MCPServerRegistry:
         """Test connection to a server."""
         try:
             if server.type == "internal":
-                from app.mcp_servers.internal_server import get_global_server
-                internal_server = get_global_server()
-                
-                if internal_server and internal_server.is_running:
-                    server.connected = True
-                    server.status = "healthy"
-                    server.last_health_check = time.time()
-                    return True
+                # Test internal MCP server via HTTP health check
+                import aiohttp
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get("http://localhost:8001/health", timeout=5) as resp:
+                            if resp.status == 200:
+                                server.connected = True
+                                server.status = "healthy"
+                                server.last_health_check = time.time()
+                                return True
+                except Exception as e:
+                    logger.debug(f"Internal server health check failed: {e}")
                 
                 server.connected = False
                 server.status = "failed"
                 return False
             else:
-                # External server connection test using corrected FastMCP client
-                from app.core.fastmcp_client import FastMCPClientFactory
+                # External server connection test using FastMCP client
+                from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
                 
-                client = None
-                if server.url.startswith(('http://', 'https://')):
-                    client = FastMCPClientFactory.create_http_client(
-                        server.url, 
-                        server.name, 
-                        timeout=10.0
-                    )
-                else:
-                    server_command = server.url.split() if isinstance(server.url, str) else server.url
-                    client = FastMCPClientFactory.create_stdio_client(
-                        server_command, 
-                        server.name, 
-                        timeout=10.0
-                    )
+                # Create connection config
+                config = MCPConnectionConfig(
+                    server_url=server.url,
+                    server_name=server.name,
+                    timeout=10.0
+                )
                 
-                async with client:
+                client = FastMCPClient(config)
+                
+                # Connect to the server
+                if await client.connect():
                     # Test basic connectivity with health check
                     is_connected = await client.health_check()
                     
@@ -453,10 +504,18 @@ class MCPServerRegistry:
                         # Also try to list tools to ensure full functionality
                         await client.list_tools()
                     
+                    # Disconnect after test
+                    await client.disconnect()
+                    
                     server.connected = is_connected
                     server.status = "healthy" if is_connected else "failed"
                     server.last_health_check = time.time()
                     return is_connected
+                else:
+                    server.connected = False
+                    server.status = "failed"
+                    server.last_health_check = time.time()
+                    return False
                     
         except Exception as e:
             server.connected = False
@@ -476,25 +535,30 @@ class MCPServerRegistry:
                 return cached_health["health_data"]
             
             if server.type == "internal":
-                from app.mcp_servers.internal_server import get_global_server
-                internal_server = get_global_server()
+                # Test internal MCP server via HTTP health check
+                import aiohttp
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get("http://localhost:8001/health", timeout=5) as resp:
+                            if resp.status == 200:
+                                return {
+                                    "status": "healthy",
+                                    "server_id": server.server_id,
+                                    "server_name": server.name,
+                                    "type": "internal",
+                                    "last_health_check": time.time()
+                                }
+                except Exception as e:
+                    logger.debug(f"Internal server health check failed: {e}")
                 
-                if internal_server and internal_server.is_running:
-                    return {
-                        "status": "healthy",
-                        "server_id": server.server_id,
-                        "server_name": server.name,
-                        "type": "internal",
-                        "last_health_check": time.time()
-                    }
-                else:
-                    return {
-                        "status": "unhealthy",
-                        "server_id": server.server_id,
-                        "server_name": server.name,
-                        "type": "internal",
-                        "error": "Internal server not running"
-                    }
+                return {
+                    "status": "unhealthy",
+                    "server_id": server.server_id,
+                    "server_name": server.name,
+                    "type": "internal",
+                    "error": f"Internal server health check failed: {str(e)}",
+                    "last_health_check": time.time()
+                }
             else:
                 # External server health check using persistent connections
                 try:

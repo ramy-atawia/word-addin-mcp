@@ -110,26 +110,18 @@ async def add_external_server(request: AddServerRequest):
     try:
         logger.info(f"Adding external MCP server: {request.name}")
         
-        # Test connection first using the corrected client
+        # Test connection first using FastMCP client
         try:
-            from ...core.fastmcp_client import FastMCPClientFactory
+            from ...core.fastmcp_client import FastMCPClient, MCPConnectionConfig
             
-            # Create appropriate client based on URL
-            client = None
-            if request.server_url.startswith(('http://', 'https://')):
-                client = FastMCPClientFactory.create_http_client(
-                    request.server_url, 
-                    request.name, 
-                    timeout=request.timeout
-                )
-            else:
-                # Assume STDIO command
-                server_command = request.server_url.split()
-                client = FastMCPClientFactory.create_stdio_client(
-                    server_command, 
-                    request.name, 
-                    timeout=request.timeout
-                )
+            # Create connection config
+            config = MCPConnectionConfig(
+                server_url=request.server_url,
+                server_name=request.name,
+                timeout=request.timeout
+            )
+            
+            client = FastMCPClient(config)
             
             # Test connection
             async with client:
@@ -601,26 +593,20 @@ async def get_server_health(server_id: str):
             )
         
         # Test connection using the corrected FastMCP client
-        from ...core.fastmcp_client import FastMCPClientFactory
+        from ...core.fastmcp_client import FastMCPClient, MCPConnectionConfig
         
         try:
             # Create appropriate client
             client = None
             server_url = server.get("server_url", "")
             
-            if server_url.startswith(('http://', 'https://')):
-                client = FastMCPClientFactory.create_http_client(
-                    server_url, 
-                    server.get("name", "Unknown"), 
-                    timeout=10.0
-                )
-            else:
-                server_command = server_url.split()
-                client = FastMCPClientFactory.create_stdio_client(
-                    server_command, 
-                    server.get("name", "Unknown"), 
-                    timeout=10.0
-                )
+            config = MCPConnectionConfig(
+                server_url=server_url,
+                server_name=server.get("name", "Unknown"),
+                timeout=10.0
+            )
+            
+            client = FastMCPClient(config)
             
             # Test connection
             start_time = datetime.now()
@@ -702,26 +688,20 @@ async def test_server_connection(server_id: str):
             )
         
         # Test connection using the corrected FastMCP client
-        from ...core.fastmcp_client import FastMCPClientFactory
+        from ...core.fastmcp_client import FastMCPClient, MCPConnectionConfig
         
         try:
             # Create appropriate client
             client = None
             server_url = server.get("server_url", "")
             
-            if server_url.startswith(('http://', 'https://')):
-                client = FastMCPClientFactory.create_http_client(
-                    server_url, 
-                    server.get("name", "Unknown"), 
-                    timeout=10.0
-                )
-            else:
-                server_command = server_url.split()
-                client = FastMCPClientFactory.create_stdio_client(
-                    server_command, 
-                    server.get("name", "Unknown"), 
-                    timeout=10.0
-                )
+            config = MCPConnectionConfig(
+                server_url=server_url,
+                server_name=server.get("name", "Unknown"),
+                timeout=10.0
+            )
+            
+            client = FastMCPClient(config)
             
             # Test connection
             start_time = datetime.now()
@@ -936,7 +916,7 @@ async def refresh_server_tools(server_id: str):
             )
         
         # Force tool discovery using the corrected FastMCP client
-        from ...core.fastmcp_client import FastMCPClientFactory
+        from ...core.fastmcp_client import FastMCPClient, MCPConnectionConfig
         
         try:
             # Create appropriate client
@@ -944,14 +924,14 @@ async def refresh_server_tools(server_id: str):
             server_url = server.get("server_url", "")
             
             if server_url.startswith(('http://', 'https://')):
-                client = FastMCPClientFactory.create_http_client(
+                config = MCPConnectionConfig(
                     server_url, 
                     server.get("name", "Unknown"), 
                     timeout=30.0
                 )
             else:
                 server_command = server_url.split()
-                client = FastMCPClientFactory.create_stdio_client(
+                config = MCPConnectionConfig(
                     server_command, 
                     server.get("name", "Unknown"), 
                     timeout=30.0
