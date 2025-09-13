@@ -75,7 +75,6 @@
         }
       ]
     },
-
     "cloudflare": {
       "name": "Cloudflare MCP Demo Server",
       "server_id": "c0b14e96-f898-4fd0-87b7-af6b0c2c01d5",
