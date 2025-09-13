@@ -82,10 +82,10 @@ jobs:
         pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
         pytest tests/ -v --cov=app --cov-report=term-missing
 
-    - name: Run patent search standalone tests
+    - name: Run patent search consolidated tests
       run: |
-        echo "Running patent search standalone tests..."
-        python3 tests/standalone_patent_search_tests.py
+        echo "Running patent search consolidated tests..."
+        python3 tests/consolidated_patent_search_tests.py
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3

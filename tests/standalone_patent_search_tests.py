@@ -78,75 +78,153 @@ class TestPatentSearchDataProcessing(unittest.TestCase):
     def test_report_structure_validation(self):
         """Test validation of report structure elements."""
         
-        # Mock report text
+        # Mock report text with hybrid approach
         report_text = """
 # Prior Art Search Report: 5G Handover Using AI
 
 ## Executive Summary
-- Total patents found: 20
-- Key findings and relevance assessment: Found several patents related to AI-based handover
-- Risk level: MEDIUM
+- **Invention Overview**: AI-based handover system for 5G networks
+- **Search Scope**: 20 patents found using PatentsView API, 2020-2024
+- **Total Prior Art**: 20 relevant references
+- **Patentability Assessment**: Moderate novelty with some prior art concerns
+- **Risk Level**: MEDIUM with justification
+- **Key Recommendations**: Review high-risk patents, consider design-around options
 
-## Search Results
-- Total Patents: 20
-- Search Queries Used (with result counts):
+## Search Methodology
+- **Databases Searched**: PatentsView API
+- **Search Strategy**: Multi-query approach with Boolean logic
+- **Search Terms**: 5G, handover, AI, artificial intelligence, neural network
+- **Date Range**: 2020-01-01 to 2024-12-31
+- **Total Hits**: 35 raw results before filtering
+- **Search Queries Used** (with result counts):
   - 5G handover → 20 patents
   - AI optimization → 15 patents
-- Date Range: 2020-01-01 to 2024-12-31
 
-## Key Patents (Top 5)
+## Invention Analysis
+- **Technical Field**: Wireless communications and artificial intelligence
+- **Background**: Need for intelligent handover in 5G networks
+- **Key Technical Features**: AI-based decision making, neural networks
+- **Novel Aspects**: Specific AI algorithms for handover optimization
+- **Functional Elements**: Measurement analysis, prediction, parameter determination
 
-### Patent 1
-- Patent ID: 12345678
-- Title: AI-Based Handover Method
-- Date: 2024-01-15
-- Assignee: Test Company Inc.
-- Abstract: A method for performing handover using artificial intelligence
-- Claims Count: 5
-- Key Claims:
-  - Claim 1: A method for performing handover in a wireless communication system
-  - Claim 2: The method of claim 1, wherein the handover is optimized using AI
-- Relevance: HIGH
-- Risk Assessment: Direct conflict with AI-based handover methods
+## Prior Art References
+
+### Highly Relevant Patents (Top 5)
+
+#### Patent 1: AI-Based Handover Method
+- **Patent ID**: 12345678
+- **Publication Date**: 2024-01-15
+- **Assignee**: Test Company Inc.
+- **Inventors**: John Doe
+- **Abstract**: A method for performing handover using artificial intelligence
+
+**Innovation Summary**: This patent describes an AI-based handover system that uses neural networks to analyze measurement reports and determine optimal handover parameters. The system represents a direct approach to intelligent handover in wireless communications.
+
+**Key Claims**:
+- Claim 1: A method for performing handover in a wireless communication system
+- Claim 2: The method of claim 1, wherein the handover is optimized using AI
+- Claim 3: The method of claim 1, wherein the AI comprises a neural network
+
+**Relevance**: HIGH
+**Risk Assessment**: Direct conflict with AI-based handover methods
+
+### Detailed Claim Analysis (Top 3 Patents Only)
+
+#### Patent 1: AI-Based Handover Method - Detailed Analysis
+**Innovation Summary**: This patent describes an AI-based handover system using neural networks.
+
+**Claim-by-Claim Analysis**:
+- **Independent Claim 1**: A method for performing handover in a wireless communication system
+  - **Claim Elements**: Method, handover, wireless communication system
+  - **Prior Art Mapping**: Directly relates to 5G handover using AI
+  - **Novelty Assessment**: Moderate novelty, some prior art exists
+
+- **Key Dependent Claims**:
+  - **Claim 2**: The method of claim 1, wherein the handover is optimized using AI
+  - **Claim 3**: The method of claim 1, wherein the AI comprises a neural network
+
+**Patentability Assessment**:
+- **Novelty Risk (35 USC 102)**: Moderate - some anticipation possible
+- **Obviousness Risk (35 USC 103)**: High - combination of known elements
+- **Overall Assessment**: Uncertain patentability
 
 ## Risk Analysis
-- HIGH RISK: Patents with direct conflicts
-- MEDIUM RISK: Patents with potential overlap
-- LOW RISK: Patents with minimal relevance
 
-## Recommendations
-- Immediate actions needed: Review high-risk patents
-- Areas for further investigation: AI optimization techniques
-- Strategic considerations: Consider design-around options
+### Freedom to Operate
+- **HIGH RISK**: Patents with direct conflicts that could block commercialization
+- **MEDIUM RISK**: Patents with potential overlap requiring design-around
+- **LOW RISK**: Patents with minimal relevance to core invention
+
+### Patent Prosecution Risk
+- **Rejection Likelihood**: Moderate probability of patent office rejection
+- **Claim Scope**: May need limitations for AI-specific aspects
+- **Prosecution Strategy**: Focus on specific technical improvements
+
+## Conclusions and Recommendations
+
+### Patentability Opinion
+- **Overall Assessment**: Uncertain - requires further analysis
+- **Strongest Aspects**: Specific AI algorithms and technical improvements
+- **Weakest Aspects**: General AI application to handover
+
+### Strategic Recommendations
+- **Immediate Actions**: Review high-risk patents for potential conflicts
+- **Claim Drafting**: Focus on specific technical improvements over general AI
+- **Additional Searches**: Search for specific AI algorithms and neural network architectures
+- **Commercial Strategy**: Consider design-around options for high-risk patents
+
+### Next Steps
+- **Filing Strategy**: Consider provisional application first
+- **Long-term Strategy**: Develop portfolio around specific technical improvements
+- **Monitoring**: Track new AI handover patents and applications
+
+---
+
+## Report Metadata
+- **Search Date**: 2024-12-19
+- **Search Engine**: PatentsView API
+- **Search Confidence**: High
+- **Report Version**: 2.0 (Enhanced with detailed claim analysis)
 """
         
         # Test required sections
         required_sections = [
             "# Prior Art Search Report:",
             "## Executive Summary",
-            "## Search Results",
-            "## Key Patents",
+            "## Search Methodology",
+            "## Invention Analysis",
+            "## Prior Art References",
             "## Risk Analysis",
-            "## Recommendations"
+            "## Conclusions and Recommendations"
         ]
         
         for section in required_sections:
             self.assertIn(section, report_text, f"Missing required section: {section}")
         
         # Test claims text inclusion
-        self.assertIn("Key Claims:", report_text)
+        self.assertIn("**Key Claims**", report_text)
         self.assertIn("Claim 1:", report_text)
         self.assertIn("Claim 2:", report_text)
         
+        # Test hybrid analysis elements
+        self.assertIn("**Innovation Summary**", report_text)
+        self.assertIn("Detailed Claim Analysis", report_text)
+        self.assertIn("**Claim-by-Claim Analysis**", report_text)
+        
         # Test query performance tracking
-        self.assertIn("Search Queries Used (with result counts):", report_text)
+        self.assertIn("**Search Queries Used** (with result counts):", report_text)
         self.assertIn("→", report_text)  # Arrow format
         self.assertIn("patents", report_text)
         
         # Test risk analysis
-        self.assertIn("HIGH RISK:", report_text)
-        self.assertIn("MEDIUM RISK:", report_text)
-        self.assertIn("LOW RISK:", report_text)
+        self.assertIn("**HIGH RISK**", report_text)
+        self.assertIn("**MEDIUM RISK**", report_text)
+        self.assertIn("**LOW RISK**", report_text)
+        
+        # Test professional elements
+        self.assertIn("**Patentability Assessment**", report_text)
+        self.assertIn("35 USC", report_text)  # Legal framework
+        self.assertIn("Freedom to Operate", report_text)
 
     def test_query_result_tracking(self):
         """Test query result tracking format."""

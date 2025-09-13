@@ -44,7 +44,7 @@ class LLMClient:
                     api_key=azure_openai_api_key,
                     api_version="2024-02-15-preview",
                     azure_endpoint=azure_openai_endpoint,
-                    timeout=30.0
+                    timeout=300.0
                 )
                 self.azure_deployment = azure_openai_deployment or "gpt-4o-mini"
                 self.llm_available = True

@@ -128,10 +128,11 @@ class TestPatentSearchIntegration:
         required_sections = [
             "# Prior Art Search Report:",
             "## Executive Summary",
-            "## Search Results", 
-            "## Key Patents",
+            "## Search Methodology",
+            "## Invention Analysis",
+            "## Prior Art References",
             "## Risk Analysis",
-            "## Recommendations"
+            "## Conclusions and Recommendations"
         ]
         
         for section in required_sections:
@@ -152,6 +153,16 @@ class TestPatentSearchIntegration:
         # Check for claims text inclusion (critical improvement)
         assert "Key Claims:" in report_text, "Claims text section missing"
         assert "Claim 1:" in report_text, "Individual claims not included"
+        
+        # Check for hybrid analysis elements
+        assert "Innovation Summary:" in report_text, "Innovation summaries missing"
+        assert "Detailed Claim Analysis" in report_text, "Detailed analysis section missing"
+        assert "Claim-by-Claim Analysis:" in report_text, "Claim-by-claim analysis missing"
+        
+        # Check for professional elements
+        assert "Patentability Assessment:" in report_text, "Patentability assessment missing"
+        assert "35 USC" in report_text, "Legal framework missing"
+        assert "Freedom to Operate" in report_text, "FTO analysis missing"
         
         # Check for patent count validation
         assert "Total Patents:" in report_text, "Patent count not displayed"

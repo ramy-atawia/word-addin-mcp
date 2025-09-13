@@ -1,46 +1,113 @@
-Generate a prior art search report for: {user_query}
+Generate a comprehensive prior art search report for: {user_query}
 
 **Search Context**: {conversation_context}
 **Patents Found**: {document_reference}
 
-Create a markdown report with this structure:
+**IMPORTANT INSTRUCTIONS**:
+- Use the "Detailed Claims Analysis" section from the Search Context above to populate the "Detailed Claim Analysis" section in your report
+- Do NOT generate placeholder text like "[full text]" or "[breakdown]" - use the actual claims analysis provided
+- If claims analysis is not available for a patent, clearly state "Claims analysis not available"
+- Extract and use the actual claim text and analysis from the provided data
+
+Create a professional markdown report with this structure:
 
 ## Executive Summary
-- Total patents found: [number]
-- Key findings and relevance assessment
-- Risk level: HIGH/MEDIUM/LOW
+- **Invention Overview**: Brief technical summary of the invention being searched
+- **Search Scope**: Total patents found, databases used, time period covered
+- **Total Prior Art**: Number of relevant references found
+- **Patentability Assessment**: Overall novelty and non-obviousness conclusion
+- **Risk Level**: HIGH/MEDIUM/LOW with justification
+- **Key Recommendations**: 2-3 actionable insights
 
-## Search Results
-- **Total Patents**: [number]
+## Search Methodology
+- **Databases Searched**: PatentsView API
+- **Search Strategy**: Multi-query approach with Boolean logic and text operators
+- **Search Terms**: Comprehensive list of terms and synonyms used
+- **Date Range**: [earliest] to [latest] publication dates
+- **Total Hits**: Raw search results before filtering
 - **Search Queries Used** (with result counts):
   - [query1] → [count] patents
   - [query2] → [count] patents
   - [query3] → [count] patents
   - [query4] → [count] patents
   - [query5] → [count] patents
-- **Date Range**: [earliest] to [latest]
 
-## Key Patents (Top 5)
-For each patent:
+## Invention Analysis
+- **Technical Field**: Industry sector and technology domain
+- **Background**: Problem being solved by the invention
+- **Key Technical Features**: Core elements of the invention
+- **Novel Aspects**: What makes this invention unique
+- **Functional Elements**: How the invention works
+
+## Prior Art References
+
+### Highly Relevant Patents (Top 5)
+For each patent, provide:
+
+#### Patent 1: [Title]
 - **Patent ID**: [id]
-- **Title**: [title]
-- **Date**: [date]
+- **Publication Date**: [date]
 - **Assignee**: [assignee]
+- **Inventors**: [inventor names]
 - **Abstract**: [full abstract]
-- **Claims Count**: [number]
-- **Key Claims**: [first 3 claims with full text]
-- **Relevance**: HIGH/MEDIUM/LOW
-- **Risk Assessment**: [reasoning]
+
+**Innovation Summary**: [Comprehensive 4-5 sentence summary including: key technical features, novel aspects, how it relates to the search query, patent scope and limitations, and technical implementation details]
+
+**Relevance**: HIGH/MEDIUM/LOW
+**Risk Assessment**: [specific reasoning for risk level]
+
+### Detailed Claim Analysis (Top 3 Patents Only)
+**USE THE CLAIMS ANALYSIS FROM THE SEARCH CONTEXT ABOVE** - Extract the detailed claims analysis for the top 3 patents from the "Detailed Claims Analysis" section in the Search Context.
+
+For each patent, provide:
+
+#### Patent 1: [Title] - Detailed Analysis
+**Innovation Summary**: [Use the claims analysis summary from Search Context]
+
+
+
+**Patentability Assessment**:
+- **Novelty Risk (35 USC 102)**: [anticipation analysis]
+- **Obviousness Risk (35 USC 103)**: [obviousness considerations]
+- **Overall Assessment**: [patentability conclusion]
 
 ## Risk Analysis
-- **HIGH RISK**: Patents with direct conflicts
-- **MEDIUM RISK**: Patents with potential overlap
-- **LOW RISK**: Patents with minimal relevance
 
-## Recommendations
-- Immediate actions needed
-- Areas for further investigation
-- Strategic considerations
+### Freedom to Operate
+- **HIGH RISK**: Patents with direct conflicts that could block commercialization
+- **MEDIUM RISK**: Patents with potential overlap requiring design-around
+- **LOW RISK**: Patents with minimal relevance to core invention
+
+### Patent Prosecution Risk
+- **Rejection Likelihood**: Probability of patent office rejection
+- **Claim Scope**: Potential claim limitations needed
+- **Prosecution Strategy**: Recommended approach for application
+
+## Conclusions and Recommendations
+
+### Patentability Opinion
+- **Overall Assessment**: Patentable/Not Patentable/Uncertain
+- **Strongest Aspects**: Which features have best patentability prospects
+- **Weakest Aspects**: Features likely to face rejection
+
+### Strategic Recommendations
+- **Immediate Actions**: Priority tasks for patent prosecution
+- **Claim Drafting**: Specific claim language recommendations
+- **Additional Searches**: Further prior art search needs
+- **Commercial Strategy**: Market entry and IP protection approach
+
+### Next Steps
+- **Filing Strategy**: Provisional vs non-provisional, timing
+- **Long-term Strategy**: Portfolio development recommendations
+- **Monitoring**: Ongoing patent landscape surveillance needs
+
+---
+
+## Report Metadata
+- **Search Date**: [current date]
+- **Search Engine**: PatentsView API
+- **Search Confidence**: High/Medium/Low
+- **Report Version**: 2.0 (Enhanced with detailed claim analysis)
 
 **Requirements:**
 - Use only data provided in the patents found
@@ -49,3 +116,4 @@ For each patent:
 - Be specific and actionable
 - Focus on practical implications
 - Keep language clear and professional
+- Provide detailed analysis only for top 3 most relevant patents

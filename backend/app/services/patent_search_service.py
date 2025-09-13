@@ -77,10 +77,15 @@ class PatentSearchService:
             patents_with_claims = await self._add_claims(unique_patents)
             logger.info(f"Step 4 completed: Added claims to {len(patents_with_claims)} patents")
             
-            # Step 5: Generate report
-            logger.info("Step 5: Generating report...")
-            report = await self._generate_report(query, query_results, patents_with_claims)
-            logger.info(f"Step 5 completed: Generated report of {len(report)} characters")
+            # Step 5: Summarize claims using LLM
+            logger.info("Step 5: Summarizing patent claims...")
+            found_claims_summary = await self._summarize_claims(patents_with_claims)
+            logger.info(f"Step 5 completed: Generated claims summary of {len(found_claims_summary)} characters")
+            
+            # Step 6: Generate report
+            logger.info("Step 6: Generating report...")
+            report = await self._generate_report(query, query_results, patents_with_claims, found_claims_summary)
+            logger.info(f"Step 6 completed: Generated report of {len(report)} characters")
             
             search_result = {
                 "query": query,
@@ -197,9 +202,9 @@ class PatentSearchService:
         payload = {
             "q": search_query,
             "f": ["patent_id", "patent_title", "patent_abstract", "patent_date", 
-                  "inventors", "assignees"],
+                  "inventors", "assignees", "cpc_current"],
             "s": [{"patent_date": "desc"}],
-            "o": {"size": 20}
+            "o": {"size": 10}  # Reduced from 20 to 10 for faster processing
         }
         
         headers = {"Content-Type": "application/json"}
@@ -287,6 +292,116 @@ class PatentSearchService:
         
         return patents_with_claims
     
+    async def _summarize_claims(self, patents: List[Dict]) -> str:
+        """Summarize claims for top patents using LLM with performance optimization."""
+        # Performance optimization: Only analyze top 5 most relevant patents
+        top_patents = patents[:5] if len(patents) > 5 else patents
+        
+        claims_summaries = []
+        
+        # Process patents in parallel for better performance
+        import asyncio
+        
+        async def process_patent_claims(patent):
+            patent_id = patent.get("patent_id", "Unknown")
+            patent_title = patent.get("patent_title", "No title")
+            claims = patent.get("claims", [])
+            
+            if not claims:
+                return f"**Patent {patent_id}: {patent_title}**\n- Claims: Not available\n"
+            
+            # Prepare claims text for LLM analysis (limit to first 3 claims for performance)
+            claims_text = []
+            independent_claims = []
+            dependent_claims = []
+            
+            # Limit to first 3 claims to reduce token usage
+            limited_claims = claims[:3]
+            
+            for claim in limited_claims:
+                claim_number = claim.get("number", "")
+                claim_text = claim.get("text", "")
+                claim_type = claim.get("type", "unknown")
+                
+                if claim_text and claim_number and len(claim_text.strip()) > 10:
+                    # Truncate very long claims to reduce token usage
+                    truncated_text = claim_text[:500] + "..." if len(claim_text) > 500 else claim_text
+                    full_claim = f"Claim {claim_number} ({claim_type}): {truncated_text}"
+                    claims_text.append(full_claim)
+                    
+                    if claim_type == "independent":
+                        independent_claims.append(full_claim)
+                    else:
+                        dependent_claims.append(full_claim)
+            
+            if not claims_text:
+                return f"**Patent {patent_id}: {patent_title}**\n- Claims: No valid claim text found\n"
+            
+            # Simplified prompt for faster processing
+            claims_prompt = f"""
+Analyze the patent claims for patent {patent_id} titled "{patent_title}".
+
+**CLAIMS TO ANALYZE:**
+{chr(10).join(claims_text)}
+
+**ANALYSIS REQUIREMENTS:**
+1. **Technical Summary**: 2-3 sentence summary of the main invention
+2. **Key Technical Features**: List 3-4 key technical elements
+3. **Claim Structure**: Identify independent vs dependent claims
+4. **Technical Scope**: Brief scope and limitations
+
+Format as concise markdown.
+"""
+            
+            try:
+                # Reduced token usage for faster processing
+                response = self.llm_client.generate_text(
+                    prompt=claims_prompt,
+                    max_tokens=300,  # Further reduced from 600 to 300 for faster processing
+                    temperature=0.3
+                )
+                
+                if response.get("success"):
+                    summary = response["text"]
+                    return f"**Patent {patent_id}: {patent_title}**\n{summary}\n"
+                else:
+                    # Fallback: basic claims listing
+                    return (f"**Patent {patent_id}: {patent_title}**\n" + 
+                           f"- Claims: {len(claims)} claims found\n" +
+                           f"- Independent Claims: {len([c for c in claims if c.get('type') == 'independent'])}\n" +
+                           f"- Dependent Claims: {len([c for c in claims if c.get('type') == 'dependent'])}\n")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to summarize claims for patent {patent_id}: {e}")
+                # Fallback: basic claims listing
+                return (f"**Patent {patent_id}: {patent_title}**\n" + 
+                       f"- Claims: {len(claims)} claims found\n" +
+                       f"- Independent Claims: {len([c for c in claims if c.get('type') == 'independent'])}\n" +
+                       f"- Dependent Claims: {len([c for c in claims if c.get('type') == 'dependent'])}\n")
+        
+        # Process patents in parallel
+        tasks = [process_patent_claims(patent) for patent in top_patents]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Handle results and exceptions
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                patent_id = top_patents[i].get("patent_id", "Unknown")
+                claims_summaries.append(f"**Patent {patent_id}**: Error processing claims - {str(result)}\n")
+            else:
+                claims_summaries.append(result)
+        
+        # Add summary for remaining patents if any
+        if len(patents) > 5:
+            remaining_count = len(patents) - 5
+            claims_summaries.append(f"**Additional Patents**: {remaining_count} more patents found with claims data (not analyzed for performance)\n")
+        
+        # Combine all summaries into a markdown string
+        found_claims_summary = "\n".join(claims_summaries)
+        
+        logger.info(f"Generated claims summary for {len(top_patents)} patents (optimized for performance)")
+        return found_claims_summary
+    
     async def _fetch_claims(self, patent_id: str) -> List[Dict]:
         """Fetch claims for a specific patent."""
         
@@ -295,7 +410,7 @@ class PatentSearchService:
         payload = {
             "q": {"patent_id": patent_id},
             "f": ["claim_sequence", "claim_text", "claim_number", "claim_dependent"],
-            "o": {"size": 50},
+            "o": {"size": 100},  # Increased from 50 to 100 for more claims
             "s": [{"claim_sequence": "asc"}]
         }
         
@@ -336,15 +451,29 @@ class PatentSearchService:
                 
                 claims_data = data.get("g_claims", [])
                 
-                # Parse claims into simple format
+                if not claims_data:
+                    logger.warning(f"No claims data found for patent {patent_id}")
+                    return []
+                
+                # Parse claims into simple format with validation
                 claims = []
                 for claim in claims_data:
+                    claim_text = claim.get("claim_text", "")
+                    claim_number = claim.get("claim_number", "")
+                    
+                    # Validate that we have meaningful claim text
+                    if not claim_text or len(claim_text.strip()) < 10:
+                        logger.warning(f"Invalid or truncated claim text for patent {patent_id}, claim {claim_number}")
+                        continue
+                    
                     claims.append({
-                        "number": claim.get("claim_number", ""),
-                        "text": claim.get("claim_text", ""),
-                        "type": "dependent" if claim.get("claim_dependent") else "independent"
+                        "number": claim_number,
+                        "text": claim_text.strip(),  # Ensure clean text
+                        "type": "dependent" if claim.get("claim_dependent") else "independent",
+                        "sequence": claim.get("claim_sequence", 0)
                     })
                 
+                logger.info(f"Successfully fetched {len(claims)} claims for patent {patent_id}")
                 return claims
                 
         except httpx.TimeoutException:
@@ -359,30 +488,42 @@ class PatentSearchService:
             raise ValueError(f"Unexpected Error fetching claims for patent '{patent_id}': {str(e)}")
     
     async def _generate_report(self, query: str, query_results: List[Dict], 
-                             patents: List[Dict]) -> str:
+                             patents: List[Dict], found_claims_summary: str = "") -> str:
         """Generate markdown report using LLM with prompt template."""
         
-        # Prepare data for report
+        # Prepare data for report with enhanced metadata
         patent_summaries = []
-        for patent in patents:
+        for i, patent in enumerate(patents):
             # Extract claims text for analysis
             claims_text = []
             for claim in patent.get("claims", []):
-                claim_text = claim.get("claim_text", "")
-                claim_number = claim.get("claim_number", "")
+                claim_text = claim.get("text", "")  # Fixed: was "claim_text"
+                claim_number = claim.get("number", "")  # Fixed: was "claim_number"
                 if claim_text and claim_number:
                     claims_text.append(f"Claim {claim_number}: {claim_text}")
             
-            patent_summaries.append({
+            # Extract classification codes
+            cpc_codes = patent.get("cpc_current", [])
+            
+            # Determine if this patent gets detailed analysis (top 3)
+            is_top_patent = i < 3
+            
+            # Create patent summary for Innovation Summary
+            patent_summary = {
                 "id": patent.get("patent_id", "Unknown"),
                 "title": patent.get("patent_title", "No title"),
                 "date": patent.get("patent_date", "Unknown"),
-                "abstract": patent.get("patent_abstract", "No abstract"),  # Full abstract now
+                "abstract": patent.get("patent_abstract", "No abstract"),
                 "claims_count": len(patent.get("claims", [])),
-                "claims_text": claims_text,  # ADD: Full claims text
+                "claims_text": claims_text,
                 "inventor": self._extract_inventor(patent.get("inventors", [])),
-                "assignee": self._extract_assignee(patent.get("assignees", []))
-            })
+                "assignee": self._extract_assignee(patent.get("assignees", [])),
+                "cpc_codes": cpc_codes,
+                "is_top_patent": is_top_patent,
+                "rank": i + 1
+            }
+            
+            patent_summaries.append(patent_summary)
         
         try:
             # Load the system prompt template
@@ -394,16 +535,19 @@ class PatentSearchService:
                 query_info.append(f"  - {result['query_text']} → {result['result_count']} patents")
             query_summary = "\n".join(query_info)
             
+            # Prepare claims summary for the prompt
+            claims_context = f"\n\n**Detailed Claims Analysis:**\n{found_claims_summary}" if found_claims_summary else ""
+            
             # Load the user prompt template with parameters
             user_prompt = load_prompt_template("prior_art_search_comprehensive",
                                               user_query=query,
-                                              conversation_context=f"Search Queries Used (with result counts):\n{query_summary}\n\nPatents Found:\n{json.dumps(patent_summaries, indent=2)}",
+                                              conversation_context=f"Search Queries Used (with result counts):\n{query_summary}\n\nPatents Found:\n{json.dumps(patent_summaries, indent=2)}{claims_context}",
                                               document_reference="Patent Search Results")
             
             response = self.llm_client.generate_text(
                 prompt=user_prompt,
                 system_message=system_prompt,
-                max_tokens=8000,
+                max_tokens=4000,  # Increased back to 4000 with 300s timeout
                 temperature=0.3
             )
             
@@ -412,12 +556,6 @@ class PatentSearchService:
             else:
                 raise Exception(f"LLM failed: {response.get('error')}")
                 
-        except json.JSONDecodeError as e:
-            logger.error(f"LLM returned invalid JSON for report generation: {e}")
-            raise ValueError(f"Failed to parse LLM response as JSON for report generation: {e}")
-        except KeyError as e:
-            logger.error(f"LLM response missing required field for report: {e}")
-            raise ValueError(f"LLM response missing required field '{e}' for report generation. Please try again.")
         except Exception as e:
             logger.error(f"Report generation failed: {e}")
             raise ValueError(f"Failed to generate report: {e}")
