@@ -1,0 +1,107 @@
+# Docker Compose Override for Local Development
+# This file is automatically used by docker-compose for local development
+# It overrides settings from docker-compose.yml
+
+version: '3.8'
+
+services:
+  # Backend with local development settings
+  backend:
+    environment:
+      # Override for local development
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - FASTAPI_RELOAD=true
+      
+      # Local URLs
+      - MCP_SERVER_URL=http://localhost:9000
+      - FRONTEND_URL=https://localhost:3000
+      
+      # Auth0 for local development
+      - AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
+      - AUTH0_AUDIENCE=https://word-addin-backend.azurewebsites.net
+      
+      # CORS for local development
+      - ALLOWED_ORIGINS=["https://localhost:3000", "http://localhost:3000"]
+      - ALLOWED_HOSTS=["localhost", "127.0.0.1", "0.0.0.0"]
+    
+    volumes:
+      # Add source code volume for hot reload
+      - ./backend:/app
+      - /app/venv  # Exclude venv directory
+      - ./logs:/app/logs
+      - uploads_data:/app/uploads
+
+  # Frontend development service
+  frontend-dev:
+    environment:
+      # Local development environment variables
+      - NODE_ENV=development
+      - REACT_APP_API_BASE_URL=http://localhost:9000
+      - REACT_APP_FRONTEND_URL=https://localhost:3000
+      - REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
+      - REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
+      - REACT_APP_AUTH0_AUDIENCE=https://word-addin-backend.azurewebsites.net
+      
+      # Webpack dev server settings
+      - WEBPACK_DEV_SERVER_HOST=0.0.0.0
+      - WEBPACK_DEV_SERVER_PORT=3000
+      - WEBPACK_DEV_SERVER_HTTPS=true
+    
+    volumes:
+      # Mount source code for hot reload
+      - "./Novitai MCP:/app"
+      - frontend_node_modules:/app/node_modules
+      - office_certs:/app/ssl  # Mount SSL certificates
+    
+    ports:
+      - "3000:3000"
+      - "3001:3001"  # Additional port for webpack dev server
+    
+    command: ["npm", "run", "dev"]
+
+  # SSL Certificate Generator with local settings
+  ssl-generator:
+    volumes:
+      - office_certs:/certs
+      - ./ssl:/certs/local  # Mount local SSL directory
+    command: >
+      sh -c "
+        apk add --no-cache openssl &&
+        mkdir -p /certs &&
+        if [ ! -f /certs/localhost.crt ]; then
+          echo 'Generating Office Add-in development certificates...' &&
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /certs/localhost.key \
+            -out /certs/localhost.crt \
+            -config <(
+            echo '[dn]'
+            echo 'CN=localhost'
+            echo '[req]'
+            echo 'distinguished_name = dn'
+            echo '[v3_req]'
+            echo 'subjectAltName = @alt_names'
+            echo '[alt_names]'
+            echo 'DNS.1 = localhost'
+            echo 'DNS.2 = *.localhost'
+            echo 'IP.1 = 127.0.0.1'
+            echo 'IP.2 = ::1'
+            ) \
+            -extensions v3_req \
+            -subj '/CN=localhost' &&
+          chmod 644 /certs/localhost.crt &&
+          chmod 600 /certs/localhost.key &&
+          echo 'SSL certificates generated successfully!'
+        else
+          echo 'SSL certificates already exist.'
+        fi &&
+        # Copy certificates to local directory
+        cp /certs/localhost.* /certs/local/ 2>/dev/null || true
+      "
+
+# Additional volumes for local development
+volumes:
+  office_certs:
+    driver: local
+  frontend_node_modules:
+    driver: local

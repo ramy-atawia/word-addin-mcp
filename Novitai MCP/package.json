@@ -15,6 +15,7 @@
   "scripts": {
     "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
+    "dev": "webpack serve --mode development --host 0.0.0.0 --port 3000",
     "dev-server": "webpack serve --mode development",
     "dev-simple": "webpack serve --config webpack.config.simple.js --mode development",
     "start": "office-addin-debugging start manifest.xml",
