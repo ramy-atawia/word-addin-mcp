@@ -133,8 +133,13 @@ class PriorArtSearchTool(BaseInternalTool):
             # Return just the markdown report
             return search_result["report"]
             
+        except ValueError as e:
+            execution_time = time.time() - start_time
+            logger.error(f"Prior art search failed with specific error for '{query}': {str(e)}")
+            # Return specific error as markdown
+            return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: {str(e)}\n\n**Suggestion**: Please check your query and try again, or contact support if the issue persists."
         except Exception as e:
             execution_time = time.time() - start_time
-            logger.error(f"Prior art search failed for '{query}': {str(e)}")
-            # Return error as markdown
-            return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: {str(e)}"
+            logger.error(f"Prior art search failed with unexpected error for '{query}': {str(e)}")
+            # Return generic error as markdown
+            return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: An unexpected error occurred during the search. Please try again.\n\n**Technical Details**: {str(e)}"

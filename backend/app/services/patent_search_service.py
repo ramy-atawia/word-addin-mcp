@@ -97,9 +97,13 @@ class PatentSearchService:
             
             return search_result, search_queries
             
-        except Exception as e:
-            logger.error(f"Patent search failed: {e}")
+        except ValueError as e:
+            # Re-raise ValueError with specific error messages
+            logger.error(f"Patent search failed with specific error: {e}")
             raise
+        except Exception as e:
+            logger.error(f"Patent search failed with unexpected error: {e}")
+            raise ValueError(f"Patent search failed: {str(e)}")
     
     async def _generate_queries(self, query: str) -> List[Dict[str, Any]]:
         """Generate search queries using LLM with prompt template."""
@@ -142,6 +146,12 @@ class PatentSearchService:
             
             return queries
             
+        except json.JSONDecodeError as e:
+            logger.error(f"LLM returned invalid JSON: {e}")
+            raise ValueError(f"Failed to parse LLM response as JSON. LLM may have returned invalid format: {e}")
+        except KeyError as e:
+            logger.error(f"LLM response missing required field: {e}")
+            raise ValueError(f"LLM response missing required field '{e}'. Please try again.")
         except Exception as e:
             logger.error(f"LLM query generation failed: {e}")
             raise ValueError(f"Failed to generate search queries: {e}")
@@ -186,18 +196,49 @@ class PatentSearchService:
         logger.info(f"API call - Payload: {payload}")
         logger.info(f"API call - Headers: {headers}")
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            logger.info(f"API response status: {response.status_code}")
-            logger.info(f"API response text: {response.text[:500]}")
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if data.get("error"):
-                raise Exception(f"API error: {data}")
-            
-            return data.get("patents", [])
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(url, json=payload, headers=headers)
+                logger.info(f"API response status: {response.status_code}")
+                logger.info(f"API response text: {response.text[:500]}")
+                
+                # Handle specific HTTP status codes
+                if response.status_code == 400:
+                    raise ValueError(f"Bad Request: Invalid search query. API returned: {response.text}")
+                elif response.status_code == 401:
+                    raise ValueError(f"Unauthorized: Invalid API key. Please check your PatentsView API credentials.")
+                elif response.status_code == 403:
+                    raise ValueError(f"Forbidden: API access denied. Check your API key permissions.")
+                elif response.status_code == 429:
+                    raise ValueError(f"Rate Limited: Too many requests. Please wait before trying again.")
+                elif response.status_code == 500:
+                    raise ValueError(f"Server Error: PatentsView API is experiencing issues. Please try again later.")
+                elif response.status_code == 503:
+                    raise ValueError(f"Service Unavailable: PatentsView API is temporarily down. Please try again later.")
+                elif not response.is_success:
+                    raise ValueError(f"API Error {response.status_code}: {response.text}")
+                
+                data = response.json()
+                
+                # Handle API-specific errors
+                if data.get("error"):
+                    error_msg = data.get("error", "Unknown API error")
+                    if isinstance(error_msg, dict):
+                        error_msg = error_msg.get("message", str(error_msg))
+                    raise ValueError(f"PatentsView API Error: {error_msg}")
+                
+                return data.get("patents", [])
+                
+        except httpx.TimeoutException:
+            raise ValueError("Request Timeout: PatentsView API took too long to respond. Please try again.")
+        except httpx.ConnectError:
+            raise ValueError("Connection Error: Cannot connect to PatentsView API. Please check your internet connection.")
+        except httpx.HTTPError as e:
+            raise ValueError(f"HTTP Error: {str(e)}")
+        except json.JSONDecodeError:
+            raise ValueError("Invalid Response: PatentsView API returned invalid JSON. Please try again.")
+        except Exception as e:
+            raise ValueError(f"Unexpected Error: {str(e)}")
     
     def _deduplicate(self, patents: List[Dict]) -> List[Dict]:
         """Remove duplicate patents by ID."""
@@ -248,23 +289,60 @@ class PatentSearchService:
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
         
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            claims_data = data.get("g_claims", [])
-            
-            # Parse claims into simple format
-            claims = []
-            for claim in claims_data:
-                claims.append({
-                    "number": claim.get("claim_number", ""),
-                    "text": claim.get("claim_text", ""),
-                    "type": "dependent" if claim.get("claim_dependent") else "independent"
-                })
-            
-            return claims
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json=payload, headers=headers)
+                
+                # Handle specific HTTP status codes
+                if response.status_code == 400:
+                    raise ValueError(f"Bad Request: Invalid patent ID '{patent_id}'. API returned: {response.text}")
+                elif response.status_code == 401:
+                    raise ValueError(f"Unauthorized: Invalid API key for claims API. Please check your PatentsView API credentials.")
+                elif response.status_code == 403:
+                    raise ValueError(f"Forbidden: API access denied for claims. Check your API key permissions.")
+                elif response.status_code == 404:
+                    raise ValueError(f"Not Found: No claims found for patent ID '{patent_id}'.")
+                elif response.status_code == 429:
+                    raise ValueError(f"Rate Limited: Too many claims requests. Please wait before trying again.")
+                elif response.status_code == 500:
+                    raise ValueError(f"Server Error: PatentsView claims API is experiencing issues. Please try again later.")
+                elif response.status_code == 503:
+                    raise ValueError(f"Service Unavailable: PatentsView claims API is temporarily down. Please try again later.")
+                elif not response.is_success:
+                    raise ValueError(f"Claims API Error {response.status_code}: {response.text}")
+                
+                data = response.json()
+                
+                # Handle API-specific errors
+                if data.get("error"):
+                    error_msg = data.get("error", "Unknown API error")
+                    if isinstance(error_msg, dict):
+                        error_msg = error_msg.get("message", str(error_msg))
+                    raise ValueError(f"PatentsView Claims API Error: {error_msg}")
+                
+                claims_data = data.get("g_claims", [])
+                
+                # Parse claims into simple format
+                claims = []
+                for claim in claims_data:
+                    claims.append({
+                        "number": claim.get("claim_number", ""),
+                        "text": claim.get("claim_text", ""),
+                        "type": "dependent" if claim.get("claim_dependent") else "independent"
+                    })
+                
+                return claims
+                
+        except httpx.TimeoutException:
+            raise ValueError(f"Request Timeout: Claims API took too long to respond for patent '{patent_id}'. Please try again.")
+        except httpx.ConnectError:
+            raise ValueError(f"Connection Error: Cannot connect to PatentsView claims API for patent '{patent_id}'. Please check your internet connection.")
+        except httpx.HTTPError as e:
+            raise ValueError(f"HTTP Error for patent '{patent_id}': {str(e)}")
+        except json.JSONDecodeError:
+            raise ValueError(f"Invalid Response: PatentsView claims API returned invalid JSON for patent '{patent_id}'. Please try again.")
+        except Exception as e:
+            raise ValueError(f"Unexpected Error fetching claims for patent '{patent_id}': {str(e)}")
     
     async def _generate_report(self, query: str, search_queries: List[Dict], 
                              patents: List[Dict]) -> str:
@@ -304,6 +382,12 @@ class PatentSearchService:
             else:
                 raise Exception(f"LLM failed: {response.get('error')}")
                 
+        except json.JSONDecodeError as e:
+            logger.error(f"LLM returned invalid JSON for report generation: {e}")
+            raise ValueError(f"Failed to parse LLM response as JSON for report generation: {e}")
+        except KeyError as e:
+            logger.error(f"LLM response missing required field for report: {e}")
+            raise ValueError(f"LLM response missing required field '{e}' for report generation. Please try again.")
         except Exception as e:
             logger.error(f"Report generation failed: {e}")
             raise ValueError(f"Failed to generate report: {e}")
