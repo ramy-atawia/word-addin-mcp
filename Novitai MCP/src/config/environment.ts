@@ -35,9 +35,9 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     return baseUrl.replace('.azurewebsites.net', '-dev.azurewebsites.net');
   };
   
-  // Get base URLs from environment variables or defaults
-  const baseBackendUrl = process.env.REACT_APP_API_BASE_URL || getEnvVar('BACKEND_URL', 'http://localhost:9000', 'https://novitai-word-mcp-backend.azurewebsites.net');
-  const baseFrontendUrl = process.env.REACT_APP_FRONTEND_URL || getEnvVar('FRONTEND_URL', 'https://localhost:3000', 'https://novitai-word-mcp-frontend.azurewebsites.net');
+  // Get base URLs from window globals or defaults
+  const baseBackendUrl = getEnvVar('BACKEND_URL', 'http://localhost:9000', 'https://novitai-word-mcp-backend.azurewebsites.net');
+  const baseFrontendUrl = getEnvVar('FRONTEND_URL', 'https://localhost:3000', 'https://novitai-word-mcp-frontend.azurewebsites.net');
   
   if (isDev) {
     return {
