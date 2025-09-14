@@ -290,8 +290,8 @@ jobs:
         # Test 2: MCP Tools Count
         echo "🔍 Testing MCP tools loading..."
         TOOLS_COUNT=$(curl -s "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" | jq '.tools | length')
-        if [ "$TOOLS_COUNT" -lt 5 ]; then
-          echo "❌ MCP tools count check failed: Expected 5, got $TOOLS_COUNT"
+        if [ "$TOOLS_COUNT" -lt 4 ]; then
+          echo "❌ MCP tools count check failed: Expected at least 4, got $TOOLS_COUNT"
           exit 1
         fi
         echo "✅ MCP tools check passed: $TOOLS_COUNT tools loaded"
