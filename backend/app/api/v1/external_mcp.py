@@ -17,6 +17,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# Authentication is now handled by Azure API Management
+
 router = APIRouter(prefix="/external", tags=["external-mcp"])
 
 

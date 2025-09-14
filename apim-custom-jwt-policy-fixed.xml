@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policies>
+    <inbound>
+        <!-- Custom JWT Validation Policy -->
+        <set-variable name="authHeader" value="@(context.Request.Headers.GetValueOrDefault(&quot;Authorization&quot;, &quot;&quot;))" />
+        
+        <!-- Check if Authorization header exists -->
+        <choose>
+            <when condition="@(string.IsNullOrEmpty((string)context.Variables[&quot;authHeader&quot;]))">
+                <return-response>
+                    <set-status code="401" reason="Unauthorized" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"statusCode": 401, "message": "Authorization header missing"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        
+        <!-- Check if Bearer token format is correct -->
+        <choose>
+            <when condition="@(!((string)context.Variables[&quot;authHeader&quot;]).StartsWith(&quot;Bearer &quot;))">
+                <return-response>
+                    <set-status code="401" reason="Unauthorized" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"statusCode": 401, "message": "Invalid authorization scheme. Expected Bearer"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        
+        <!-- Extract token -->
+        <set-variable name="token" value="@(((string)context.Variables[&quot;authHeader&quot;]).Substring(7))" />
+        
+        <!-- Basic JWT structure validation (3 parts separated by dots) -->
+        <choose>
+            <when condition="@(((string)context.Variables[&quot;token&quot;]).Split('.').Length != 3)">
+                <return-response>
+                    <set-status code="401" reason="Unauthorized" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"statusCode": 401, "message": "Invalid JWT format"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        
+        <!-- For now, allow any JWT with correct structure -->
+        <!-- In production, you would add signature verification here -->
+    </inbound>
+    <backend>
+        <forward-request />
+    </backend>
+    <outbound />
+    <on-error />
+</policies>

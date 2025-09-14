@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Word Add-in MCP API - Swagger UI</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css" />
+    <style>
+        html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+        *, *:before, *:after { box-sizing: inherit; }
+        body { margin:0; background: #fafafa; }
+        .swagger-ui .topbar { display: none; }
+        .swagger-ui .info .title { color: #3b4151; }
+        .token-input {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 9999;
+            background: white;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 350px;
+        }
+        .token-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        .token-input input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            margin-bottom: 10px;
+        }
+        .token-input button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .token-input button:hover {
+            background: #0056b3;
+        }
+        .status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="token-input">
+        <label for="bearer-token">Bearer Token:</label>
+        <input type="password" id="bearer-token" placeholder="Enter your Bearer token">
+        <button onclick="applyToken()">Apply Token</button>
+        <button onclick="clearToken()">Clear Token</button>
+        <div class="status" id="status">No token set</div>
+    </div>
+    
+    <div id="swagger-ui"></div>
+    
+    <script src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-standalone-preset.js"></script>
+    <script>
+        let currentToken = '';
+        
+        function applyToken() {
+            currentToken = document.getElementById('bearer-token').value;
+            if (currentToken) {
+                document.getElementById('status').textContent = 'Token applied - reloading API...';
+                document.getElementById('status').style.color = 'green';
+                // Reload the Swagger UI with the new token
+                loadSwaggerUI();
+            } else {
+                document.getElementById('status').textContent = 'Please enter a token';
+                document.getElementById('status').style.color = 'red';
+            }
+        }
+        
+        function clearToken() {
+            currentToken = '';
+            document.getElementById('bearer-token').value = '';
+            document.getElementById('status').textContent = 'Token cleared - reloading API...';
+            document.getElementById('status').style.color = 'orange';
+            loadSwaggerUI();
+        }
+        
+        function loadSwaggerUI() {
+            // Clear existing UI
+            document.getElementById('swagger-ui').innerHTML = '';
+            
+            const ui = SwaggerUIBundle({
+                url: 'https://novitai-word-mcp-backend-dev.azurewebsites.net/openapi.json',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                requestInterceptor: function(request) {
+                    if (currentToken) {
+                        request.headers['Authorization'] = 'Bearer ' + currentToken;
+                    }
+                    return request;
+                },
+                responseInterceptor: function(response) {
+                    if (response.status === 401) {
+                        document.getElementById('status').textContent = 'Authentication failed - check your token';
+                        document.getElementById('status').style.color = 'red';
+                    } else if (response.status === 200) {
+                        document.getElementById('status').textContent = 'Request successful';
+                        document.getElementById('status').style.color = 'green';
+                    }
+                    return response;
+                },
+                onComplete: function() {
+                    document.getElementById('status').textContent = 'API loaded - enter token and click Apply';
+                    document.getElementById('status').style.color = 'blue';
+                }
+            });
+        }
+        
+        // Load Swagger UI on page load
+        window.onload = function() {
+            loadSwaggerUI();
+        };
+    </script>
+</body>
+</html>

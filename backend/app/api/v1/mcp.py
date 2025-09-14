@@ -20,7 +20,19 @@ from ...schemas.mcp import ExternalServerRequest
 
 logger = logging.getLogger(__name__)
 
+# Authentication is now handled by Azure API Management
+
 router = APIRouter(prefix="/mcp", tags=["mcp"])
+
+@router.get("/test-auth")
+async def test_auth():
+    """Test endpoint - authentication handled by APIM"""
+    import time
+    return {
+        "message": "Endpoint accessible - authentication handled by Azure API Management",
+        "timestamp": time.time(),
+        "status": "ready"
+    }
 
 
 @router.post("/agent/chat", response_model=AgentChatResponse)

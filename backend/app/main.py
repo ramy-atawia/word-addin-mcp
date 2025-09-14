@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 from .core.config import settings
 from .middleware.auth0_middleware import init_auth0_middleware, verify_token_optional
 from .core.logging import setup_logging
+from .core.openapi_config import custom_openapi
 from .api.v1 import mcp, external_mcp, session, health
 
 # Setup logging
@@ -104,6 +105,9 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
+
+# Set custom OpenAPI schema with Bearer token authentication
+app.openapi = lambda: custom_openapi(app)
 
 # CORS disabled for development - will be handled in infrastructure
 @app.middleware("http")
