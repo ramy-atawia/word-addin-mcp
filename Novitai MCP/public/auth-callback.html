@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auth Callback</title>
+</head>
+<body>
+  <script>
+    function parseQuery(q) {
+      const params = {};
+      q.replace(/^\?|#/, '').split('&').forEach(pair => {
+        if (!pair) return;
+        const [k,v] = pair.split('=');
+        params[decodeURIComponent(k)] = decodeURIComponent(v || '');
+      });
+      return params;
+    }
+
+    try {
+      const all = window.location.hash && window.location.hash.length>1 ? window.location.hash : window.location.search;
+      const data = parseQuery(all);
+      
+      // Verify nonce for security
+      const storedNonce = sessionStorage.getItem('auth0_nonce');
+      if (data.nonce && storedNonce && data.nonce !== storedNonce) {
+        throw new Error('Nonce verification failed - possible CSRF attack');
+      }
+      
+      // Clear the stored nonce
+      sessionStorage.removeItem('auth0_nonce');
+
+      // Create the auth-tokens event that the React app expects
+      const authEvent = new CustomEvent('auth-tokens', {
+        detail: {
+          accessToken: data.access_token || null,
+          idToken: data.id_token || null,
+          userProfile: null // Will be fetched by the React app
+        }
+      });
+
+      // Dispatch the event to the parent window
+      if (window.Office && window.Office.context && window.Office.context.ui && typeof window.Office.context.ui.messageParent === 'function') {
+        // In Office environment, send via Office.js
+        window.Office.context.ui.messageParent(JSON.stringify({
+          type: 'auth-success',
+          accessToken: data.access_token || null,
+          idToken: data.id_token || null,
+          userProfile: null
+        }));
+      } else if (window.opener && !window.opener.closed) {
+        // In popup environment, dispatch event to opener
+        window.opener.dispatchEvent(authEvent);
+      } else if (window.parent !== window) {
+        // In iframe environment, dispatch event to parent
+        window.parent.dispatchEvent(authEvent);
+      } else {
+        // Fallback: dispatch on current window
+        window.dispatchEvent(authEvent);
+      }
+    } catch (e) {
+      const errorEvent = new CustomEvent('auth-tokens', {
+        detail: {
+          accessToken: null,
+          idToken: null,
+          userProfile: null,
+          error: (e && e.message) || 'Unknown error'
+        }
+      });
+
+      try {
+        if (window.Office && window.Office.context && window.Office.context.ui && typeof window.Office.context.ui.messageParent === 'function') {
+          window.Office.context.ui.messageParent(JSON.stringify({
+            type: 'auth-error',
+            error: (e && e.message) || 'Unknown error'
+          }));
+        } else if (window.opener && !window.opener.closed) {
+          window.opener.dispatchEvent(errorEvent);
+        } else if (window.parent !== window) {
+          window.parent.dispatchEvent(errorEvent);
+        } else {
+          window.dispatchEvent(errorEvent);
+        }
+      } catch (_) {}
+    } finally {
+      setTimeout(() => window.close(), 400);
+    }
+  </script>
+</body>
+</html>

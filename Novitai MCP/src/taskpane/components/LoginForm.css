@@ -1,0 +1,106 @@
+.login-form-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.header-logo-container {
+  margin-bottom: 20px;
+}
+
+.header-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+}
+
+.header-logo.large {
+  width: 100px;
+  height: 100px;
+}
+
+.header-text h2 {
+  margin: 0 0 10px 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.header-text p {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.login-description {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 30px;
+  max-width: 500px;
+}
+
+.login-description h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.3rem;
+}
+
+.login-description ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.login-description li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.login-form {
+  margin-bottom: 30px;
+}
+
+.login-button {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 1.1rem;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.login-button:hover:not(:disabled) {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-button.primary {
+  background: #4CAF50;
+}
+
+.login-footer {
+  text-align: center;
+  opacity: 0.8;
+}
+
+.login-footer p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+}
