@@ -7,6 +7,7 @@ and middleware configured for MCP compliance.
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import time
@@ -151,25 +152,8 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 
-# CORS disabled for development - will be handled in infrastructure
-@app.middleware("http")
-async def disable_cors(request: Request, call_next):
-    """Disable CORS completely for development."""
-    response = await call_next(request)
-    
-    # Add permissive CORS headers
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "false"
-    response.headers["Access-Control-Max-Age"] = "86400"
-    
-    # Handle preflight requests
-    if request.method == "OPTIONS":
-        response.status_code = 200
-        return response
-    
-    return response
+# Use standard CORSMiddleware to handle preflight and CORS headers
+# We'll add it after other middlewares so it runs as the outermost layer
 
 
 # Add Auth0 JWT Middleware (this will execute AFTER the CORS middleware above)
@@ -192,6 +176,17 @@ else:
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=settings.allowed_hosts
+)
+
+# Add CORSMiddleware as the outermost middleware so preflight requests are handled
+# before authentication middleware runs. Read allowed_origins from settings for flexibility.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins or ["https://novitai-word-mcp-frontend-dev.azurewebsites.net"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["X-Authenticated-User-ID"]
 )
 
 

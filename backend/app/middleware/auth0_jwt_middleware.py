@@ -287,6 +287,11 @@ class Auth0JWTMiddleware(BaseHTTPMiddleware):
         
         try:
             logger.debug(f"Auth0 Middleware: Processing request: {request.method} {request.url.path}")
+
+            # Allow CORS preflight requests to pass through without authentication
+            if request.method == "OPTIONS":
+                logger.debug("Auth0 Middleware: OPTIONS preflight request - bypassing authentication")
+                return await call_next(request)
             
             # Check if path should be excluded from authentication
             if self.is_excluded_path(request.url.path):
