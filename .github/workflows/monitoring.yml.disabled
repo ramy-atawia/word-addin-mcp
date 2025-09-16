@@ -2,17 +2,17 @@ name: Monitoring and Alerting
 
 on:
   schedule:
-    # Run every hour instead of every 5 minutes
-    - cron: '0 * * * *'
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       environment:
         description: 'Environment to monitor'
         required: true
-        default: 'development'
+        default: 'production'
         type: choice
         options:
-        - development
+        - staging
         - production
 
 env:
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: [development, production]
+        environment: [staging, production]
 
     steps:
     - name: Checkout code
@@ -48,16 +48,16 @@ jobs:
         import time
         from datetime import datetime
         
-        # Configuration - using actual Azure URLs
+        # Configuration
         environments = {
-            'development': {
-                'backend_url': 'https://novitai-word-mcp-backend-dev.azurewebsites.net',
-                'frontend_url': 'https://novitai-word-mcp-frontend-dev.azurewebsites.net',
+            'staging': {
+                'backend_url': 'https://staging-api.example.com',
+                'frontend_url': 'https://staging.example.com',
                 'timeout': 30
             },
             'production': {
-                'backend_url': 'https://novitai-word-mcp-backend.azurewebsites.net',
-                'frontend_url': 'https://novitai-word-mcp-frontend.azurewebsites.net',
+                'backend_url': 'https://api.example.com',
+                'frontend_url': 'https://example.com',
                 'timeout': 30
             }
         }
@@ -129,8 +129,8 @@ jobs:
         name: health-check-${{ matrix.environment }}
         path: health-check-${{ matrix.environment }}.json
 
-  # API endpoint monitoring
-  api-monitor:
+  # Performance monitoring
+  performance-monitor:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
 
@@ -143,11 +143,11 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install monitoring tools
+    - name: Install performance tools
       run: |
-        pip install requests
+        pip install locust psutil
 
-    - name: API monitoring script
+    - name: Performance test script
       run: |
         python << 'EOF'
         import requests
@@ -155,44 +155,26 @@ jobs:
         import json
         from datetime import datetime
         
-        # API monitoring configuration - using actual endpoints
-        environments = {
-            'development': {
-                'base_url': 'https://novitai-word-mcp-backend-dev.azurewebsites.net',
-                'endpoints': [
-                    '/health',
-                    '/api/v1/mcp/tools',
-                    '/api/v1/debug/config'
-                ]
-            },
-            'production': {
-                'base_url': 'https://novitai-word-mcp-backend.azurewebsites.net',
-                'endpoints': [
-                    '/health',
-                    '/api/v1/mcp/tools',
-                    '/api/v1/debug/config'
-                ]
-            }
-        }
-        
-        env = '${{ github.event.inputs.environment || 'development' }}'
-        config = environments[env]
+        # Performance test configuration
+        test_urls = [
+            'https://api.example.com/health',
+            'https://api.example.com/api/v1/mcp/tools',
+            'https://api.example.com/api/v1/chat',
+        ]
         
         results = {
-            'environment': env,
             'timestamp': datetime.utcnow().isoformat(),
-            'endpoint_tests': []
+            'tests': []
         }
         
-        for endpoint in config['endpoints']:
-            url = config['base_url'] + endpoint
+        for url in test_urls:
             print(f"Testing: {url}")
             
             # Run multiple requests to get average performance
             response_times = []
             status_codes = []
             
-            for i in range(5):  # Reduced from 10 to 5 for efficiency
+            for i in range(10):
                 try:
                     start_time = time.time()
                     response = requests.get(url, timeout=30)
@@ -205,15 +187,13 @@ jobs:
                     
                 except Exception as e:
                     print(f"Error testing {url}: {e}")
-                    response_times.append(999999)  # High value for failed requests
-                    status_codes.append(0)
             
             if response_times:
                 avg_response_time = sum(response_times) / len(response_times)
                 min_response_time = min(response_times)
                 max_response_time = max(response_times)
                 
-                results['endpoint_tests'].append({
+                results['tests'].append({
                     'url': url,
                     'average_response_time_ms': round(avg_response_time, 2),
                     'min_response_time_ms': round(min_response_time, 2),
@@ -223,38 +203,130 @@ jobs:
                 })
         
         # Write results to file
-        with open('api-monitoring-results.json', 'w') as f:
+        with open('performance-test-results.json', 'w') as f:
             json.dump(results, f, indent=2)
         
-        print("API monitoring completed")
+        print("Performance test completed")
         print(json.dumps(results, indent=2))
         EOF
 
-    - name: Upload API monitoring results
+    - name: Upload performance results
       uses: actions/upload-artifact@v3
       with:
-        name: api-monitoring-results
-        path: api-monitoring-results.json
+        name: performance-results
+        path: performance-test-results.json
+
+  # Error rate monitoring
+  error-monitor:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Error monitoring script
+      run: |
+        python << 'EOF'
+        import requests
+        import json
+        from datetime import datetime, timedelta
+        
+        # Error monitoring configuration
+        api_endpoints = [
+            '/health',
+            '/api/v1/mcp/tools',
+            '/api/v1/chat',
+            '/api/v1/session',
+        ]
+        
+        base_url = 'https://api.example.com'
+        results = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'error_summary': {},
+            'endpoint_errors': {}
+        }
+        
+        total_requests = 0
+        total_errors = 0
+        
+        for endpoint in api_endpoints:
+            url = base_url + endpoint
+            print(f"Monitoring: {url}")
+            
+            try:
+                response = requests.get(url, timeout=30)
+                total_requests += 1
+                
+                if response.status_code >= 400:
+                    total_errors += 1
+                    error_type = f"{response.status_code // 100}xx"
+                    
+                    if endpoint not in results['endpoint_errors']:
+                        results['endpoint_errors'][endpoint] = {}
+                    
+                    if error_type not in results['endpoint_errors'][endpoint]:
+                        results['endpoint_errors'][endpoint][error_type] = 0
+                    
+                    results['endpoint_errors'][endpoint][error_type] += 1
+                    
+            except Exception as e:
+                total_errors += 1
+                print(f"Error monitoring {endpoint}: {e}")
+        
+        # Calculate error rates
+        error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
+        
+        results['error_summary'] = {
+            'total_requests': total_requests,
+            'total_errors': total_errors,
+            'error_rate_percent': round(error_rate, 2),
+            'success_rate_percent': round(100 - error_rate, 2)
+        }
+        
+        # Write results to file
+        with open('error-monitoring-results.json', 'w') as f:
+            json.dump(results, f, indent=2)
+        
+        print("Error monitoring completed")
+        print(json.dumps(results, indent=2))
+        
+        # Alert if error rate is too high
+        if error_rate > 5:  # Alert if error rate > 5%
+            print("🚨 HIGH ERROR RATE DETECTED!")
+            exit(1)
+        EOF
+
+    - name: Upload error monitoring results
+      uses: actions/upload-artifact@v3
+      with:
+        name: error-monitoring-results
+        path: error-monitoring-results.json
 
   # Alert on issues
   alert:
     runs-on: ubuntu-latest
-    needs: [health-check, api-monitor]
+    needs: [health-check, performance-monitor, error-monitor]
     if: always()
 
     steps:
     - name: Check for critical issues
       run: |
         # Check if any health checks failed
-        if [ -f "health-check-development.json" ]; then
-          echo "Checking development health..."
+        if [ -f "health-check-staging.json" ]; then
+          echo "Checking staging health..."
           python -c "
         import json
-        with open('health-check-development.json') as f:
+        with open('health-check-staging.json') as f:
             data = json.load(f)
             for service, check in data['checks'].items():
                 if check['status'] != 'healthy':
-                    print(f'🚨 {service} is unhealthy in development')
+                    print(f'🚨 {service} is unhealthy in staging')
                     exit(1)
         "
         fi
@@ -269,6 +341,20 @@ jobs:
                 if check['status'] != 'healthy':
                     print(f'🚨 {service} is unhealthy in production')
                     exit(1)
+        "
+        fi
+        
+        # Check error rates
+        if [ -f "error-monitoring-results.json" ]; then
+          echo "Checking error rates..."
+          python -c "
+        import json
+        with open('error-monitoring-results.json') as f:
+            data = json.load(f)
+            error_rate = data['error_summary']['error_rate_percent']
+            if error_rate > 5:
+                print(f'🚨 High error rate detected: {error_rate}%')
+                exit(1)
         "
         fi
 
@@ -295,7 +381,7 @@ jobs:
   # Generate monitoring report
   report:
     runs-on: ubuntu-latest
-    needs: [health-check, api-monitor]
+    needs: [health-check, performance-monitor, error-monitor]
     if: always()
 
     steps:
@@ -317,7 +403,7 @@ jobs:
         echo "## Health Check Summary" >> monitoring-report.md
         echo "" >> monitoring-report.md
         
-        for env in development production; do
+        for env in staging production; do
           if [ -f "artifacts/health-check-$env/health-check-$env.json" ]; then
             echo "### $env Environment" >> monitoring-report.md
             echo "" >> monitoring-report.md
@@ -337,22 +423,39 @@ jobs:
           fi
         done
         
-        # API monitoring summary
-        if [ -f "artifacts/api-monitoring-results/api-monitoring-results.json" ]; then
-          echo "## API Performance Summary" >> monitoring-report.md
+        # Performance summary
+        if [ -f "artifacts/performance-results/performance-test-results.json" ]; then
+          echo "## Performance Summary" >> monitoring-report.md
           echo "" >> monitoring-report.md
           
           python -c "
         import json
-        with open('artifacts/api-monitoring-results/api-monitoring-results.json') as f:
+        with open('artifacts/performance-results/performance-test-results.json') as f:
             data = json.load(f)
-            for test in data['endpoint_tests']:
+            for test in data['tests']:
                 print(f'- {test[\"url\"]}')
                 print(f'  - Avg response time: {test[\"average_response_time_ms\"]}ms')
                 print(f'  - Success rate: {test[\"success_rate\"]:.1f}%')
         " >> monitoring-report.md
           
           echo "" >> monitoring-report.md
+        fi
+        
+        # Error summary
+        if [ -f "artifacts/error-monitoring-results/error-monitoring-results.json" ]; then
+          echo "## Error Summary" >> monitoring-report.md
+          echo "" >> monitoring-report.md
+          
+          python -c "
+        import json
+        with open('artifacts/error-monitoring-results/error-monitoring-results.json') as f:
+            data = json.load(f)
+            summary = data['error_summary']
+            print(f'- Total requests: {summary[\"total_requests\"]}')
+            print(f'- Total errors: {summary[\"total_errors\"]}')
+            print(f'- Error rate: {summary[\"error_rate_percent\"]}%')
+            print(f'- Success rate: {summary[\"success_rate_percent\"]}%')
+        " >> monitoring-report.md
         fi
 
     - name: Upload monitoring report
