@@ -1,0 +1,10 @@
+# Development and test dependencies - reference runtime requirements first
+-r requirements.txt
+pytest
+pytest-asyncio
+pytest-cov
+coverage
+black
+flake8
+mypy
+isort
