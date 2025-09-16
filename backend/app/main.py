@@ -24,17 +24,17 @@ logger = logging.getLogger(__name__)
 
 
 async def _wait_for_internal_mcp_server():
-    """Wait for internal MCP server to be ready (optional)."""
+    """Wait for internal MCP server to be ready."""
     import aiohttp
     import asyncio
     
-    max_retries = 10  # Reduced retries
+    max_retries = 30
     retry_delay = 1
     
     for attempt in range(max_retries):
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get("http://localhost:8001/health", timeout=2) as response:
+                async with session.get("http://localhost:8001/health") as response:
                     if response.status == 200:
                         logger.info("Internal MCP server is ready")
                         return
@@ -42,8 +42,7 @@ async def _wait_for_internal_mcp_server():
             logger.debug(f"Waiting for internal MCP server... (attempt {attempt + 1}/{max_retries})")
             await asyncio.sleep(retry_delay)
     
-    logger.warning("Internal MCP server not ready, continuing without it")
-    # Don't raise an error, just log a warning and continue
+    raise RuntimeError("Internal MCP server failed to start within timeout")
 
 
 @asynccontextmanager
@@ -57,16 +56,15 @@ async def lifespan(app: FastAPI):
     # Wait for internal MCP server to be ready
     await _wait_for_internal_mcp_server()
     
-    # Initialize MCP Orchestrator (optional)
+    # Initialize MCP Orchestrator
     try:
         from .services.mcp.orchestrator import get_mcp_orchestrator
         mcp_orchestrator = get_mcp_orchestrator()
         await mcp_orchestrator.initialize()
         logger.info("MCP Orchestrator initialized successfully")
     except Exception as e:
-        logger.warning(f"Failed to initialize MCP Orchestrator: {str(e)}")
-        logger.warning("Continuing without MCP Orchestrator - some features may be unavailable")
-        # Don't raise an error, just log a warning and continue
+        logger.error(f"Failed to initialize MCP Orchestrator: {str(e)}")
+        raise
     
     yield
     
@@ -271,45 +269,20 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    # Simple health check that always returns 200 for deployment pipeline
-    return {
-        "status": "healthy",
-        "timestamp": time.time(),
-        "version": "1.0.0",
-        "service": "Word Add-in MCP Backend"
-    }
-
-
-@app.get("/health/detailed")
-async def detailed_health_check():
-    """Detailed health check endpoint with MCP orchestrator status."""
     try:
-        # Basic health check - don't fail if MCP orchestrator is not ready
-        health_status = {
+        # Check MCP Orchestrator status
+        from .services.mcp.orchestrator import mcp_orchestrator
+        orchestrator_status = await mcp_orchestrator.get_server_health()
+        
+        return {
             "status": "healthy",
             "timestamp": time.time(),
-            "version": "1.0.0",
-            "service": "Word Add-in MCP Backend"
+            "mcp_orchestrator": orchestrator_status,
+            "version": "1.0.0"
         }
         
-        # Try to get MCP orchestrator status, but don't fail if it's not available
-        try:
-            from .services.mcp.orchestrator import mcp_orchestrator
-            orchestrator_status = await mcp_orchestrator.get_server_health()
-            health_status["mcp_orchestrator"] = orchestrator_status
-        except Exception as e:
-            logger.warning(f"MCP orchestrator health check failed: {str(e)}")
-            health_status["mcp_orchestrator"] = {
-                "status": "degraded",
-                "error": str(e),
-                "timestamp": time.time()
-            }
-            # Don't fail the health check for MCP orchestrator issues
-        
-        return health_status
-        
     except Exception as e:
-        logger.error(f"Detailed health check failed: {str(e)}")
+        logger.error(f"Health check failed: {str(e)}")
         return JSONResponse(
             status_code=503,
             content={
