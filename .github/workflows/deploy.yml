@@ -306,7 +306,7 @@ jobs:
         
         # Test 2: MCP Tools Count
         echo "🔍 Testing MCP tools loading..."
-        TOOLS_COUNT=$(curl -s "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" | jq '.tools | length')
+        TOOLS_COUNT=$(curl -s -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" | jq '.tools | length')
         if [ "$TOOLS_COUNT" -lt 4 ]; then
           echo "❌ MCP tools count check failed: Expected at least 4, got $TOOLS_COUNT"
           exit 1
@@ -317,6 +317,7 @@ jobs:
         echo "🔍 Testing web search functionality..."
         SEARCH_RESPONSE=$(curl -s -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/agent/chat" \
           -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $AUTH0_TEST_TOKEN" \
           -d '{"message": "Search for test", "session_id": "deployment-test"}')
         
         # Extract values using a more robust approach
@@ -362,7 +363,7 @@ jobs:
         )
         
         for endpoint in "${ENDPOINTS[@]}"; do
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net$endpoint")
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net$endpoint")
           if [ "$HTTP_CODE" -ne 200 ]; then
             echo "❌ API endpoint $endpoint returned HTTP $HTTP_CODE"
             exit 1
@@ -374,6 +375,7 @@ jobs:
         echo "🔍 Testing patent search functionality..."
         PATENT_SEARCH_RESPONSE=$(curl -s --max-time 300 -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools/prior_art_search_tool/execute" \
           -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $AUTH0_TEST_TOKEN" \
           -d '{"parameters": {"query": "5G handover using AI"}}')
         
         if echo "$PATENT_SEARCH_RESPONSE" | grep -q "Prior Art Search Report"; then
