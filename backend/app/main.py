@@ -24,14 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 async def _wait_for_internal_mcp_server():
-    """Wait for internal MCP server to be ready (optional in production)."""
+    """Wait for internal MCP server to be ready."""
     import aiohttp
     import asyncio
-    
-    # Skip waiting in production environment
-    if settings.environment == "production":
-        logger.info("Skipping internal MCP server wait in production")
-        return
     
     max_retries = 30
     retry_delay = 1
@@ -61,19 +56,15 @@ async def lifespan(app: FastAPI):
     # Wait for internal MCP server to be ready
     await _wait_for_internal_mcp_server()
     
-    # Initialize MCP Orchestrator (optional in production)
+    # Initialize MCP Orchestrator
     try:
         from .services.mcp.orchestrator import get_mcp_orchestrator
         mcp_orchestrator = get_mcp_orchestrator()
         await mcp_orchestrator.initialize()
         logger.info("MCP Orchestrator initialized successfully")
     except Exception as e:
-        if settings.environment == "production":
-            logger.warning(f"Failed to initialize MCP Orchestrator in production: {str(e)}")
-            logger.warning("Continuing without MCP Orchestrator - some features may be unavailable")
-        else:
-            logger.error(f"Failed to initialize MCP Orchestrator: {str(e)}")
-            raise
+        logger.error(f"Failed to initialize MCP Orchestrator: {str(e)}")
+        raise
     
     yield
     
