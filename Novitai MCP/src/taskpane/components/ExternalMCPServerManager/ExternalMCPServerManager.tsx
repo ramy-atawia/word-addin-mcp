@@ -8,6 +8,16 @@ import {
 } from '@fluentui/react-icons';
 import { AddServerModal } from './AddServerModal';
 import { getApiUrl } from '../../../config/backend';
+import { getAccessToken } from '../../../services/authTokenStore';
+
+const getAuthHeaders = () => {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+};
 
 export interface ExternalMCPServer {
   id: string;
@@ -65,9 +75,7 @@ export const ExternalMCPServerManager: React.FC = () => {
       // Call backend API to get real server list
       const response = await fetch(getApiUrl('EXTERNAL_SERVERS'), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
       });
 
       console.log('Response status:', response.status);
@@ -134,8 +142,12 @@ export const ExternalMCPServerManager: React.FC = () => {
         try {
           const response = await fetch(getApiUrl('TEST_CONNECTION'), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ server_id: server.id })
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              name: server.name,
+              description: `Health check for ${server.name}`,
+              server_url: server.url
+            })
           });
           
           if (response.ok) {

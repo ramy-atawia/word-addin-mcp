@@ -7,10 +7,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies for cryptography
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
+    gcc \
+    g++ \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -34,6 +38,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install runtime dependencies and dev tools
 RUN apt-get update && apt-get install -y \
     curl \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -74,6 +80,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     curl \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user

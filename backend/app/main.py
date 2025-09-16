@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 
 from .core.config import settings
 from .core.logging import setup_logging
+from .middleware.auth0_jwt_middleware import Auth0JWTMiddleware
 from .api.v1 import mcp, external_mcp, session, health
 
 # Setup logging
@@ -101,43 +102,10 @@ app = FastAPI(
 
 # OpenAPI documentation available at /docs
 
-# CORS disabled for development - will be handled in infrastructure
-@app.middleware("http")
-async def disable_cors(request: Request, call_next):
-    """Disable CORS completely for development."""
-    response = await call_next(request)
-    
-    # Add permissive CORS headers
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "false"
-    response.headers["Access-Control-Max-Age"] = "86400"
-    
-    # Handle preflight requests
-    if request.method == "OPTIONS":
-        response.status_code = 200
-        return response
-    
-    return response
+# IMPORTANT: Middleware order matters! They execute in REVERSE order of addition.
+# Last added = First to execute (outermost layer)
 
-# Add trusted host middleware
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=settings.allowed_hosts
-)
-
-
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    """Add process time header to responses."""
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
-
-
+# Add request logging middleware (outermost - executes first)
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     """Log all incoming requests."""
@@ -170,6 +138,61 @@ async def log_requests(request: Request, call_next):
             f"Error: {str(e)}, Process Time: {process_time:.3f}s"
         )
         raise
+
+
+# Add process time header middleware
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    """Add process time header to responses."""
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+
+# CORS disabled for development - will be handled in infrastructure
+@app.middleware("http")
+async def disable_cors(request: Request, call_next):
+    """Disable CORS completely for development."""
+    response = await call_next(request)
+    
+    # Add permissive CORS headers
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "false"
+    response.headers["Access-Control-Max-Age"] = "86400"
+    
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        response.status_code = 200
+        return response
+    
+    return response
+
+
+# Add Auth0 JWT Middleware (this will execute AFTER the CORS middleware above)
+if settings.auth0_enabled:
+    logger.info(f"Enabling Auth0 JWT middleware for domain: {settings.auth0_domain}")
+    logger.info(f"Auth0 excluded paths: {settings.auth0_excluded_paths}")
+    
+    app.add_middleware(
+        Auth0JWTMiddleware, 
+        domain=settings.auth0_domain,
+        audience=settings.auth0_audience,
+        excluded_paths=settings.auth0_excluded_paths,
+        fallback_mode=True
+    )
+else:
+    logger.warning("Auth0 JWT middleware is DISABLED - all endpoints are publicly accessible!")
+
+
+# Add trusted host middleware (this will execute LAST, closest to the application)
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=settings.allowed_hosts
+)
 
 
 @app.exception_handler(Exception)
@@ -223,22 +246,17 @@ app.include_router(
     tags=["external-mcp"]
 )
 
-
-
 app.include_router(
     session.router,
     prefix="/api/v1",
     tags=["session"]
 )
 
-# Auth router removed - no auth module exists
-
 app.include_router(
     health.router,
     prefix="/api/v1",
     tags=["health"]
 )
-
 
 
 @app.get("/")

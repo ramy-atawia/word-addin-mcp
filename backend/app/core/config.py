@@ -130,6 +130,23 @@ class Settings(BaseSettings):
     frontend_url: str = os.getenv("FRONTEND_URL", "https://localhost:3000")
     frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "https://localhost:3000")
     
+    # Auth0 Configuration
+    auth0_domain: str = os.getenv("AUTH0_DOMAIN", "dev-bktskx5kbc655wcl.us.auth0.com")
+    auth0_audience: str = os.getenv("AUTH0_AUDIENCE", "INws849yDXaC6MZVXnLhMJi6CZC4nx6U")
+    auth0_enabled: bool = os.getenv("AUTH0_ENABLED", "true").lower() == "true"
+    
+    # Auth0 Excluded Paths (paths that don't require authentication)
+    auth0_excluded_paths: List[str] = [
+        "/health",
+        "/",
+        "/docs",
+        "/redoc", 
+        "/openapi.json",
+        "/api/v1/health",
+        "/api/v1/health/live",
+        "/api/v1/health/ready"
+    ]
+    
     # API Configuration
     api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:9000")
     api_docs_url: str = os.getenv("API_DOCS_URL", "http://localhost:9000/docs")

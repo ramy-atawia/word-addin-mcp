@@ -23,6 +23,7 @@ import ChatInterface from './ChatInterface/ChatInterface';
 import ToolLibrary from './ToolLibrary/ToolLibrary';
 import { LoginForm } from './LoginForm';
 import { useAuth } from '../../contexts/AuthContext';
+import { getAccessToken } from '../../services/authTokenStore';
 
 import { ExternalMCPServerManager } from './ExternalMCPServerManager';
 import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus } from '../services/types';
@@ -204,6 +205,21 @@ const MCPToolManager: React.FC = () => {
   const [chatLoading, setChatLoading] = useState(false);
 
   // Using mcpToolService directly
+  const getAuthHeaders = () => {
+    const token = getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
+  const hasAuthToken = () => {
+    const token = getAccessToken();
+    return token !== null && token.length > 0;
+  };
   
   // Background auto-refresh functionality (always on)
   useEffect(() => {
@@ -212,7 +228,10 @@ const MCPToolManager: React.FC = () => {
       const refreshData = async () => {
         try {
           // Load tools first
-          const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
+          const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+          });
           if (toolsResponse.ok) {
             const toolsData = await toolsResponse.json();
             if (toolsData.tools) {
@@ -231,7 +250,10 @@ const MCPToolManager: React.FC = () => {
           };
 
           // Load external servers
-          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
+          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+          });
           if (serversResponse.ok) {
             const serversData = await serversResponse.json();
             if (serversData.servers) {
@@ -407,8 +429,24 @@ const MCPToolManager: React.FC = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Load tools first
-        const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
+        // If no auth token, only populate internal server and skip protected calls
+        if (!hasAuthToken()) {
+          setServers([{
+            id: 'internal',
+            name: 'Internal Server',
+            url: getBackendUrl(),
+            status: 'healthy',
+            connected: true,
+            toolCount: 0
+          }]);
+          return;
+        }
+
+        // Load tools first (authenticated)
+        const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`, {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        });
         if (toolsResponse.ok) {
           const toolsData = await toolsResponse.json();
           if (toolsData.tools) {
@@ -426,8 +464,11 @@ const MCPToolManager: React.FC = () => {
           toolCount: 0 // Will be updated after tools are loaded
         };
 
-        // Load external servers
-        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
+        // Load external servers (authenticated)
+        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`, {
+          method: 'GET',
+          headers: getAuthHeaders(),
+        });
         if (serversResponse.ok) {
           const serversData = await serversResponse.json();
           if (serversData.servers) {
@@ -502,9 +543,7 @@ const MCPToolManager: React.FC = () => {
       
       const response = await fetch(getApiUrl('EXTERNAL_SERVERS'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(requestBody)
       });
 
@@ -552,7 +591,10 @@ const MCPToolManager: React.FC = () => {
       const refreshData = async () => {
         try {
           // Load tools first
-          const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
+          const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+          });
           if (toolsResponse.ok) {
             const toolsData = await toolsResponse.json();
             if (toolsData.tools) {
@@ -571,7 +613,10 @@ const MCPToolManager: React.FC = () => {
           };
 
           // Load external servers
-          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
+          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+          });
           if (serversResponse.ok) {
             const serversData = await serversResponse.json();
             if (serversData.servers) {
@@ -676,8 +721,24 @@ const MCPToolManager: React.FC = () => {
                   setTimeout(() => {
                     const loadData = async () => {
                       try {
-                        // Load tools first
-                        const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`);
+                        // If no auth token, only populate internal server
+                        if (!hasAuthToken()) {
+                          setServers([{
+                            id: 'internal',
+                            name: 'Internal Server',
+                            url: getBackendUrl(),
+                            status: 'healthy',
+                            connected: true,
+                            toolCount: 0
+                          }]);
+                          return;
+                        }
+
+                        // Load tools (authenticated)
+                        const toolsResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/tools`, {
+                          method: 'GET',
+                          headers: getAuthHeaders(),
+                        });
                         if (toolsResponse.ok) {
                           const toolsData = await toolsResponse.json();
                           if (toolsData.tools) {
@@ -695,8 +756,11 @@ const MCPToolManager: React.FC = () => {
                           toolCount: 0
                         };
 
-                        // Load external servers
-                        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`);
+                        // Load external servers (authenticated)
+                        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`, {
+                          method: 'GET',
+                          headers: getAuthHeaders(),
+                        });
                         if (serversResponse.ok) {
                           const serversData = await serversResponse.json();
                           if (serversData.servers) {

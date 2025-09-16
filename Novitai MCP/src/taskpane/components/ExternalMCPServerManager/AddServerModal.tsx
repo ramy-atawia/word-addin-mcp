@@ -6,6 +6,7 @@ import {
   Add24Regular, Link24Regular, Server24Regular, Key24Regular
 } from '@fluentui/react-icons';
 import { getApiUrl } from '../../../config/backend';
+import { getAccessToken } from '../../../services/authTokenStore';
 
 
 interface AddServerModalProps {
@@ -87,11 +88,13 @@ export const AddServerModal: React.FC<AddServerModalProps> = ({
 
     try {
       // Test connection directly
+      const token = getAccessToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const response = await fetch(getApiUrl('TEST_CONNECTION'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ 
           name: formData.name,
           description: `Test connection to ${formData.url}`,

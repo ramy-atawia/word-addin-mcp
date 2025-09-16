@@ -33,6 +33,19 @@ window.fetch = function(...args) {
   return originalFetch.apply(this, args);
 };
 
+// Ensure webpack HMR runtime array exists to avoid "push of undefined" errors
+// Webpack creates a global like `self.webpackHotUpdate<name>` during HMR updates;
+// some dev setups may attempt to call `.push` on it before it's initialized.
+if (typeof self !== 'undefined') {
+  try {
+    // Use bracket access to avoid TypeScript/identifier issues
+    const key = 'webpackHotUpdatenovitai_mcp_word_addin';
+    (self as any)[key] = (self as any)[key] || [];
+  } catch (e) {
+    // no-op
+  }
+}
+
 const rootElement: HTMLElement | null = document.getElementById("container");
 const root = rootElement ? createRoot(rootElement) : undefined;
 
