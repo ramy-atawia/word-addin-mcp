@@ -116,5 +116,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose port
 EXPOSE 9000
 
-# Default command - use app_starter to run both backend and internal MCP server
-CMD ["python", "-m", "app.app_starter"]
+# Default command - use simple uvicorn for production
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000"]

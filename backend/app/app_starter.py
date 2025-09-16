@@ -50,11 +50,21 @@ class AppStarter:
         """Start both applications concurrently."""
         logger.info("Starting both applications...")
         
-        # Start both servers concurrently
-        await asyncio.gather(
-            self.start_backend(),
-            self.start_internal_mcp()
-        )
+        # Start both servers concurrently, but don't fail if one fails
+        try:
+            await asyncio.gather(
+                self.start_backend(),
+                self.start_internal_mcp(),
+                return_exceptions=True
+            )
+        except Exception as e:
+            logger.error(f"Error starting applications: {e}")
+            # If both fail, at least try to start the backend
+            try:
+                await self.start_backend()
+            except Exception as backend_error:
+                logger.error(f"Backend also failed to start: {backend_error}")
+                raise
     
     async def shutdown(self):
         """Shutdown both applications."""
