@@ -25,9 +25,7 @@ httpx>=0.28.1  # Required by fastmcp
 requests==2.31.0
 aiohttp==3.9.1
 
-# Security and Authentication
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+# HTTP and Forms
 python-multipart>=0.0.9
 
 # Utilities

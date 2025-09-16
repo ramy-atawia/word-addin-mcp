@@ -62,17 +62,6 @@ class Settings(BaseSettings):
     log_backup_count: int = int(os.getenv("LOG_BACKUP_COUNT", "5"))
     
     
-    # Security Configuration
-    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-    refresh_token_expire_days: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
-    password_min_length: int = int(os.getenv("PASSWORD_MIN_LENGTH", "8"))
-    password_require_special: bool = os.getenv("PASSWORD_REQUIRE_SPECIAL", "true").lower() == "true"
-    password_require_numbers: bool = os.getenv("PASSWORD_REQUIRE_NUMBERS", "true").lower() == "true"
-    max_login_attempts: int = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
-    lockout_duration_minutes: int = int(os.getenv("LOCKOUT_DURATION_MINUTES", "15"))
-    
     
     # CORS Configuration
     allowed_origins: List[str] = ["*"]  # Allow all origins for development
@@ -140,12 +129,6 @@ class Settings(BaseSettings):
     # Frontend Configuration
     frontend_url: str = os.getenv("FRONTEND_URL", "https://localhost:3000")
     frontend_base_url: str = os.getenv("FRONTEND_BASE_URL", "https://localhost:3000")
-    
-    # Auth0 Configuration
-    auth0_domain: str = os.getenv("AUTH0_DOMAIN", "dev-bktskx5kbc655wcl.us.auth0.com")
-    auth0_client_id: str = os.getenv("AUTH0_CLIENT_ID", "")
-    auth0_client_secret: str = os.getenv("AUTH0_CLIENT_SECRET", "")
-    auth0_audience: str = os.getenv("AUTH0_AUDIENCE", "INws849yDXaC6MZVXnLhMJi6CZC4nx6U")
     
     # API Configuration
     api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:9000")

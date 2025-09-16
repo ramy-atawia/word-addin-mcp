@@ -5,18 +5,15 @@ This module provides the main FastAPI application with all API routes
 and middleware configured for MCP compliance.
 """
 
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer
 import logging
 import time
 from contextlib import asynccontextmanager
 
 from .core.config import settings
-from .middleware.auth0_middleware import init_auth0_middleware, verify_token_optional
 from .core.logging import setup_logging
-from .core.openapi_config import custom_openapi
 from .api.v1 import mcp, external_mcp, session, health
 
 # Setup logging
@@ -53,10 +50,6 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Word Add-in MCP Backend")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
-    
-    # Initialize Auth0 middleware
-    init_auth0_middleware(settings.auth0_domain, settings.auth0_audience)
-    logger.info(f"Auth0 middleware initialized with domain: {settings.auth0_domain}")
     
     # Wait for internal MCP server to be ready
     await _wait_for_internal_mcp_server()
@@ -106,8 +99,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Set custom OpenAPI schema with Bearer token authentication
-app.openapi = lambda: custom_openapi(app)
+# OpenAPI documentation available at /docs
 
 # CORS disabled for development - will be handled in infrastructure
 @app.middleware("http")
