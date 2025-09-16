@@ -274,6 +274,23 @@ jobs:
         echo "Waiting for deployment to complete..."
         sleep 60
 
+    - name: Get Auth0 M2M token
+      id: auth0_token
+      run: |
+        set -eu
+        echo "Requesting Auth0 machine-to-machine token..."
+        resp=$(curl -s -X POST "https://dev-bktskx5kbc655wcl.us.auth0.com/oauth/token" \
+          -H "content-type: application/json" \
+          -d '{"client_id":"INws849yDXaC6MZVXnLhMJi6CZC4nx6U","client_secret":"'"${{ secrets.AUTH0_CLIENT_SECRET }}"'","audience":"INws849yDXaC6MZVXnLhMJi6CZC4nx6U","grant_type":"client_credentials"}')
+        echo "Auth0 response: $resp" >&2
+        token=$(echo "$resp" | jq -r .access_token)
+        if [ -z "$token" ] || [ "$token" = "null" ]; then
+          echo "Failed to obtain Auth0 token: $resp" >&2
+          exit 1
+        fi
+        echo "AUTH0_TEST_TOKEN=$token" >> $GITHUB_ENV
+        echo "Obtained Auth0 token length: ${#token}"
+
     - name: Run Post-Deployment Tests
       run: |
         echo "Running comprehensive post-deployment tests..."
