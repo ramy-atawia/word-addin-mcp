@@ -1,3 +1,4 @@
+# Trigger note: comment-only change to force CI run
 name: Deployment Pipeline
 
 on:
