@@ -52,6 +52,10 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
+# Copy application code (excluding .env files)
+COPY . .
+RUN rm -f .env.local .env
+
 # Create necessary directories
 RUN mkdir -p logs uploads && \
     chown -R appuser:appuser /app
@@ -112,5 +116,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose port
 EXPOSE 9000
 
-# Default command
+# Default command - use app_starter to run both backend and internal MCP server
 CMD ["python", "-m", "app.app_starter"]
