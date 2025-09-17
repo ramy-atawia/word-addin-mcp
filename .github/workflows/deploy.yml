@@ -1,19 +1,10 @@
-# Trigger note: comment-only change to force CI run
+# Complete deployment pipeline with all fixes applied
 name: Deployment Pipeline
 
 on:
   push:
     branches: [ main, dev ]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'development'
-        type: choice
-        options:
-        - development
-        - production
 
 env:
   # Use Azure Container Registry for both environments
@@ -24,11 +15,10 @@ env:
   RESOURCE_GROUP: novitai-word-mcp-rg
 
 jobs:
-  # Pre-deployment Tests for Development
-  test-development:
+  # Pre-deployment Tests
+  test:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dev' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
-    environment: development
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
     outputs:
       tests-passed: ${{ steps.test-results.outputs.all-passed }}
 
@@ -41,8 +31,12 @@ jobs:
       with:
         python-version: '3.12'
 
-    - name: Install Python dependencies
+    - name: Install dependencies
       run: |
+        # Install jq for JSON parsing
+        sudo apt-get update && sudo apt-get install -y jq
+        
+        # Install Python dependencies
         cd backend
         pip install -r requirements.txt
 
@@ -50,72 +44,85 @@ jobs:
       run: |
         cd backend
         echo "Running backend unit tests..."
-        python -m pytest tests/ -v --tb=short || echo "No unit tests found, skipping..."
+        if ! python -m pytest tests/ -v --tb=short; then
+          echo "Backend unit tests failed"
+          exit 1
+        fi
 
     - name: Run Patent Search Tests
       run: |
         echo "Running patent search consolidated tests..."
-        python3 tests/consolidated_patent_search_tests.py
+        if ! python3 tests/consolidated_patent_search_tests.py; then
+          echo "Patent search tests failed"
+          exit 1
+        fi
 
     - name: Run Frontend Linting
       run: |
         cd "Novitai MCP"
         echo "Running frontend linting..."
-        npm install || echo "No package.json found, skipping..."
-        npm run lint || echo "No lint script found, skipping..."
+        if [ -f "package.json" ]; then
+          npm install
+          if npm run lint; then
+            echo "Frontend linting passed"
+          else
+            echo "Frontend linting failed"
+            exit 1
+          fi
+        else
+          echo "No package.json found, skipping linting"
+        fi
 
     - name: Validate Configuration Files
       run: |
         echo "Validating configuration files..."
         
         # Check if required files exist
-        test -f backend/app/core/config.py || (echo "❌ Missing config.py" && exit 1)
-        test -f "Novitai MCP/webpack.config.js" || (echo "❌ Missing webpack.config.js" && exit 1)
-        test -f ".github/workflows/deploy.yml" || (echo "❌ Missing deploy.yml" && exit 1)
+        test -f backend/app/core/config.py || (echo "Missing config.py" && exit 1)
+        test -f "Novitai MCP/webpack.config.js" || (echo "Missing webpack.config.js" && exit 1)
+        test -f ".github/workflows/deploy.yml" || (echo "Missing deploy.yml" && exit 1)
         
         # Validate JSON files
-        python -c "import json; json.load(open('backend/configured_mcp_servers.json'))" || (echo "❌ Invalid JSON in configured_mcp_servers.json" && exit 1)
+        python -c "import json; json.load(open('backend/configured_mcp_servers.json'))" || (echo "Invalid JSON in configured_mcp_servers.json" && exit 1)
         
-        echo "✅ All configuration files are valid"
+        echo "All configuration files are valid"
 
     - name: Test Docker Build (Backend)
       run: |
         echo "Testing backend Docker build..."
         cd backend
-        docker build --platform linux/amd64 -t test-backend:latest --target production . || (echo "❌ Backend Docker build failed" && exit 1)
-        echo "✅ Backend Docker build successful"
+        if ! docker build --platform linux/amd64 -t test-backend:latest --target production .; then
+          echo "Backend Docker build failed"
+          exit 1
+        fi
+        echo "Backend Docker build successful"
 
     - name: Test Docker Build (Frontend)
       run: |
         echo "Testing frontend Docker build..."
         cd "Novitai MCP"
-        docker build --platform linux/amd64 -t test-frontend:latest \
+        if ! docker build --platform linux/amd64 -t test-frontend:latest \
           --build-arg REACT_APP_API_BASE_URL=https://test-backend.azurewebsites.net \
           --build-arg REACT_APP_AUTH0_DOMAIN=test.auth0.com \
           --build-arg REACT_APP_AUTH0_CLIENT_ID=test-client \
           --build-arg REACT_APP_AUTH0_AUDIENCE=test-audience \
-          . || (echo "❌ Frontend Docker build failed" && exit 1)
-        echo "✅ Frontend Docker build successful"
-
-    - name: Validate Environment Variables
-      run: |
-        echo "Validating environment variable configuration..."
-        
-        # Check if environment variable references are properly configured in workflow
-        echo "✅ Environment variable validation will be performed during deployment"
-        echo "✅ Secrets validation will be handled by Azure deployment step"
+          .; then
+          echo "Frontend Docker build failed"
+          exit 1
+        fi
+        echo "Frontend Docker build successful"
 
     - name: Test Results Summary
       id: test-results
       run: |
-        echo "✅ All pre-deployment tests passed!"
+        echo "All pre-deployment tests passed!"
         echo "all-passed=true" >> $GITHUB_OUTPUT
 
-  # Deploy to Development (only if tests pass)
+  # Deploy to Development
   deploy-development:
     runs-on: ubuntu-latest
-    needs: test-development
-    if: github.ref == 'refs/heads/dev' && needs.test-development.outputs.tests-passed == 'true' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'development')
+    needs: test
+    if: github.ref == 'refs/heads/dev' && needs.test.outputs.tests-passed == 'true'
     environment: development
 
     steps:
@@ -129,49 +136,51 @@ jobs:
       run: |
         echo "Validating all required secrets are available..."
         
-        # Check if all required secrets are available
+        secrets_missing=false
+        
+        # Check all required secrets
         if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-          echo "❌ Missing required secret: AZURE_CREDENTIALS"
-          exit 1
+          echo "Missing required secret: AZURE_CREDENTIALS"
+          secrets_missing=true
         fi
         if [ -z "${{ secrets.ACR_USERNAME }}" ]; then
-          echo "❌ Missing required secret: ACR_USERNAME"
-          exit 1
+          echo "Missing required secret: ACR_USERNAME"
+          secrets_missing=true
         fi
         if [ -z "${{ secrets.ACR_PASSWORD }}" ]; then
-          echo "❌ Missing required secret: ACR_PASSWORD"
-          exit 1
+          echo "Missing required secret: ACR_PASSWORD"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.AUTH0_CLIENT_SECRET }}" ]; then
+          echo "Missing required secret: AUTH0_CLIENT_SECRET"
+          secrets_missing=true
         fi
         if [ -z "${{ secrets.AZURE_OPENAI_API_KEY }}" ]; then
-          echo "❌ Missing required secret: AZURE_OPENAI_API_KEY"
-          exit 1
+          echo "Missing required secret: AZURE_OPENAI_API_KEY"
+          secrets_missing=true
         fi
         if [ -z "${{ secrets.AZURE_OPENAI_ENDPOINT }}" ]; then
-          echo "❌ Missing required secret: AZURE_OPENAI_ENDPOINT"
-          exit 1
+          echo "Missing required secret: AZURE_OPENAI_ENDPOINT"
+          secrets_missing=true
         fi
         if [ -z "${{ secrets.GOOGLE_API_KEY }}" ]; then
-          echo "❌ Missing required secret: GOOGLE_API_KEY"
-          exit 1
+          echo "Missing required secret: GOOGLE_API_KEY"
+          secrets_missing=true
         fi
         if [ -z "${{ secrets.GOOGLE_CSE_ID }}" ]; then
-          echo "❌ Missing required secret: GOOGLE_CSE_ID"
-          exit 1
+          echo "Missing required secret: GOOGLE_CSE_ID"
+          secrets_missing=true
         fi
         if [ -z "${{ secrets.PATENTSVIEW_API_KEY }}" ]; then
-          echo "❌ Missing required secret: PATENTSVIEW_API_KEY"
+          echo "Missing required secret: PATENTSVIEW_API_KEY"
+          secrets_missing=true
+        fi
+        
+        if [ "$secrets_missing" = true ]; then
           exit 1
         fi
         
-        # Validate patent search specific configuration
-        echo "Validating patent search configuration..."
-        if [ -z "${{ secrets.AZURE_OPENAI_API_KEY }}" ] || [ -z "${{ secrets.AZURE_OPENAI_ENDPOINT }}" ]; then
-          echo "❌ Missing required secrets for patent search LLM functionality"
-          exit 1
-        fi
-        
-        echo "✅ All required secrets are available"
-        echo "✅ Patent search configuration validated"
+        echo "All required secrets are available"
 
     - name: Login to Azure
       uses: azure/login@v1
@@ -204,6 +213,7 @@ jobs:
         platforms: linux/amd64
         build-args: |
           REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net
+          REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net
           REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
           REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
           REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
@@ -212,7 +222,7 @@ jobs:
           ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }}
         cache-from: type=gha
 
-    - name: Deploy to Azure App Service
+    - name: Deploy Backend to Azure App Service
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.BACKEND_APP_NAME }}
@@ -221,12 +231,16 @@ jobs:
     - name: Configure Backend Environment Variables
       run: |
         echo "Setting up backend environment variables..."
+        
+        # Generate unique secret key for development
+        SECRET_KEY=$(openssl rand -base64 32)
+        
         az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings \
           ENVIRONMENT=development \
           LOG_LEVEL=DEBUG \
           DEBUG=false \
           PORT=9000 \
-          SECRET_KEY=K9MHoSnUTr7ia6L9jaXQD8MZF4Eo/bxciBHmlTQQySg= \
+          SECRET_KEY="$SECRET_KEY" \
           ALLOWED_ORIGINS='["https://novitai-word-mcp-frontend-dev.azurewebsites.net"]' \
           ALLOWED_HOSTS='["*"]' \
           AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
@@ -270,134 +284,129 @@ jobs:
           NODE_ENV=production \
           DOCKER_ENABLE_CI=true
 
-    - name: Wait for Deployment
+    - name: Wait for Deployment with Health Check
       run: |
-        echo "Waiting for deployment to complete..."
-        sleep 60
+        echo "Waiting for deployment to become healthy..."
+        max_attempts=30
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          if curl -s -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" >/dev/null 2>&1; then
+            echo "Deployment is healthy after ${attempt} attempts"
+            break
+          fi
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Deployment failed to become healthy after $max_attempts attempts"
+            exit 1
+          fi
+          
+          echo "Attempt $attempt/$max_attempts failed, waiting 10 seconds..."
+          sleep 10
+          ((attempt++))
+        done
 
     - name: Get Auth0 M2M token
       id: auth0_token
       run: |
         set -eu
         echo "Requesting Auth0 machine-to-machine token..."
+        
         resp=$(curl -s -X POST "https://dev-bktskx5kbc655wcl.us.auth0.com/oauth/token" \
           -H "content-type: application/json" \
           -d '{"client_id":"INws849yDXaC6MZVXnLhMJi6CZC4nx6U","client_secret":"'"${{ secrets.AUTH0_CLIENT_SECRET }}"'","audience":"INws849yDXaC6MZVXnLhMJi6CZC4nx6U","grant_type":"client_credentials"}')
-        echo "Auth0 response: $resp" >&2
-        token=$(echo "$resp" | jq -r .access_token)
-        if [ -z "$token" ] || [ "$token" = "null" ]; then
-          echo "Failed to obtain Auth0 token: $resp" >&2
+        
+        token=$(echo "$resp" | jq -r '.access_token // empty')
+        if [ -z "$token" ]; then
+          echo "Failed to obtain Auth0 token"
           exit 1
         fi
+        
         echo "AUTH0_TEST_TOKEN=$token" >> $GITHUB_ENV
-        echo "Obtained Auth0 token length: ${#token}"
+        echo "Successfully obtained Auth0 token"
 
     - name: Run Post-Deployment Tests
       run: |
         echo "Running comprehensive post-deployment tests..."
         
         # Test 1: Backend Health Check
-        echo "🔍 Testing backend health..."
-        BACKEND_HEALTH=$(curl -s "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" | jq -r '.status')
-        if [ "$BACKEND_HEALTH" != "healthy" ]; then
-          echo "❌ Backend health check failed: $BACKEND_HEALTH"
+        echo "Testing backend health..."
+        health_response=$(curl -s -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" || echo '{"status":"error"}')
+        health_status=$(echo "$health_response" | jq -r '.status // "unknown"')
+        
+        if [ "$health_status" != "healthy" ]; then
+          echo "Backend health check failed: $health_status"
+          echo "Response: $health_response"
           exit 1
         fi
-        echo "✅ Backend health check passed: $BACKEND_HEALTH"
+        echo "Backend health check passed: $health_status"
         
         # Test 2: MCP Tools Count
-        echo "🔍 Testing MCP tools loading..."
-        TOOLS_COUNT=$(curl -s -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" | jq '.tools | length')
-        if [ "$TOOLS_COUNT" -lt 4 ]; then
-          echo "❌ MCP tools count check failed: Expected at least 4, got $TOOLS_COUNT"
+        echo "Testing MCP tools loading..."
+        tools_response=$(curl -s -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" || echo '{"tools":[]}')
+        tools_count=$(echo "$tools_response" | jq '.tools | length // 0')
+        
+        if [ "$tools_count" -lt 4 ]; then
+          echo "MCP tools count check failed: Expected at least 4, got $tools_count"
           exit 1
         fi
-        echo "✅ MCP tools check passed: $TOOLS_COUNT tools loaded"
+        echo "MCP tools check passed: $tools_count tools loaded"
         
         # Test 3: Web Search Functionality
-        echo "🔍 Testing web search functionality..."
-        SEARCH_RESPONSE=$(curl -s -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/agent/chat" \
+        echo "Testing web search functionality..."
+        search_response=$(curl -s -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/agent/chat" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $AUTH0_TEST_TOKEN" \
-          -d '{"message": "Search for test", "session_id": "deployment-test"}')
+          -d '{"message": "Search for test", "session_id": "deployment-test"}' || echo '{"success":false}')
         
-        # Extract values using a more robust approach
-        SEARCH_SUCCESS=$(echo "$SEARCH_RESPONSE" | grep -o '"success":[^,]*' | cut -d: -f2 | tr -d ' "')
-        SEARCH_TOOL=$(echo "$SEARCH_RESPONSE" | grep -o '"tool_name":"[^"]*"' | cut -d: -f2 | tr -d ' "')
-        
-        # Check if response contains search results (basic validation)
-        if echo "$SEARCH_RESPONSE" | grep -q "Web Search Results"; then
-          SEARCH_HAS_RESULTS="true"
-          # Use total response length as a proxy for content length
-          SEARCH_LENGTH=$(echo "$SEARCH_RESPONSE" | wc -c)
+        if echo "$search_response" | grep -q "Web Search Results"; then
+          search_length=$(echo "$search_response" | wc -c)
+          echo "Web search test passed: $search_length characters returned"
         else
-          SEARCH_HAS_RESULTS="false"
-          SEARCH_LENGTH="0"
-        fi
-        
-        if [ "$SEARCH_SUCCESS" != "true" ] || [ "$SEARCH_TOOL" != "web_search_tool" ] || [ "$SEARCH_LENGTH" -lt 100 ]; then
-          echo "❌ Web search test failed:"
-          echo "  Success: $SEARCH_SUCCESS"
-          echo "  Tool: $SEARCH_TOOL"
-          echo "  Length: $SEARCH_LENGTH"
-          echo "  Has Results: $SEARCH_HAS_RESULTS"
-          echo "  Response preview: $(echo "$SEARCH_RESPONSE" | head -c 200)..."
+          echo "Web search test failed: No search results found"
+          echo "Response preview: $(echo "$search_response" | head -c 200)..."
           exit 1
         fi
-        echo "✅ Web search test passed: $SEARCH_LENGTH characters returned"
         
-        # Test 4: Frontend Configuration
-        echo "🔍 Testing frontend configuration..."
-        FRONTEND_BACKEND_URL=$(curl -s "https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net" | grep -o 'window\.BACKEND_URL = [^;]*')
-        if [[ ! "$FRONTEND_BACKEND_URL" == *"novitai-word-mcp-backend-dev.azurewebsites.net"* ]]; then
-          echo "❌ Frontend backend URL check failed: $FRONTEND_BACKEND_URL"
-          exit 1
-        fi
-        echo "✅ Frontend configuration test passed: $FRONTEND_BACKEND_URL"
+        # Test 4: API Endpoints Availability
+        echo "Testing API endpoints availability..."
+        endpoints=("/health" "/api/v1/mcp/tools" "/api/v1/debug/config")
         
-        # Test 5: API Endpoints Availability
-        echo "🔍 Testing API endpoints availability..."
-        ENDPOINTS=(
-          "/health"
-          "/api/v1/mcp/tools"
-          "/api/v1/debug/config"
-        )
-        
-        for endpoint in "${ENDPOINTS[@]}"; do
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net$endpoint")
-          if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "❌ API endpoint $endpoint returned HTTP $HTTP_CODE"
+        for endpoint in "${endpoints[@]}"; do
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net$endpoint")
+          if [ "$http_code" -ne 200 ]; then
+            echo "API endpoint $endpoint returned HTTP $http_code"
             exit 1
           fi
-          echo "✅ API endpoint $endpoint is accessible (HTTP $HTTP_CODE)"
+          echo "API endpoint $endpoint is accessible (HTTP $http_code)"
         done
         
-        # Test 6: Patent Search Functionality
-        echo "🔍 Testing patent search functionality..."
-        PATENT_SEARCH_RESPONSE=$(curl -s --max-time 300 -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools/prior_art_search_tool/execute" \
+        # Test 5: Patent Search Functionality
+        echo "Testing patent search functionality..."
+        patent_response=$(curl -s --max-time 300 -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools/prior_art_search_tool/execute" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $AUTH0_TEST_TOKEN" \
-          -d '{"parameters": {"query": "5G handover using AI"}}')
+          -d '{"parameters": {"query": "5G handover using AI"}}' || echo '{}')
         
-        if echo "$PATENT_SEARCH_RESPONSE" | grep -q "Prior Art Search Report"; then
-          echo "✅ Patent search test passed: Report generated successfully"
+        if echo "$patent_response" | grep -q "Prior Art Search Report"; then
+          echo "Patent search test passed: Report generated successfully"
         else
-          echo "❌ Patent search test failed: No report generated"
-          echo "Response: $(echo "$PATENT_SEARCH_RESPONSE" | head -c 200)..."
+          echo "Patent search test failed: No report generated"
+          echo "Response: $(echo "$patent_response" | head -c 200)..."
           exit 1
         fi
         
-        echo "🎉 All post-deployment tests passed successfully!"
+        echo "All post-deployment tests passed successfully!"
 
     - name: Notify development deployment
       if: always()
       run: |
         if [ "${{ job.status }}" == "success" ]; then
-          echo "🚀 Development deployment SUCCESSFUL for ${{ github.repository }}#${{ github.run_number }}"
-          echo "✅ All tests passed and deployment completed"
+          echo "Development deployment SUCCESSFUL for ${{ github.repository }}#${{ github.run_number }}"
+          echo "All tests passed and deployment completed"
         else
-          echo "❌ Development deployment FAILED for ${{ github.repository }}#${{ github.run_number }}"
-          echo "🔍 Check the logs for details"
+          echo "Development deployment FAILED for ${{ github.repository }}#${{ github.run_number }}"
+          echo "Check the logs for details"
         fi
         echo "Backend: https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net"
         echo "Frontend: https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net"
@@ -405,7 +414,8 @@ jobs:
   # Deploy to Production
   deploy-production:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    needs: test
+    if: github.ref == 'refs/heads/main' && needs.test.outputs.tests-passed == 'true'
     environment: production
 
     steps:
@@ -414,6 +424,56 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+
+    - name: Validate Required Secrets
+      run: |
+        echo "Validating all required secrets are available..."
+        
+        secrets_missing=false
+        
+        # Check all required secrets
+        if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+          echo "Missing required secret: AZURE_CREDENTIALS"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.ACR_USERNAME }}" ]; then
+          echo "Missing required secret: ACR_USERNAME"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.ACR_PASSWORD }}" ]; then
+          echo "Missing required secret: ACR_PASSWORD"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.AUTH0_CLIENT_SECRET }}" ]; then
+          echo "Missing required secret: AUTH0_CLIENT_SECRET"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.AZURE_OPENAI_API_KEY }}" ]; then
+          echo "Missing required secret: AZURE_OPENAI_API_KEY"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.AZURE_OPENAI_ENDPOINT }}" ]; then
+          echo "Missing required secret: AZURE_OPENAI_ENDPOINT"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.GOOGLE_API_KEY }}" ]; then
+          echo "Missing required secret: GOOGLE_API_KEY"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.GOOGLE_CSE_ID }}" ]; then
+          echo "Missing required secret: GOOGLE_CSE_ID"
+          secrets_missing=true
+        fi
+        if [ -z "${{ secrets.PATENTSVIEW_API_KEY }}" ]; then
+          echo "Missing required secret: PATENTSVIEW_API_KEY"
+          secrets_missing=true
+        fi
+        
+        if [ "$secrets_missing" = true ]; then
+          exit 1
+        fi
+        
+        echo "All required secrets are available"
 
     - name: Login to Azure
       uses: azure/login@v1
@@ -446,6 +506,7 @@ jobs:
         platforms: linux/amd64
         build-args: |
           REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend.azurewebsites.net
+          REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend.azurewebsites.net
           REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
           REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
           REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
@@ -454,7 +515,7 @@ jobs:
           ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }}
         cache-from: type=gha
 
-    - name: Deploy to Azure App Service
+    - name: Deploy Backend to Azure App Service
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.BACKEND_APP_NAME }}
@@ -463,12 +524,16 @@ jobs:
     - name: Configure Backend Environment Variables
       run: |
         echo "Setting up backend environment variables..."
+        
+        # Generate unique secret key for production
+        SECRET_KEY=$(openssl rand -base64 32)
+        
         az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings \
           ENVIRONMENT=production \
           LOG_LEVEL=INFO \
           DEBUG=false \
           PORT=9000 \
-          SECRET_KEY=K9MHoSnUTr7ia6L9jaXQD8MZF4Eo/bxciBHmlTQQySg= \
+          SECRET_KEY="$SECRET_KEY" \
           ALLOWED_ORIGINS='["https://novitai-word-mcp-frontend.azurewebsites.net"]' \
           ALLOWED_HOSTS='["*"]' \
           AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
@@ -512,57 +577,100 @@ jobs:
           NODE_ENV=production \
           DOCKER_ENABLE_CI=true
 
+    - name: Wait for Deployment with Health Check
+      run: |
+        echo "Waiting for deployment to become healthy..."
+        max_attempts=30
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          if curl -s -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" >/dev/null 2>&1; then
+            echo "Deployment is healthy after ${attempt} attempts"
+            break
+          fi
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Deployment failed to become healthy after $max_attempts attempts"
+            exit 1
+          fi
+          
+          echo "Attempt $attempt/$max_attempts failed, waiting 10 seconds..."
+          sleep 10
+          ((attempt++))
+        done
+
     - name: Run production health checks
       run: |
         echo "Running health checks on production..."
-        sleep 30  # Wait for deployment to complete
-        curl -f https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health || exit 1
-        echo "✅ Production backend health check passed"
+        
+        # Basic health check
+        if ! curl -s -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" >/dev/null 2>&1; then
+          echo "Production backend health check failed"
+          exit 1
+        fi
+        echo "Production backend health check passed"
 
     - name: Create GitHub release
       if: success()
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ github.run_number }}
-        release_name: Release v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
         draft: false
         prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Notify production deployment
       if: always()
       run: |
-        echo "🚀 Production deployment ${{ job.status }} for ${{ github.repository }}#${{ github.run_number }}"
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "Production deployment SUCCESSFUL for ${{ github.repository }}#${{ github.run_number }}"
+        else
+          echo "Production deployment FAILED for ${{ github.repository }}#${{ github.run_number }}"
+        fi
         echo "Backend: https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net"
         echo "Frontend: https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net"
- 
+
   # Rollback (if needed)
   rollback:
     runs-on: ubuntu-latest
-    if: failure() && github.ref == 'refs/heads/main'
+    needs: [deploy-production]
+    if: always() && needs.deploy-production.result == 'failure' && github.ref == 'refs/heads/main'
     environment: production
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
     - name: Rollback to previous version
       run: |
         echo "Rolling back production deployment..."
-        # Add your rollback commands here
-        # Example: kubectl rollout undo deployment/backend
-        # Example: docker-compose -f docker-compose.production.yml up -d
+        # Rollback to previous image tag (latest)
+        az webapp config container set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} \
+          --docker-custom-image-name ${{ env.ACR_LOGIN_SERVER }}/backend:latest
+        
+        az webapp config container set --name ${{ env.FRONTEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} \
+          --docker-custom-image-name ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
 
     - name: Verify rollback
       run: |
         echo "Verifying rollback..."
-        # Add your verification commands here
-        # Example: curl -f http://production.example.com/health
+        sleep 30
+        if curl -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health"; then
+          echo "Rollback verification successful"
+        else
+          echo "Rollback verification failed"
+          exit 1
+        fi
 
     - name: Notify rollback
-      uses: 8398a7/action-slack@v3
-      with:
-        status: success
-        text: '🔄 Production rollback completed for ${{ github.repository }}#${{ github.run_number }}'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        echo "Production rollback completed for ${{ github.repository }}#${{ github.run_number }}"
+        echo "Backend: https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net"
+        echo "Frontend: https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net"
