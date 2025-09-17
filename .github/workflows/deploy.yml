@@ -55,8 +55,8 @@ jobs:
 
     - name: Run Patent Search Tests
       run: |
-        echo "Running patent search consolidated tests..."
-        if ! python3 tests/consolidated_patent_search_tests.py; then
+        echo "Running patent search unit tests..."
+        if ! python -m pytest tests/backend/test_patent_search_unit.py -v; then
           echo "Patent search tests failed"
           exit 1
         fi
