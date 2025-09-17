@@ -537,7 +537,6 @@ class MCPServerRegistry:
             if server.type == "internal":
                 # Test internal MCP server via HTTP health check
                 import aiohttp
-                error_msg = "Internal server health check failed"
                 try:
                     async with aiohttp.ClientSession() as session:
                         async with session.get("http://localhost:8001/health", timeout=5) as resp:
@@ -550,15 +549,14 @@ class MCPServerRegistry:
                                     "last_health_check": time.time()
                                 }
                 except Exception as e:
-                    error_msg = f"Internal server health check failed: {str(e)}"
-                    logger.debug(error_msg)
+                    logger.debug(f"Internal server health check failed: {e}")
                 
                 return {
                     "status": "unhealthy",
                     "server_id": server.server_id,
                     "server_name": server.name,
                     "type": "internal",
-                    "error": error_msg,
+                    "error": f"Internal server health check failed: {str(e)}",
                     "last_health_check": time.time()
                 }
             else:

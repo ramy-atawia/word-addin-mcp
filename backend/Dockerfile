@@ -52,10 +52,6 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
-# Copy application code (excluding .env files)
-COPY . .
-RUN rm -f .env.local .env
-
 # Create necessary directories
 RUN mkdir -p logs uploads && \
     chown -R appuser:appuser /app
@@ -116,5 +112,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose port
 EXPOSE 9000
 
-# Default command - use simple uvicorn for production
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000"]
+# Default command
+CMD ["python", "-m", "app.app_starter"]

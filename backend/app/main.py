@@ -11,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import time
-import asyncio
 from contextlib import asynccontextmanager
 
 from .core.config import settings
@@ -53,30 +52,6 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Word Add-in MCP Backend")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
-    
-    # Start internal MCP server as background task
-    internal_mcp_task = None
-    try:
-        from .internal_mcp_app import app as internal_mcp_app
-        import uvicorn
-        
-        # Start internal MCP server in background
-        config = uvicorn.Config(
-            internal_mcp_app,
-            host="0.0.0.0",
-            port=8001,
-            log_level="info"
-        )
-        internal_mcp_server = uvicorn.Server(config)
-        internal_mcp_task = asyncio.create_task(internal_mcp_server.serve())
-        logger.info("Internal MCP server started in background")
-        
-        # Wait a moment for it to start
-        await asyncio.sleep(2)
-        
-    except Exception as e:
-        logger.warning(f"Failed to start internal MCP server: {str(e)}")
-        logger.warning("Continuing without internal MCP server")
     
     # Wait for internal MCP server to be ready
     await _wait_for_internal_mcp_server()
@@ -295,28 +270,16 @@ async def root():
 async def health_check():
     """Health check endpoint."""
     try:
-        # Basic health check - always return healthy for deployment pipeline
-        health_status = {
+        # Check MCP Orchestrator status
+        from .services.mcp.orchestrator import mcp_orchestrator
+        orchestrator_status = await mcp_orchestrator.get_server_health()
+        
+        return {
             "status": "healthy",
             "timestamp": time.time(),
-            "version": "1.0.0",
-            "environment": settings.environment
+            "mcp_orchestrator": orchestrator_status,
+            "version": "1.0.0"
         }
-        
-        # Try to get MCP orchestrator status, but don't fail if it's not available
-        try:
-            from .services.mcp.orchestrator import mcp_orchestrator
-            orchestrator_status = await mcp_orchestrator.get_server_health()
-            health_status["mcp_orchestrator"] = orchestrator_status
-        except Exception as e:
-            logger.warning(f"MCP orchestrator health check failed: {str(e)}")
-            health_status["mcp_orchestrator"] = {
-                "status": "degraded",
-                "error": str(e),
-                "timestamp": time.time()
-            }
-        
-        return health_status
         
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
