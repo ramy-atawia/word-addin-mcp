@@ -39,6 +39,10 @@ jobs:
         # Install Python dependencies
         cd backend
         pip install -r requirements.txt
+        cd ..
+        
+        # Install test dependencies
+        pip install -r requirements-test.txt
 
     - name: Run Backend Unit Tests
       run: |
