@@ -257,6 +257,10 @@ jobs:
           GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
           GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }} \
           PATENTSVIEW_API_KEY=${{ secrets.PATENTSVIEW_API_KEY }} \
+          INTERNAL_MCP_HOST=localhost \
+          INTERNAL_MCP_PORT=8001 \
+          INTERNAL_MCP_PATH=/mcp \
+          EXPOSE_MCP_PUBLICLY=false \
           MAX_FILE_SIZE=10485760 \
           WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
           WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
@@ -550,6 +554,10 @@ jobs:
           GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
           GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }} \
           PATENTSVIEW_API_KEY=${{ secrets.PATENTSVIEW_API_KEY }} \
+          INTERNAL_MCP_HOST=localhost \
+          INTERNAL_MCP_PORT=8001 \
+          INTERNAL_MCP_PATH=/mcp \
+          EXPOSE_MCP_PUBLICLY=false \
           MAX_FILE_SIZE=10485760 \
           WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
           WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
