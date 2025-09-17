@@ -42,8 +42,9 @@ jobs:
 
     - name: Run Backend Unit Tests
       run: |
+        cd backend
         echo "Running backend unit tests..."
-        if ! python -m pytest tests/ -v --tb=short; then
+        if ! python -m pytest ../tests/ -v --tb=short; then
           echo "Backend unit tests failed"
           exit 1
         fi
