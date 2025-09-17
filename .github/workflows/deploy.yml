@@ -204,6 +204,7 @@ jobs:
         platforms: linux/amd64
         build-args: |
           REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net
+          REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net
           REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com
           REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
           REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U
