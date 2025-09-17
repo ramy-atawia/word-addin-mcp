@@ -42,9 +42,9 @@ jobs:
 
     - name: Run Backend Unit Tests
       run: |
-        cd backend
         echo "Running backend unit tests..."
-        if ! python -m pytest ../tests/ -v --tb=short; then
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)/backend"
+        if ! python -m pytest tests/ -v --tb=short; then
           echo "Backend unit tests failed"
           exit 1
         fi
