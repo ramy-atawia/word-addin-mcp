@@ -651,16 +651,18 @@ jobs:
         
         echo "All production health checks completed successfully!"
 
-    - name: Create GitHub release
-      if: success()
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ github.run_number }}
-        name: Release v${{ github.run_number }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # GitHub release creation disabled due to 403 permissions error
+    # The deployment is successful - this is just a release creation issue
+    # - name: Create GitHub release
+    #   if: success()
+    #   uses: softprops/action-gh-release@v1
+    #   with:
+    #     tag_name: v${{ github.run_number }}
+    #     name: Release v${{ github.run_number }}
+    #     draft: false
+    #     prerelease: false
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Notify production deployment
       if: always()
