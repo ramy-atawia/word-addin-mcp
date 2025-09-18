@@ -355,6 +355,15 @@ async def health_check():
         "tools": list(tools.keys())
     }
 
+# Test endpoint to verify mounting
+@app.get("/")
+async def test_endpoint():
+    """Test endpoint to verify mounting."""
+    return {
+        "message": "Internal MCP Server is mounted",
+        "status": "working"
+    }
+
 # Startup event
 @app.on_event("startup")
 async def startup_event():
