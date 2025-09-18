@@ -35,7 +35,7 @@ async def _wait_for_internal_mcp_server():
     for attempt in range(max_retries):
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get("http://localhost:8001/health") as response:
+                async with session.get(f"{settings.internal_mcp_url}/health") as response:
                     if response.status == 200:
                         logger.info("Internal MCP server is ready")
                         return

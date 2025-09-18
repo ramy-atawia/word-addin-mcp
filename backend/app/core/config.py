@@ -109,10 +109,12 @@ class Settings(BaseSettings):
     @property
     def internal_mcp_url(self) -> str:
         """Get internal MCP server URL based on environment."""
-        if self.expose_mcp_publicly:
+        if self.expose_mcp_publicly and self.mcp_public_url:
             return self.mcp_public_url
         elif self.environment == "docker":
             return f"http://internal-mcp:{self.internal_mcp_port}{self.internal_mcp_path}"
+        elif self.environment == "production":
+            return f"http://0.0.0.0:{self.internal_mcp_port}{self.internal_mcp_path}"
         else:
             return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
     

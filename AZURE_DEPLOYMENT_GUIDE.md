@@ -68,7 +68,14 @@ az webapp config appsettings set \
     ALLOWED_ORIGINS='["*"]' \
     AUTH0_DOMAIN="$AUTH0_DOMAIN" \
     AUTH0_AUDIENCE="https://novitai-word-mcp-backend.azurewebsites.net" \
-    PORT="9000"
+    PORT="9000" \
+    MCP_SERVER_URL="https://novitai-word-mcp-backend.azurewebsites.net" \
+    INTERNAL_MCP_HOST="0.0.0.0" \
+    INTERNAL_MCP_PORT="8001" \
+    INTERNAL_MCP_PATH="/mcp" \
+    INTERNAL_MCP_URL="http://0.0.0.0:8001/mcp" \
+    EXPOSE_MCP_PUBLICLY="true" \
+    MCP_PUBLIC_URL="https://novitai-word-mcp-backend.azurewebsites.net/mcp"
 ```
 
 ### **Phase 4: Frontend Deployment**

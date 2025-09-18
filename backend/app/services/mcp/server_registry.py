@@ -299,11 +299,12 @@ class MCPServerRegistry:
         """Discover tools from internal MCP server via direct HTTP call."""
         try:
             import aiohttp
+            from app.core.config import settings
             
             # Make direct HTTP call to internal MCP server
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://localhost:8001/mcp",
+                    f"{settings.internal_mcp_url}",
                     json={
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -419,11 +420,12 @@ class MCPServerRegistry:
         """Execute a tool on internal MCP server via direct HTTP call."""
         try:
             import aiohttp
+            from app.core.config import settings
             
             # Make direct HTTP call to internal MCP server
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://localhost:8001/mcp",
+                    f"{settings.internal_mcp_url}",
                     json={
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -468,9 +470,10 @@ class MCPServerRegistry:
             if server.type == "internal":
                 # Test internal MCP server via HTTP health check
                 import aiohttp
+                from app.core.config import settings
                 try:
                     async with aiohttp.ClientSession() as session:
-                        async with session.get("http://localhost:8001/health", timeout=5) as resp:
+                        async with session.get(f"{settings.internal_mcp_url}/health", timeout=5) as resp:
                             if resp.status == 200:
                                 server.connected = True
                                 server.status = "healthy"
@@ -537,9 +540,10 @@ class MCPServerRegistry:
             if server.type == "internal":
                 # Test internal MCP server via HTTP health check
                 import aiohttp
+                from app.core.config import settings
                 try:
                     async with aiohttp.ClientSession() as session:
-                        async with session.get("http://localhost:8001/health", timeout=5) as resp:
+                        async with session.get(f"{settings.internal_mcp_url}/health", timeout=5) as resp:
                             if resp.status == 200:
                                 return {
                                     "status": "healthy",
