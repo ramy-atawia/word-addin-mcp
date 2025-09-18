@@ -28,11 +28,6 @@ async def _wait_for_internal_mcp_server():
     import aiohttp
     import asyncio
     
-    # Check if internal MCP server is required
-    if settings.environment == "production" and not settings.expose_mcp_publicly:
-        logger.info("Skipping internal MCP server check in production environment")
-        return
-    
     max_retries = 30
     retry_delay = 1
     
@@ -46,11 +41,6 @@ async def _wait_for_internal_mcp_server():
         except Exception as e:
             logger.debug(f"Waiting for internal MCP server... (attempt {attempt + 1}/{max_retries})")
             await asyncio.sleep(retry_delay)
-    
-    # In production, don't fail if internal MCP server is not available
-    if settings.environment == "production":
-        logger.warning("Internal MCP server not available in production - continuing without it")
-        return
     
     raise RuntimeError("Internal MCP server failed to start within timeout")
 

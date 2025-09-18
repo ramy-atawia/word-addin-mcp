@@ -367,11 +367,6 @@ class MCPOrchestrator:
     async def _register_internal_mcp_server(self):
         """Register the internal MCP server via MCP client."""
         try:
-            # Check if internal MCP server is available
-            if settings.environment == "production" and not settings.expose_mcp_publicly:
-                logger.info("Skipping internal MCP server registration in production environment")
-                return
-            
             # Register in server registry directly (connection will be established when needed)
             server_info = {
                 "name": "Internal MCP Server",
@@ -385,10 +380,7 @@ class MCPOrchestrator:
             
         except Exception as e:
             logger.error(f"Failed to register internal MCP server: {str(e)}")
-            if settings.environment == "production":
-                logger.warning("Continuing without internal MCP server in production")
-            else:
-                raise
+            raise
     
     
     # Removed get_hub_status - redundant wrapper around get_server_health
