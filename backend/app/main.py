@@ -168,6 +168,11 @@ async def add_process_time_header(request: Request, call_next):
 # We'll add it after other middlewares so it runs as the outermost layer
 
 
+# Mount internal MCP app BEFORE authentication middleware
+logger.info(f"Environment: {settings.environment}")
+logger.info("Force mounting internal MCP app at /internal-mcp for debugging")
+app.mount("/internal-mcp", internal_mcp_app)
+
 # Add Auth0 JWT Middleware (this will execute AFTER the CORS middleware above)
 if settings.auth0_enabled:
     logger.info(f"Enabling Auth0 JWT middleware for domain: {settings.auth0_domain}")
@@ -265,10 +270,7 @@ app.include_router(
     tags=["health"]
 )
 
-# Mount internal MCP app for production (Azure App Service)
-logger.info(f"Environment: {settings.environment}")
-logger.info("Force mounting internal MCP app at /internal-mcp for debugging")
-app.mount("/internal-mcp", internal_mcp_app)
+# Internal MCP app is now mounted before authentication middleware
 
 
 @app.get("/")
