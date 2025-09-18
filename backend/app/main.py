@@ -266,8 +266,12 @@ app.include_router(
 )
 
 # Mount internal MCP app for production (Azure App Service)
+logger.info(f"Environment: {settings.environment}")
 if settings.environment == "production":
+    logger.info("Mounting internal MCP app at /mcp")
     app.mount("/mcp", internal_mcp_app)
+else:
+    logger.info("Not in production mode, skipping internal MCP mounting")
 
 
 @app.get("/")

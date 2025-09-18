@@ -35,7 +35,7 @@ tools = {
 }
 
 # MCP endpoint
-@app.post("/mcp")
+@app.post("/")
 async def mcp_endpoint(request: Request):
     """Handle MCP protocol requests."""
     try:
