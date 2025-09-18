@@ -27,7 +27,7 @@ services:
       - EXPOSE_MCP_PUBLICLY=false
       - APP_STARTER_MODE=true
     ports:
-      - "8000:8000"  # Backend API
+      - "9000:9000"  # Backend API
       - "8001:8001"  # Internal MCP Server
     restart: unless-stopped
 
