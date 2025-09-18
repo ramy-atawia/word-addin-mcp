@@ -550,15 +550,14 @@ class MCPServerRegistry:
                                 }
                 except Exception as e:
                     logger.debug(f"Internal server health check failed: {e}")
-                
-                return {
-                    "status": "unhealthy",
-                    "server_id": server.server_id,
-                    "server_name": server.name,
-                    "type": "internal",
-                    "error": f"Internal server health check failed: {str(e)}",
-                    "last_health_check": time.time()
-                }
+                    return {
+                        "status": "unhealthy",
+                        "server_id": server.server_id,
+                        "server_name": server.name,
+                        "type": "internal",
+                        "error": f"Internal server health check failed: {str(e)}",
+                        "last_health_check": time.time()
+                    }
             else:
                 # External server health check using persistent connections
                 try:
