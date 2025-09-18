@@ -4,6 +4,7 @@ Application starter that runs both backend and internal MCP server.
 
 import asyncio
 import logging
+import os
 import signal
 import sys
 from contextlib import asynccontextmanager
@@ -50,11 +51,16 @@ class AppStarter:
         """Start both applications concurrently."""
         logger.info("Starting both applications...")
         
-        # Start both servers concurrently
-        await asyncio.gather(
-            self.start_backend(),
-            self.start_internal_mcp()
-        )
+        # Check if we're in production and should fail-open
+        if os.getenv("ENVIRONMENT") == "production" and os.getenv("INTERNAL_MCP_FAIL_OPEN", "false").lower() == "true":
+            logger.warning("Production mode: Starting backend only (internal MCP fail-open)")
+            await self.start_backend()
+        else:
+            # Start both servers concurrently
+            await asyncio.gather(
+                self.start_backend(),
+                self.start_internal_mcp()
+            )
     
     async def shutdown(self):
         """Shutdown both applications."""

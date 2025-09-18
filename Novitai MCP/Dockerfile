@@ -80,6 +80,9 @@ RUN apk add --no-cache curl
 # Copy built application
 COPY --from=build /app/dist /usr/share/nginx/html
 
+# Copy production manifest as main manifest
+COPY --from=build /app/manifest.prod.xml /usr/share/nginx/html/manifest.xml
+
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
