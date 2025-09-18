@@ -11,6 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import time
+import aiohttp
+import asyncio
+import uvicorn
 from contextlib import asynccontextmanager
 
 import os
@@ -26,8 +29,6 @@ logger = logging.getLogger(__name__)
 
 async def _wait_for_internal_mcp_server():
     """Wait for internal MCP server to be ready."""
-    import aiohttp
-    import asyncio
     
     max_retries = 30
     retry_delay = 1
