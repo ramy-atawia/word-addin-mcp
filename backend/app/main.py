@@ -267,8 +267,8 @@ app.include_router(
 
 # Mount internal MCP app for production (Azure App Service)
 logger.info(f"Environment: {settings.environment}")
-logger.info("Force mounting internal MCP app at /mcp for debugging")
-app.mount("/mcp", internal_mcp_app)
+logger.info("Force mounting internal MCP app at /internal-mcp for debugging")
+app.mount("/internal-mcp", internal_mcp_app)
 
 
 @app.get("/")
