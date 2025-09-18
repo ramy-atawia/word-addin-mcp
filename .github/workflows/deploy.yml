@@ -1,6 +1,9 @@
 # Complete deployment pipeline with all fixes applied
 name: Deployment Pipeline
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ main, dev ]
