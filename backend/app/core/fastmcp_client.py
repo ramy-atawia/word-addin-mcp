@@ -119,83 +119,84 @@ class FastMCPClient:
     
     async def list_tools(self) -> List[Dict[str, Any]]:
         """List available tools using real FastMCP API with proper context manager."""
-        if not self.client:
-            raise MCPConnectionError("Client not initialized")
-        
+        # Create a short-lived client per call so the context manager
+        # (and anyio cancel scopes) are entered and exited in the same task.
         try:
-            # Use context manager properly for FastMCP client
-            async with self.client as client:
-                tools_result = await client.list_tools()
-                
-                # Convert to expected format
-                tools = []
-                for tool in tools_result:
-                    # Handle both dict and object formats
-                    if isinstance(tool, dict):
-                        tools.append({
-                            "name": tool.get("name", ""),
-                            "description": tool.get("description", ""),
-                            "input_schema": tool.get("inputSchema", {})
-                        })
-                    else:
-                        # Handle MCP Tool objects (inputSchema is already a dict)
-                        input_schema = {}
-                        if hasattr(tool, 'inputSchema') and tool.inputSchema:
-                            # inputSchema is already a dict, no need for model_dump()
-                            input_schema = tool.inputSchema
-                        
-                        tools.append({
-                            "name": tool.name,
-                            "description": tool.description,
-                            "input_schema": input_schema
-                        })
-                
-                return tools
-            
+            if self.config.server_url.startswith(('http://', 'https://')):
+                transport = StreamableHttpTransport(url=self.config.server_url)
+                async with Client(transport) as client:
+                    tools_result = await client.list_tools()
+            else:
+                async with Client(self.config.server_url) as client:
+                    tools_result = await client.list_tools()
+
+            # Convert to expected format
+            tools: List[Dict[str, Any]] = []
+            for tool in tools_result:
+                if isinstance(tool, dict):
+                    tools.append({
+                        "name": tool.get("name", ""),
+                        "description": tool.get("description", ""),
+                        "input_schema": tool.get("inputSchema", {}),
+                    })
+                else:
+                    input_schema = {}
+                    if hasattr(tool, 'inputSchema') and tool.inputSchema:
+                        input_schema = tool.inputSchema
+
+                    tools.append({
+                        "name": getattr(tool, 'name', ''),
+                        "description": getattr(tool, 'description', ''),
+                        "input_schema": input_schema,
+                    })
+
+            return tools
         except Exception as e:
             logger.error(f"Failed to list tools: {e}")
             raise MCPToolError(f"Failed to list tools: {e}")
     
     async def health_check(self) -> Dict[str, Any]:
         """Perform health check using real FastMCP API."""
-        if not self.client:
-            raise MCPConnectionError("Client not initialized")
-        
+        # Use a short-lived client for the ping so cancel-scopes are task-local
         try:
-            # Try to ping the server using real FastMCP
-            result = await self.client.ping()
+            if self.config.server_url.startswith(('http://', 'https://')):
+                transport = StreamableHttpTransport(url=self.config.server_url)
+                async with Client(transport) as client:
+                    result = await client.ping()
+            else:
+                async with Client(self.config.server_url) as client:
+                    result = await client.ping()
+
             return {
                 "status": "healthy" if result else "unhealthy",
                 "server_name": self.config.server_name,
-                "ping_successful": result
+                "ping_successful": result,
             }
-            
+
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return {
                 "status": "unhealthy",
                 "server_name": self.config.server_name,
-                "error": str(e)
+                "error": str(e),
             }
     
     async def call_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Any:
         """Call a tool using real FastMCP API with proper context manager."""
-        if not self.client or self.state != MCPConnectionState.CONNECTED:
-            raise MCPConnectionError("Client not connected")
-        
+        # Use a short-lived client for each tool call so the context is task-local
         try:
             logger.info(f"Calling tool {tool_name} with parameters: {parameters}")
-            
-            # Use context manager properly for FastMCP client
-            async with self.client as client:
-                result = await client.call_tool(
-                    name=tool_name,
-                    arguments=parameters
-                )
-            
+            if self.config.server_url.startswith(('http://', 'https://')):
+                transport = StreamableHttpTransport(url=self.config.server_url)
+                async with Client(transport) as client:
+                    result = await client.call_tool(name=tool_name, arguments=parameters)
+            else:
+                async with Client(self.config.server_url) as client:
+                    result = await client.call_tool(name=tool_name, arguments=parameters)
+
             logger.info(f"Tool {tool_name} executed successfully")
             return result
-            
+
         except ToolError as e:
             logger.error(f"Tool execution failed: {e}")
             raise MCPToolError(f"Tool execution failed: {e}")
