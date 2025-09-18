@@ -51,11 +51,18 @@ class AppStarter:
         """Start both applications concurrently."""
         logger.info("Starting both applications...")
         
+        # Debug environment variables
+        app_starter_mode = os.getenv("APP_STARTER_MODE", "false")
+        environment = os.getenv("ENVIRONMENT", "development")
+        internal_mcp_fail_open = os.getenv("INTERNAL_MCP_FAIL_OPEN", "false")
+        
+        logger.info(f"Environment variables - APP_STARTER_MODE: {app_starter_mode}, ENVIRONMENT: {environment}, INTERNAL_MCP_FAIL_OPEN: {internal_mcp_fail_open}")
+        
         # Check if we're in production and should fail-open
-        if os.getenv("ENVIRONMENT") == "production" and os.getenv("INTERNAL_MCP_FAIL_OPEN", "false").lower() == "true":
+        if environment == "production" and internal_mcp_fail_open.lower() == "true":
             logger.warning("Production mode: Starting backend only (internal MCP fail-open)")
             await self.start_backend()
-        elif os.getenv("APP_STARTER_MODE", "false").lower() == "true":
+        elif app_starter_mode.lower() == "true":
             # APP_STARTER_MODE: Start both servers concurrently
             logger.info("APP_STARTER_MODE enabled: Starting both backend and internal MCP server")
             await asyncio.gather(
@@ -64,6 +71,7 @@ class AppStarter:
             )
         else:
             # Default: Start both servers concurrently
+            logger.info("Default mode: Starting both backend and internal MCP server")
             await asyncio.gather(
                 self.start_backend(),
                 self.start_internal_mcp()

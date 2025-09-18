@@ -113,4 +113,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 9000
 
 # Default command - use app starter for both backend and internal MCP
-CMD ["python", "-m", "app.app_starter"]
+# Set APP_STARTER_MODE=true as fallback if not set in environment
+CMD ["sh", "-c", "export APP_STARTER_MODE=${APP_STARTER_MODE:-true} && python -m app.app_starter"]
