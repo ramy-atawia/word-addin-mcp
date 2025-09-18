@@ -67,7 +67,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 9000 8001
 
 # Default command with reload for development
-CMD ["python", "-m", "app.app_starter"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port 9000"]
 
 # Production stage
 FROM python:3.12-slim as production
