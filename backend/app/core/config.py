@@ -114,7 +114,8 @@ class Settings(BaseSettings):
         elif self.environment == "docker":
             return f"http://internal-mcp:{self.internal_mcp_port}{self.internal_mcp_path}"
         elif self.environment == "production":
-            return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
+            # In production (Azure App Service), internal MCP is mounted on the same port
+            return f"http://localhost:9000{self.internal_mcp_path}"
         else:
             return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
     
