@@ -69,6 +69,7 @@ az webapp config appsettings set \
     AUTH0_DOMAIN="$AUTH0_DOMAIN" \
     AUTH0_AUDIENCE="https://novitai-word-mcp-backend.azurewebsites.net" \
     PORT="9000" \
+    APP_STARTER_MODE="true" \
     MCP_SERVER_URL="https://novitai-word-mcp-backend.azurewebsites.net" \
     INTERNAL_MCP_HOST="0.0.0.0" \
     INTERNAL_MCP_PORT="8001" \

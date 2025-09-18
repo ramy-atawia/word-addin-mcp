@@ -50,6 +50,7 @@ services:
       - INTERNAL_MCP_PATH=/mcp
       - INTERNAL_MCP_URL=http://localhost:8001/mcp
       - EXPOSE_MCP_PUBLICLY=false
+      - APP_STARTER_MODE=true
       
       # Security
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-here-change-in-production}

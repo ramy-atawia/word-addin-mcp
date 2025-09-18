@@ -114,13 +114,14 @@ class Settings(BaseSettings):
         elif self.environment == "docker":
             return f"http://internal-mcp:{self.internal_mcp_port}{self.internal_mcp_path}"
         elif self.environment == "production":
-            return f"http://0.0.0.0:{self.internal_mcp_port}{self.internal_mcp_path}"
+            return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
         else:
             return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
     
     # Application Configuration
     app_version: str = os.getenv("APP_VERSION", "1.0.0")
     environment: str = os.getenv("ENVIRONMENT", "development")
+    app_starter_mode: bool = os.getenv("APP_STARTER_MODE", "false").lower() == "true"
     
     # Debug Configuration
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
@@ -150,7 +151,9 @@ class Settings(BaseSettings):
         "/api/v1/mcp/tools",
         "/api/v1/mcp/execute",
         "/api/v1/mcp/servers",
-        "/api/v1/mcp/health"
+        "/api/v1/mcp/health",
+        "/mcp",
+        "/mcp/health"
     ]
     
     # API Configuration
