@@ -47,14 +47,22 @@ class AppStarter:
         await self.internal_mcp_server.serve()
     
     async def start_both(self):
-        """Start both applications concurrently."""
-        logger.info("Starting both applications...")
+        """Start both applications with internal MCP server first."""
+        logger.info("Starting applications...")
         
-        # Start both servers concurrently
-        await asyncio.gather(
-            self.start_backend(),
-            self.start_internal_mcp()
-        )
+        # Start internal MCP server first
+        logger.info("Starting internal MCP server...")
+        internal_mcp_task = asyncio.create_task(self.start_internal_mcp())
+        
+        # Wait a moment for internal MCP server to start
+        await asyncio.sleep(2)
+        
+        # Start backend server
+        logger.info("Starting backend server...")
+        backend_task = asyncio.create_task(self.start_backend())
+        
+        # Wait for both to complete
+        await asyncio.gather(backend_task, internal_mcp_task)
     
     async def shutdown(self):
         """Shutdown both applications."""

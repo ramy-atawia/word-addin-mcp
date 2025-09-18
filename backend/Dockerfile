@@ -63,8 +63,8 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${FASTAPI_PORT:-9000}/health || exit 1
 
-# Expose port
-EXPOSE 9000
+# Expose ports
+EXPOSE 9000 8001
 
 # Default command with reload for development
 CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port 9000"]
@@ -109,8 +109,8 @@ USER appuser
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${FASTAPI_PORT:-9000}/health || exit 1
 
-# Expose port
-EXPOSE 9000
+# Expose ports
+EXPOSE 9000 8001
 
 # Default command
 CMD ["python", "-m", "app.app_starter"]
