@@ -137,7 +137,7 @@ class Settings(BaseSettings):
     # Auth0 Configuration
     auth0_domain: str = os.getenv("AUTH0_DOMAIN", "dev-bktskx5kbc655wcl.us.auth0.com")
     auth0_audience: str = os.getenv("AUTH0_AUDIENCE", "INws849yDXaC6MZVXnLhMJi6CZC4nx6U")
-    auth0_enabled: bool = os.getenv("AUTH0_ENABLED", "true").lower() == "true"
+    auth0_enabled: bool = os.getenv("AUTH0_ENABLED", "false").lower() == "true"
     
     # Auth0 Excluded Paths (paths that don't require authentication)
     auth0_excluded_paths: List[str] = [
