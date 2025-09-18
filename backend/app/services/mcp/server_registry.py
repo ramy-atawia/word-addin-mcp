@@ -298,9 +298,9 @@ class MCPServerRegistry:
     async def _discover_internal_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
         """Discover tools from internal MCP server via direct HTTP call."""
         try:
-import aiohttp
-import os
-            
+            import aiohttp
+            import os
+
             # Resolve internal MCP endpoint from env (INTERNAL_MCP_URL) or default to localhost
             internal_mcp_url = os.getenv("INTERNAL_MCP_URL", "http://localhost:8001/mcp")
 
@@ -433,7 +433,11 @@ import os
         """Execute a tool on internal MCP server via direct HTTP call."""
         try:
             import aiohttp
-            
+            import os
+
+            # Resolve internal MCP endpoint from env (INTERNAL_MCP_URL) or default to localhost
+            internal_mcp_url = os.getenv("INTERNAL_MCP_URL", "http://localhost:8001/mcp")
+
             # Make direct HTTP call to internal MCP server
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -498,10 +502,12 @@ import os
             if server.type == "internal":
                 # Test internal MCP server via HTTP health check
                 import aiohttp
+
+                internal_health_url = os.getenv("INTERNAL_MCP_HEALTH", "http://localhost:8001/health")
+
                 try:
                     async with aiohttp.ClientSession() as session:
-                internal_health_url = os.getenv("INTERNAL_MCP_HEALTH", "http://localhost:8001/health")
-                async with session.get(internal_health_url, timeout=5) as resp:
+                        async with session.get(internal_health_url, timeout=5) as resp:
                             if resp.status == 200:
                                 server.connected = True
                                 server.status = "healthy"
@@ -509,7 +515,7 @@ import os
                                 return True
                 except Exception as e:
                     logger.debug(f"Internal server health check failed: {e}")
-                
+
                 server.connected = False
                 server.status = "failed"
                 return False
@@ -568,10 +574,12 @@ import os
             if server.type == "internal":
                 # Test internal MCP server via HTTP health check
                 import aiohttp
-                try:
+
                 internal_health_url = os.getenv("INTERNAL_MCP_HEALTH", "http://localhost:8001/health")
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(internal_health_url, timeout=5) as resp:
+
+                try:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(internal_health_url, timeout=5) as resp:
                             if resp.status == 200:
                                 return {
                                     "status": "healthy",
@@ -582,7 +590,7 @@ import os
                                 }
                 except Exception as e:
                     logger.debug(f"Internal server health check failed: {e}")
-                
+
                 return {
                     "status": "unhealthy",
                     "server_id": server.server_id,
