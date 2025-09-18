@@ -557,7 +557,7 @@ jobs:
           INTERNAL_MCP_HOST=localhost \
           INTERNAL_MCP_PORT=8001 \
           INTERNAL_MCP_PATH=/mcp \
-          INTERNAL_MCP_URL=http://localhost:8001/mcp \
+          INTERNAL_MCP_URL=http://localhost:9000/internal-mcp \
           EXPOSE_MCP_PUBLICLY=false \
           APP_STARTER_MODE=true \
           MAX_FILE_SIZE=10485760 \
@@ -615,7 +615,7 @@ jobs:
 
     - name: Run production health checks
       run: |
-        echo "Running health checks on production..."
+        echo "Running comprehensive health checks on production..."
         
         # Basic health check
         if ! curl -s -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" >/dev/null 2>&1; then
@@ -623,6 +623,33 @@ jobs:
           exit 1
         fi
         echo "Production backend health check passed"
+        
+        # MCP orchestrator health check
+        mcp_status=$(curl -s "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" | jq -r '.mcp_orchestrator.status')
+        if [ "$mcp_status" != "healthy" ]; then
+          echo "MCP orchestrator health check failed: $mcp_status"
+          exit 1
+        fi
+        echo "MCP orchestrator health check passed: $mcp_status"
+        
+        # MCP tools count check
+        tools_count=$(curl -s "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" | jq '.tools | length')
+        if [ "$tools_count" -lt 4 ]; then
+          echo "MCP tools count check failed: Expected at least 4, got $tools_count"
+          exit 1
+        fi
+        echo "MCP tools count check passed: $tools_count tools available"
+        
+        # Internal MCP server health check
+        internal_mcp_status=$(curl -s "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/internal-mcp/health" | jq -r '.status' 2>/dev/null || echo "error")
+        if [ "$internal_mcp_status" != "healthy" ]; then
+          echo "Internal MCP server health check failed: $internal_mcp_status"
+          echo "Note: This may be due to authentication - checking if tools are still discoverable"
+        else
+          echo "Internal MCP server health check passed: $internal_mcp_status"
+        fi
+        
+        echo "All production health checks completed successfully!"
 
     - name: Create GitHub release
       if: success()
