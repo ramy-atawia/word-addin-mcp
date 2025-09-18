@@ -287,7 +287,7 @@ jobs:
         az webapp config appsettings set --name ${{ env.FRONTEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings \
           REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net \
           REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend-dev.azurewebsites.net \
-          REACT_APP_FRONTEND_URL=https://novitai-word-mcp-frontend-dev.azurewebsites.net \
+          REACT_APP_FRONTEND_URL=https://novitai-word-mcp-frontend.azurewebsites.net \
           REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
           REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
           REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
@@ -554,7 +554,7 @@ jobs:
           AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
           AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
           AUTH0_ENABLED=true \
-          FRONTEND_URL=https://novitai-word-mcp-frontend-dev.azurewebsites.net \
+          FRONTEND_URL=https://novitai-word-mcp-frontend.azurewebsites.net \
           GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
           GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }} \
           PATENTSVIEW_API_KEY=${{ secrets.PATENTSVIEW_API_KEY }} \
