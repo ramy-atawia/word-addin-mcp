@@ -13,6 +13,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
+import os
 from .core.config import settings
 from .core.logging import setup_logging
 from .middleware.auth0_jwt_middleware import Auth0JWTMiddleware
@@ -53,8 +54,18 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
     
-    # Wait for internal MCP server to be ready
-    await _wait_for_internal_mcp_server()
+    # Wait for internal MCP server to be ready (can be skipped in APP_STARTER_MODE
+    # or if INTERNAL_MCP_FAIL_OPEN is enabled to avoid aborting startup in prod)
+    skip_wait = getattr(settings, "app_starter_mode", False) or os.getenv("INTERNAL_MCP_FAIL_OPEN", "false").lower() == "true"
+    if skip_wait:
+        logger.warning("Skipping internal MCP wait due to APP_STARTER_MODE or INTERNAL_MCP_FAIL_OPEN")
+    else:
+        try:
+            await _wait_for_internal_mcp_server()
+        except Exception as e:
+            # Fail-open behavior: log a warning and continue so App Service can start.
+            # This avoids container restart loops while still reporting degraded state.
+            logger.warning(f"Internal MCP server did not become ready: {str(e)}. Continuing startup in degraded mode.")
     
     # Initialize MCP Orchestrator
     try:
