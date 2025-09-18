@@ -298,12 +298,16 @@ class MCPServerRegistry:
     async def _discover_internal_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
         """Discover tools from internal MCP server via direct HTTP call."""
         try:
-            import aiohttp
+import aiohttp
+import os
             
+            # Resolve internal MCP endpoint from env (INTERNAL_MCP_URL) or default to localhost
+            internal_mcp_url = os.getenv("INTERNAL_MCP_URL", "http://localhost:8001/mcp")
+
             # Make direct HTTP call to internal MCP server
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://localhost:8001/mcp",
+                    internal_mcp_url,
                     json={
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -433,7 +437,7 @@ class MCPServerRegistry:
             # Make direct HTTP call to internal MCP server
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://localhost:8001/mcp",
+                    internal_mcp_url,
                     json={
                         "jsonrpc": "2.0",
                         "id": 1,
@@ -496,7 +500,8 @@ class MCPServerRegistry:
                 import aiohttp
                 try:
                     async with aiohttp.ClientSession() as session:
-                        async with session.get("http://localhost:8001/health", timeout=5) as resp:
+                internal_health_url = os.getenv("INTERNAL_MCP_HEALTH", "http://localhost:8001/health")
+                async with session.get(internal_health_url, timeout=5) as resp:
                             if resp.status == 200:
                                 server.connected = True
                                 server.status = "healthy"
@@ -564,8 +569,9 @@ class MCPServerRegistry:
                 # Test internal MCP server via HTTP health check
                 import aiohttp
                 try:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get("http://localhost:8001/health", timeout=5) as resp:
+                internal_health_url = os.getenv("INTERNAL_MCP_HEALTH", "http://localhost:8001/health")
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(internal_health_url, timeout=5) as resp:
                             if resp.status == 200:
                                 return {
                                     "status": "healthy",

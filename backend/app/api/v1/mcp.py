@@ -270,7 +270,7 @@ async def mcp_proxy(request: Request):
         body = await request.body()
         
         # Forward the request to the internal MCP server
-        internal_mcp_url = "http://localhost:8001/mcp"
+        internal_mcp_url = os.getenv("INTERNAL_MCP_URL", "http://localhost:8001/mcp")
         
         async with aiohttp.ClientSession() as session:
             async with session.post(

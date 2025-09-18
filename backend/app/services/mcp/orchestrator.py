@@ -370,7 +370,7 @@ class MCPOrchestrator:
             # Register in server registry directly (connection will be established when needed)
             server_info = {
                 "name": "Internal MCP Server",
-                "server_url": "http://localhost:8001/mcp",
+                "server_url": os.getenv("INTERNAL_MCP_URL", "http://localhost:8001/mcp"),
                 "type": "internal",
                 "tools": ["web_search_tool", "prior_art_search_tool", "claim_drafting_tool", "claim_analysis_tool"]
             }
