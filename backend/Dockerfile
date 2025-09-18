@@ -112,5 +112,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose ports
 EXPOSE 9000 8001
 
-# Default command
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port 9000 --reload"]
+# Default command - start AppStarter which runs internal MCP + backend (same as dev)
+CMD ["python", "-m", "app.app_starter"]
