@@ -112,5 +112,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose port
 EXPOSE 9000
 
-# Default command
+# Default command - use app starter for both backend and internal MCP
 CMD ["python", "-m", "app.app_starter"]

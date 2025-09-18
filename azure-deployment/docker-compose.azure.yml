@@ -1,25 +1,6 @@
 version: '3.8'
 
 services:
-  # Internal MCP Server
-  internal-mcp:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: production
-    environment:
-      - ENVIRONMENT=production
-      - DEBUG=false
-      - INTERNAL_MCP_HOST=0.0.0.0
-      - INTERNAL_MCP_PORT=8001
-      - INTERNAL_MCP_PATH=/mcp
-      - INTERNAL_MCP_URL=http://0.0.0.0:8001/mcp
-      - EXPOSE_MCP_PUBLICLY=false
-    ports:
-      - "8001:8001"  # Internal MCP Server
-    restart: unless-stopped
-    command: ["python", "-m", "app.internal_mcp_app"]
-
   backend:
     build:
       context: ./backend
@@ -39,15 +20,15 @@ services:
       - ALLOWED_ORIGINS=["https://novitai-word-mcp-frontend.azurewebsites.net"]
       - ALLOWED_HOSTS=["*"]
       # Internal MCP Server Configuration
-      - INTERNAL_MCP_HOST=internal-mcp
+      - INTERNAL_MCP_HOST=localhost
       - INTERNAL_MCP_PORT=8001
       - INTERNAL_MCP_PATH=/mcp
-      - INTERNAL_MCP_URL=http://internal-mcp:8001/mcp
+      - INTERNAL_MCP_URL=http://localhost:8001/mcp
       - EXPOSE_MCP_PUBLICLY=false
+      - APP_STARTER_MODE=true
     ports:
       - "8000:8000"  # Backend API
-    depends_on:
-      - internal-mcp
+      - "8001:8001"  # Internal MCP Server
     restart: unless-stopped
 
   frontend:
