@@ -13,7 +13,7 @@ const REACT_APP_API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://loc
 // const NODE_ENV = process.env.NODE_ENV || 'development'; // Removed as webpack handles NODE_ENV via mode option
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const urlProd = "https://novitai-word-mcp-frontend.azurewebsites.net/";
 
 async function getHttpsOptions() {
   try {
