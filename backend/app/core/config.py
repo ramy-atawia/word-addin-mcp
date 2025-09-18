@@ -152,9 +152,7 @@ class Settings(BaseSettings):
         "/api/v1/mcp/tools",
         "/api/v1/mcp/execute",
         "/api/v1/mcp/servers",
-        "/internal-mcp",
-        "/internal-mcp/",
-        "/internal-mcp/health",
+        "/internal-mcp*",
         "/api/v1/mcp/health",
         "/mcp",
         "/mcp/health"
