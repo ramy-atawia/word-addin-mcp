@@ -345,32 +345,42 @@ class MCPServerRegistry:
     async def _discover_external_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
         """Discover tools from external server using persistent connections."""
         try:
-            from app.core.mcp_connection_manager import get_connection_manager
-            
-            # Get connection from pool
-            connection_manager = await get_connection_manager()
-            connection = await connection_manager.get_connection(server.url, server.name)
-            
-            if not connection:
-                logger.error(f"No connection available to {server.name}")
+            # Use short-lived FastMCP client per call to avoid cross-task context issues
+            from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
+
+            config = MCPConnectionConfig(
+                server_url=server.url,
+                server_name=server.name,
+                timeout=30.0,
+            )
+
+            client = FastMCPClient(config)
+
+            if not await client.connect():
+                logger.error(f"Failed to connect to external server {server.name}")
                 return []
-            
-            # Use the corrected list_tools method
-            tools_data = await connection.client.list_tools()
-            
-            unified_tools = []
-            logger.debug(f"Processing {len(tools_data)} tools from {server.name}")
-            for tool_data in tools_data:
-                if self._validate_tool_schema(tool_data):
-                    unified_tool = self._create_unified_tool_from_mcp(tool_data, server)
-                    unified_tools.append(unified_tool)
-                    logger.debug(f"Created tool: {unified_tool.name}")
-                else:
-                    logger.warning(f"Tool validation failed: {tool_data.get('name', 'unknown')}")
-            
-            logger.debug(f"Returned {len(unified_tools)} tools from {server.name}")
-            return unified_tools
-            
+
+            try:
+                tools_data = await client.list_tools()
+
+                unified_tools: List[UnifiedTool] = []
+                logger.debug(f"Processing {len(tools_data)} tools from {server.name}")
+                for tool_data in tools_data:
+                    if self._validate_tool_schema(tool_data):
+                        unified_tool = self._create_unified_tool_from_mcp(tool_data, server)
+                        unified_tools.append(unified_tool)
+                        logger.debug(f"Created tool: {unified_tool.name}")
+                    else:
+                        logger.warning(f"Tool validation failed: {tool_data.get('name', 'unknown')}")
+
+                logger.debug(f"Returned {len(unified_tools)} tools from {server.name}")
+                return unified_tools
+            finally:
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+
         except Exception as e:
             logger.error(f"Failed to discover external tools: {e}")
             return []
@@ -451,16 +461,32 @@ class MCPServerRegistry:
     
     async def _execute_external_tool(self, server: MCPServerInfo, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool on external server using persistent connections."""
-        from app.core.mcp_connection_manager import get_connection_manager
-        
-        # Get connection from pool
-        connection_manager = await get_connection_manager()
-        connection = await connection_manager.get_connection(server.url, server.name)
-        
-        if not connection:
-            raise ConnectionError(f"No connection available to {server.name}")
-        
-        return await connection.client.call_tool(tool_info.name, parameters)
+        try:
+            # Use a short-lived FastMCP client for execution to keep contexts task-local
+            from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
+
+            config = MCPConnectionConfig(
+                server_url=server.url,
+                server_name=server.name,
+                timeout=60.0,
+            )
+
+            client = FastMCPClient(config)
+            if not await client.connect():
+                raise ConnectionError(f"Failed to connect to {server.name}")
+
+            try:
+                result = await client.call_tool(tool_info.name, parameters)
+                return result
+            finally:
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.error(f"Failed to execute external tool {tool_info.name} on {server.name}: {e}")
+            raise ConnectionError(f"Execution failed: {e}")
     
     async def _test_server_connection(self, server: MCPServerInfo) -> bool:
         """Test connection to a server."""
