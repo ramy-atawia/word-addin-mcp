@@ -115,7 +115,7 @@ class Settings(BaseSettings):
             return f"http://internal-mcp:{self.internal_mcp_port}{self.internal_mcp_path}"
         elif self.environment == "production":
             # In production (Azure App Service), internal MCP is mounted on the same port
-            return f"http://localhost:9000{self.internal_mcp_path}"
+            return f"http://localhost:9000/internal-mcp"
         else:
             return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
     
@@ -152,6 +152,9 @@ class Settings(BaseSettings):
         "/api/v1/mcp/tools",
         "/api/v1/mcp/execute",
         "/api/v1/mcp/servers",
+        "/internal-mcp",
+        "/internal-mcp/",
+        "/internal-mcp/health",
         "/api/v1/mcp/health",
         "/mcp",
         "/mcp/health"
