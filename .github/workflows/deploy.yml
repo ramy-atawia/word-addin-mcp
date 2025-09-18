@@ -254,6 +254,8 @@ jobs:
           AZURE_OPENAI_API_VERSION=2024-02-15-preview \
           AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
           AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
+          AUTH0_ENABLED=true \
+          FRONTEND_URL=https://novitai-word-mcp-frontend-dev.azurewebsites.net \
           GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
           GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }} \
           PATENTSVIEW_API_KEY=${{ secrets.PATENTSVIEW_API_KEY }} \
@@ -551,6 +553,8 @@ jobs:
           AZURE_OPENAI_API_VERSION=2024-02-15-preview \
           AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
           AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
+          AUTH0_ENABLED=true \
+          FRONTEND_URL=https://novitai-word-mcp-frontend-dev.azurewebsites.net \
           GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
           GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }} \
           PATENTSVIEW_API_KEY=${{ secrets.PATENTSVIEW_API_KEY }} \
