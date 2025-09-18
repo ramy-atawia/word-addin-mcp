@@ -21,6 +21,8 @@ from app.core.exceptions import (
     ConnectionError,
     AuthenticationError
 )
+from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
+from app.core.mcp_connection_manager import get_connection_manager
 
 logger = structlog.get_logger()
 
@@ -299,8 +301,6 @@ class MCPServerRegistry:
     async def _discover_internal_tools(self, server: MCPServerInfo) -> List[UnifiedTool]:
         """Discover tools from internal MCP server via direct HTTP call."""
         try:
-            import aiohttp
-            import os
 
             # Resolve internal MCP endpoint from env (INTERNAL_MCP_URL) or default to localhost
             internal_mcp_url = os.getenv("INTERNAL_MCP_URL", "http://localhost:8001/mcp")
@@ -351,7 +351,6 @@ class MCPServerRegistry:
         """Discover tools from external server using persistent connections."""
         try:
             # Use short-lived FastMCP client per call to avoid cross-task context issues
-            from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
 
             config = MCPConnectionConfig(
                 server_url=server.url,
@@ -433,8 +432,6 @@ class MCPServerRegistry:
     async def _execute_internal_tool(self, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool on internal MCP server via direct HTTP call."""
         try:
-            import aiohttp
-            import os
 
             # Resolve internal MCP endpoint from env (INTERNAL_MCP_URL) or default to localhost
             internal_mcp_url = os.getenv("INTERNAL_MCP_URL", "http://localhost:8001/mcp")
@@ -472,7 +469,6 @@ class MCPServerRegistry:
         """Execute a tool on external server using persistent connections."""
         try:
             # Use a short-lived FastMCP client for execution to keep contexts task-local
-            from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
 
             config = MCPConnectionConfig(
                 server_url=server.url,
@@ -502,7 +498,6 @@ class MCPServerRegistry:
         try:
             if server.type == "internal":
                 # Test internal MCP server via HTTP health check
-                import aiohttp
 
                 internal_health_url = os.getenv("INTERNAL_MCP_HEALTH", "http://localhost:8001/health")
 
@@ -522,7 +517,6 @@ class MCPServerRegistry:
                 return False
             else:
                 # External server connection test using FastMCP client
-                from app.core.fastmcp_client import FastMCPClient, MCPConnectionConfig
                 
                 # Create connection config
                 config = MCPConnectionConfig(
@@ -574,7 +568,6 @@ class MCPServerRegistry:
             
             if server.type == "internal":
                 # Test internal MCP server via HTTP health check
-                import aiohttp
 
                 internal_health_url = os.getenv("INTERNAL_MCP_HEALTH", "http://localhost:8001/health")
 
@@ -603,7 +596,6 @@ class MCPServerRegistry:
             else:
                 # External server health check using persistent connections
                 try:
-                    from app.core.mcp_connection_manager import get_connection_manager
                     
                     # Get connection from pool
                     connection_manager = await get_connection_manager()
