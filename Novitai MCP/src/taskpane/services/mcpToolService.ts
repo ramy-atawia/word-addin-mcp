@@ -1,9 +1,8 @@
 import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus } from './types';
 import { getAccessToken } from '../../services/authTokenStore';
-import { getEnvironmentConfig } from '../../config/environment';
 
 class MCPToolService {
-  private baseUrl: string = getEnvironmentConfig().backend.baseUrl;
+  private baseUrl: string = (window as any).BACKEND_URL || 'http://localhost:9000';
   private connectionStatus: MCPConnectionStatus = 'disconnected';
 
   setBaseUrl(url: string) {

@@ -14,8 +14,8 @@ class EnvInjectionPlugin {
         AUTH0_DOMAIN: process.env.REACT_APP_AUTH0_DOMAIN || 'dev-bktskx5kbc655wcl.us.auth0.com',
         AUTH0_CLIENT_ID: process.env.REACT_APP_AUTH0_CLIENT_ID || 'INws849yDXaC6MZVXnLhMJi6CZC4nx6U',
         AUTH0_AUDIENCE: process.env.REACT_APP_AUTH0_AUDIENCE || 'INws849yDXaC6MZVXnLhMJi6CZC4nx6U',
-        BACKEND_URL: process.env.REACT_APP_API_BASE_URL || 'https://novitai-word-mcp-backend-dev.azurewebsites.net',
-        FRONTEND_URL: process.env.REACT_APP_FRONTEND_URL || 'https://novitai-word-mcp-frontend-dev.azurewebsites.net'
+        BACKEND_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:9000',
+        FRONTEND_URL: process.env.REACT_APP_FRONTEND_URL || 'https://localhost:3000'
       };
 
       // Process HTML files

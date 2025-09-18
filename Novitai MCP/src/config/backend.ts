@@ -1,5 +1,3 @@
-import { getEnvironmentConfig } from './environment';
-
 // Backend configuration and utilities
 export interface BackendConfig {
   baseUrl: string;
@@ -10,7 +8,7 @@ export interface BackendConfig {
 
 // Default backend configuration
 export const defaultBackendConfig: BackendConfig = {
-  baseUrl: 'http://localhost:9000', // Will be overridden by environment config
+  baseUrl: 'http://localhost:9000', // Will be overridden by window globals
   apiVersion: 'v1',
   timeout: 30000, // 30 seconds
   retryAttempts: 3,
@@ -18,11 +16,11 @@ export const defaultBackendConfig: BackendConfig = {
 
 // Environment-based configuration
 const getBackendConfig = (): BackendConfig => {
-  // Use environment configuration for dynamic backend URL
-  const envConfig = getEnvironmentConfig();
+  // Use window globals for dynamic backend URL
+  const backendUrl = (window as any).BACKEND_URL || 'http://localhost:9000';
   return {
     ...defaultBackendConfig,
-    baseUrl: envConfig.backend.baseUrl,
+    baseUrl: backendUrl,
     timeout: defaultBackendConfig.timeout,
     retryAttempts: defaultBackendConfig.retryAttempts,
   };

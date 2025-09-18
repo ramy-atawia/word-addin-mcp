@@ -31,7 +31,7 @@ import { AddServerModal } from './ExternalMCPServerManager/AddServerModal';
 import ServerToolsList from './ServerToolsList/ServerToolsList';
 import mcpToolService from '../services/mcpToolService';
 import { getApiUrl } from '../../config/backend';
-import { getEnvironmentConfig } from '../../config/environment';
+// Removed environment detection import - using window globals directly
 
 const useStyles = makeStyles({
   root: {
@@ -175,7 +175,7 @@ const MCPToolManager: React.FC = () => {
   const styles = useStyles();
   
   // Get backend URL from environment config
-  const getBackendUrl = () => getEnvironmentConfig().backend.baseUrl;
+  const getBackendUrl = () => (window as any).BACKEND_URL || 'http://localhost:9000';
   const [selectedTab, setSelectedTab] = useState<TabValue>('chat');
   const [tools, setTools] = useState<MCPTool[]>([]);
   const [selectedTool, setSelectedTool] = useState<MCPTool | null>(null);
