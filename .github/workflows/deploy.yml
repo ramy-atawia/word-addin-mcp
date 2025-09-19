@@ -718,6 +718,49 @@ jobs:
       run: |
         az acr login --name ${{ env.ACR_NAME }}
 
+    - name: Create App Service Plan
+      run: |
+        echo "Creating App Service Plan..."
+        if ! az appservice plan show --name novitai-word-mcp-prod-plan --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
+          az appservice plan create \
+            --name novitai-word-mcp-prod-plan \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --location eastus \
+            --sku B1 \
+            --is-linux
+          echo "App Service Plan created"
+        else
+          echo "App Service Plan already exists"
+        fi
+
+    - name: Create Backend App Service
+      run: |
+        echo "Creating Backend App Service..."
+        if ! az webapp show --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
+          az webapp create \
+            --name ${{ env.BACKEND_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --plan novitai-word-mcp-prod-plan \
+            --deployment-container-image-name ${{ env.ACR_LOGIN_SERVER }}/backend:latest
+          echo "Backend App Service created"
+        else
+          echo "Backend App Service already exists"
+        fi
+
+    - name: Create Frontend App Service
+      run: |
+        echo "Creating Frontend App Service..."
+        if ! az webapp show --name ${{ env.FRONTEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
+          az webapp create \
+            --name ${{ env.FRONTEND_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --plan novitai-word-mcp-prod-plan \
+            --deployment-container-image-name ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
+          echo "Frontend App Service created"
+        else
+          echo "Frontend App Service already exists"
+        fi
+
     - name: Build and push Backend image
       run: |
         echo "Building backend image..."
