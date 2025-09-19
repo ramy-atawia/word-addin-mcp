@@ -542,166 +542,203 @@ def _parse_advanced_intent_response(response_text: str) -> tuple[str, str, list,
 
 async def plan_workflow_node(state: MultiStepAgentState) -> MultiStepAgentState:
     """
-    Plan multi-step workflow execution.
+    Plan multi-step workflow execution using LLM-based planning.
     
-    Phase 3: Creates detailed execution plan for complex queries.
+    Phase 3: Uses LLM to intelligently plan workflow based on user intent.
     """
-    logger.debug("LangGraph Phase 3: Planning multi-step workflow")
+    logger.debug("LangGraph Phase 3: Planning multi-step workflow with LLM")
     
     user_input = state["user_input"]
     available_tools = state["available_tools"]
     execution_metadata = state.get("execution_metadata", {})
     
+    try:
+        from app.services.agent import AgentService
+        agent_service = AgentService()
+        
+        # Get LLM client
+        llm_client = agent_service._get_llm_client()
+        if not llm_client:
+            return await _simple_workflow_planning(state)
+        
+        # Create tool descriptions for LLM
+        tool_descriptions = []
+        for tool in available_tools:
+            tool_descriptions.append(f"- {tool['name']}: {tool.get('description', 'No description')}")
+        
+        tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+        
+        # LLM prompt for workflow planning
+        prompt = f"""
+You are an AI workflow planner that creates execution plans for complex user queries.
+
+Available tools:
+{tools_text}
+
+User query: "{user_input}"
+
+Analyze the user's query and create a step-by-step execution plan. Consider:
+1. What information needs to be gathered first?
+2. What tools should be used in sequence?
+3. How should results from one step inform the next step?
+4. What context should be passed between steps?
+
+Create a JSON workflow plan with this structure:
+{{
+  "workflow_plan": [
+    {{
+      "step": 1,
+      "tool": "tool_name",
+      "parameters": {{"param1": "value1", "param2": "value2"}},
+      "depends_on": null,
+      "output_key": "step1_results",
+      "description": "What this step accomplishes"
+    }},
+    {{
+      "step": 2,
+      "tool": "tool_name", 
+      "parameters": {{"param1": "value1", "context": "{{step1_results}}"}},
+      "depends_on": 1,
+      "output_key": "step2_results",
+      "description": "What this step accomplishes"
+    }}
+  ]
+}}
+
+Guidelines:
+- Use context substitution like "{{step1_results}}" to pass data between steps
+- Make parameters specific to each tool's requirements
+- Ensure logical flow and dependencies
+- Include meaningful descriptions
+- Use available tools only
+- For search queries, extract the actual search terms from the user input
+- For claim drafting, include context from previous steps when available
+
+Examples:
+- "web search ramy atawia, then draft 3 claims" → web_search_tool → claim_drafting_tool
+- "find prior art for AI patents and analyze them" → prior_art_search_tool → claim_analysis_tool
+- "draft 5 claims for blockchain" → claim_drafting_tool (single step)
+"""
+        
+        # Get LLM response
+        response = await llm_client.ainvoke(prompt)
+        response_text = response.content if hasattr(response, 'content') else str(response)
+        
+        # Parse LLM response
+        workflow_plan = _parse_llm_workflow_plan(response_text)
+        
+        if not workflow_plan:
+            logger.warning("LangGraph Phase 3: LLM workflow planning failed, using fallback")
+            return await _simple_workflow_planning(state)
+        
+        logger.debug(f"LangGraph Phase 3: LLM created workflow plan with {len(workflow_plan)} steps")
+        
+        return {
+            **state,
+            "workflow_plan": workflow_plan,
+            "total_steps": len(workflow_plan),
+            "current_step": 0,
+            "step_results": {}
+        }
+        
+    except Exception as e:
+        logger.warning(f"LangGraph Phase 3: LLM workflow planning failed, using fallback: {e}")
+        return await _simple_workflow_planning(state)
+
+
+def _parse_llm_workflow_plan(response_text: str) -> List[Dict[str, Any]]:
+    """Parse LLM response for workflow planning."""
+    try:
+        import json
+        import re
+        
+        # Extract JSON from response
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if not json_match:
+            logger.warning("No JSON found in LLM workflow response")
+            return []
+        
+        json_str = json_match.group(0)
+        parsed = json.loads(json_str)
+        
+        workflow_plan = parsed.get("workflow_plan", [])
+        
+        # Validate workflow plan structure
+        for step in workflow_plan:
+            required_fields = ["step", "tool", "parameters", "output_key"]
+            if not all(field in step for field in required_fields):
+                logger.warning(f"Invalid workflow step: missing required fields")
+                return []
+        
+        logger.debug(f"Parsed workflow plan with {len(workflow_plan)} steps")
+        return workflow_plan
+        
+    except Exception as e:
+        logger.warning(f"Failed to parse LLM workflow plan: {e}")
+        return []
+
+
+async def _simple_workflow_planning(state: MultiStepAgentState) -> MultiStepAgentState:
+    """Simple fallback workflow planning."""
+    logger.debug("LangGraph Phase 3: Using simple workflow planning fallback")
+    
+    user_input = state["user_input"]
+    available_tools = state["available_tools"]
+    
     # Create tool mapping for easy lookup
     tool_map = {tool["name"]: tool for tool in available_tools}
     
-    # Analyze user input for action patterns
-    workflow_plan = []
-    step_counter = 1
+    # Simple heuristic: if query contains "search" and "draft", create a 2-step plan
+    if "search" in user_input.lower() and "draft" in user_input.lower():
+        workflow_plan = []
+        
+        # Step 1: Web search
+        if "web_search_tool" in tool_map:
+            search_query = user_input.replace("web search", "").replace("draft", "").strip()
+            workflow_plan.append({
+                "step": 1,
+                "tool": "web_search_tool",
+                "parameters": {"query": search_query},
+                "depends_on": None,
+                "output_key": "web_search_results"
+            })
+        
+        # Step 2: Claim drafting
+        if "claim_drafting_tool" in tool_map:
+            claim_query = user_input
+            workflow_plan.append({
+                "step": 2,
+                "tool": "claim_drafting_tool",
+                "parameters": {
+                    "user_query": claim_query,
+                    "conversation_context": "{web_search_results}",
+                    "document_reference": state["document_content"]
+                },
+                "depends_on": 1,
+                "output_key": "draft_claims"
+            })
     
-    # Pattern 1: "find prior art and draft claims"
-    if "prior art" in user_input.lower() and "draft" in user_input.lower():
-        # Extract search query
-        search_query = _extract_search_query(user_input, "prior art")
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "prior_art_search_tool",
-            "parameters": {"query": search_query},
-            "depends_on": None,
-            "output_key": "prior_art_results"
-        })
-        step_counter += 1
-        
-        # Extract claim drafting parameters
-        claim_query = _extract_claim_parameters(user_input)
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "claim_drafting_tool",
-            "parameters": {
-                "user_query": claim_query,
-                "prior_art_context": "{prior_art_results}",  # Reference to step 1 output
-                "document_reference": state["document_content"]
-            },
-            "depends_on": step_counter - 1,
-            "output_key": "draft_claims"
-        })
-        step_counter += 1
-    
-    # Pattern 2: "draft claims and analyze them"
-    elif "draft" in user_input.lower() and "analyze" in user_input.lower():
-        # Similar pattern for claim drafting + analysis
-        claim_query = _extract_claim_parameters(user_input)
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "claim_drafting_tool",
-            "parameters": {
-                "user_query": claim_query,
-                "document_reference": state["document_content"]
-            },
-            "depends_on": None,
-            "output_key": "draft_claims"
-        })
-        step_counter += 1
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "claim_analysis_tool",
-            "parameters": {
-                "user_query": f"analyze the drafted claims",
-                "claims_context": "{draft_claims}",
-                "document_reference": state["document_content"]
-            },
-            "depends_on": step_counter - 1,
-            "output_key": "claim_analysis"
-        })
-        step_counter += 1
-    
-    # Pattern 3: "web search and draft claims"
-    elif "web search" in user_input.lower() and "draft" in user_input.lower():
-        search_query = _extract_search_query(user_input, "web search")
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "web_search_tool",
-            "parameters": {"query": search_query},
-            "depends_on": None,
-            "output_key": "web_search_results"
-        })
-        step_counter += 1
-        
-        # Extract claim drafting parameters
-        claim_query = _extract_claim_parameters(user_input)
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "claim_drafting_tool",
-            "parameters": {
-                "user_query": claim_query,
-                "conversation_context": "{web_search_results}",
-                "document_reference": state["document_content"]
-            },
-            "depends_on": step_counter - 1,
-            "output_key": "draft_claims"
-        })
-        step_counter += 1
-    
-    # Pattern 4: "search web and find patents"
-    elif "search" in user_input.lower() and "patent" in user_input.lower():
-        search_query = _extract_search_query(user_input, "search")
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "web_search_tool",
-            "parameters": {"query": search_query},
-            "depends_on": None,
-            "output_key": "web_search_results"
-        })
-        step_counter += 1
-        
-        workflow_plan.append({
-            "step": step_counter,
-            "tool": "prior_art_search_tool",
-            "parameters": {
-                "query": search_query,
-                "web_context": "{web_search_results}"
-            },
-            "depends_on": step_counter - 1,
-            "output_key": "patent_search_results"
-        })
-        step_counter += 1
-    
-    # If no specific pattern matched, create a simple single-step plan
-    if not workflow_plan:
+    # Single step fallback
+    if not workflow_plan and available_tools:
         # Prefer workflow tools over thinking tools
         workflow_tools = ["web_search_tool", "prior_art_search_tool", "claim_drafting_tool", "claim_analysis_tool"]
         preferred_tool = None
         
-        # Find the first available workflow tool
         for tool_name in workflow_tools:
             if tool_name in tool_map:
                 preferred_tool = tool_map[tool_name]
                 break
         
-        # Fallback to first available tool if no workflow tool found
-        if not preferred_tool and available_tools:
+        if not preferred_tool:
             preferred_tool = available_tools[0]
         
-        if preferred_tool:
-            workflow_plan.append({
-                "step": 1,
-                "tool": preferred_tool["name"],
-                "parameters": {"user_query": user_input},
-                "depends_on": None,
-                "output_key": "result"
-            })
-        else:
-            # No tools available, conversation only
-            workflow_plan = []
-    
-    logger.debug(f"LangGraph Phase 3: Created workflow plan with {len(workflow_plan)} steps")
+        workflow_plan = [{
+            "step": 1,
+            "tool": preferred_tool["name"],
+            "parameters": {"user_query": user_input},
+            "depends_on": None,
+            "output_key": "result"
+        }]
     
     return {
         **state,
