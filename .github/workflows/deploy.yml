@@ -1,26 +1,24 @@
 # Complete deployment pipeline with all fixes applied
-# PROD BRANCH: Deploy secure dev architecture to production Azure resources
-# CLEAN DEPLOYMENT: Fresh production environment after resource cleanup
 name: Deployment Pipeline
 
 on:
   push:
-    branches: [ main, dev, prod ]
+    branches: [ dev, prod ]
   workflow_dispatch:
 
 env:
   # Use Azure Container Registry for both environments
   ACR_NAME: novitaiwordmcp
   ACR_LOGIN_SERVER: novitaiwordmcp.azurecr.io
-  BACKEND_APP_NAME: ${{ github.ref == 'refs/heads/main' && 'novitai-word-mcp-backend' || (github.ref == 'refs/heads/prod' && 'novitai-word-mcp-backend') || 'novitai-word-mcp-backend-dev' }}
-  FRONTEND_APP_NAME: ${{ github.ref == 'refs/heads/main' && 'novitai-word-mcp-frontend' || (github.ref == 'refs/heads/prod' && 'novitai-word-mcp-frontend') || 'novitai-word-mcp-frontend-dev' }}
+  BACKEND_APP_NAME: ${{ github.ref == 'refs/heads/prod' && 'novitai-word-mcp-backend' || 'novitai-word-mcp-backend-dev' }}
+  FRONTEND_APP_NAME: ${{ github.ref == 'refs/heads/prod' && 'novitai-word-mcp-frontend' || 'novitai-word-mcp-frontend-dev' }}
   RESOURCE_GROUP: novitai-word-mcp-rg
 
 jobs:
   # Pre-deployment Tests
   test:
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || (github.ref == 'refs/heads/prod' && 'production') || 'development' }}
+    environment: ${{ github.ref == 'refs/heads/prod' && 'production' || 'development' }}
     outputs:
       tests-passed: ${{ steps.test-results.outputs.all-passed }}
 
@@ -262,7 +260,9 @@ jobs:
           INTERNAL_MCP_HOST=localhost \
           INTERNAL_MCP_PORT=8001 \
           INTERNAL_MCP_PATH=/mcp \
+          INTERNAL_MCP_URL=http://localhost:8001/mcp \
           EXPOSE_MCP_PUBLICLY=false \
+          APP_STARTER_MODE=true \
           MAX_FILE_SIZE=10485760 \
           WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
           WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
@@ -421,11 +421,11 @@ jobs:
         echo "Backend: https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net"
         echo "Frontend: https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net"
 
-  # Deploy to Production
-  deploy-production:
+  # Deploy to Production (from prod branch - identical to dev but with prod resources)
+  deploy-production-prod:
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main' && needs.test.outputs.tests-passed == 'true'
+    if: github.ref == 'refs/heads/prod' && needs.test.outputs.tests-passed == 'true'
     environment: production
 
     steps:
@@ -559,7 +559,9 @@ jobs:
           INTERNAL_MCP_HOST=localhost \
           INTERNAL_MCP_PORT=8001 \
           INTERNAL_MCP_PATH=/mcp \
+          INTERNAL_MCP_URL=http://localhost:8001/mcp \
           EXPOSE_MCP_PUBLICLY=false \
+          APP_STARTER_MODE=true \
           MAX_FILE_SIZE=10485760 \
           WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
           WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
@@ -646,270 +648,11 @@ jobs:
         echo "Backend: https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net"
         echo "Frontend: https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net"
 
-  # Deploy to Production (from prod branch)
-  deploy-production-prod:
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/prod' && needs.test.outputs.tests-passed == 'true'
-    environment: production
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Validate Required Secrets
-      run: |
-        echo "Validating all required secrets are available..."
-        
-        secrets_missing=false
-        
-        # Check all required secrets
-        if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-          echo "❌ AZURE_CREDENTIALS is missing"
-          secrets_missing=true
-        fi
-        
-        if [ -z "${{ secrets.AZURE_OPENAI_API_KEY }}" ]; then
-          echo "❌ AZURE_OPENAI_API_KEY is missing"
-          secrets_missing=true
-        fi
-        
-        if [ -z "${{ secrets.AZURE_OPENAI_ENDPOINT }}" ]; then
-          echo "❌ AZURE_OPENAI_ENDPOINT is missing"
-          secrets_missing=true
-        fi
-        
-        if [ -z "${{ secrets.GOOGLE_API_KEY }}" ]; then
-          echo "❌ GOOGLE_API_KEY is missing"
-          secrets_missing=true
-        fi
-        
-        if [ -z "${{ secrets.GOOGLE_CSE_ID }}" ]; then
-          echo "❌ GOOGLE_CSE_ID is missing"
-          secrets_missing=true
-        fi
-        
-        if [ -z "${{ secrets.PATENTSVIEW_API_KEY }}" ]; then
-          echo "❌ PATENTSVIEW_API_KEY is missing"
-          secrets_missing=true
-        fi
-        
-        # SECRET_KEY is generated dynamically, not from secrets
-        
-        if [ "$secrets_missing" = true ]; then
-          echo "❌ One or more required secrets are missing. Please check the repository secrets."
-          exit 1
-        fi
-        
-        echo "✅ All required secrets are available"
-
-    - name: Login to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Login to Azure Container Registry
-      run: |
-        az acr login --name ${{ env.ACR_NAME }}
-
-    - name: Create App Service Plan
-      run: |
-        echo "Creating App Service Plan..."
-        if ! az appservice plan show --name novitai-word-mcp-prod-plan --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
-          az appservice plan create \
-            --name novitai-word-mcp-prod-plan \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --location eastus \
-            --sku B1 \
-            --is-linux
-          echo "App Service Plan created"
-        else
-          echo "App Service Plan already exists"
-        fi
-
-    - name: Create Backend App Service
-      run: |
-        echo "Creating Backend App Service..."
-        if ! az webapp show --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
-          az webapp create \
-            --name ${{ env.BACKEND_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --plan novitai-word-mcp-prod-plan \
-            --deployment-container-image-name ${{ env.ACR_LOGIN_SERVER }}/backend:latest
-          echo "Backend App Service created"
-        else
-          echo "Backend App Service already exists"
-        fi
-
-    - name: Create Frontend App Service
-      run: |
-        echo "Creating Frontend App Service..."
-        if ! az webapp show --name ${{ env.FRONTEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} >/dev/null 2>&1; then
-          az webapp create \
-            --name ${{ env.FRONTEND_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --plan novitai-word-mcp-prod-plan \
-            --deployment-container-image-name ${{ env.ACR_LOGIN_SERVER }}/frontend:latest
-          echo "Frontend App Service created"
-        else
-          echo "Frontend App Service already exists"
-        fi
-
-    - name: Build and push Backend image
-      run: |
-        echo "Building backend image..."
-        docker buildx build \
-          --platform linux/amd64 \
-          --file backend/Dockerfile \
-          --target production \
-          --tag ${{ env.ACR_LOGIN_SERVER }}/backend:${{ github.sha }} \
-          --tag ${{ env.ACR_LOGIN_SERVER }}/backend:latest \
-          --push \
-          backend/
-
-    - name: Build and push Frontend image
-      run: |
-        echo "Building frontend image with production environment variables..."
-        docker buildx build \
-          --platform linux/amd64 \
-          --file "Novitai MCP/Dockerfile" \
-          --target production \
-          --build-arg REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend.azurewebsites.net \
-          --build-arg REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend.azurewebsites.net \
-          --build-arg REACT_APP_FRONTEND_URL=https://novitai-word-mcp-frontend.azurewebsites.net \
-          --build-arg REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
-          --build-arg REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
-          --build-arg REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
-          --build-arg NODE_ENV=production \
-          --tag ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }} \
-          --tag ${{ env.ACR_LOGIN_SERVER }}/frontend:latest \
-          --push \
-          "Novitai MCP/"
-
-    - name: Deploy Backend to Azure App Service
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ env.BACKEND_APP_NAME }}
-        images: ${{ env.ACR_LOGIN_SERVER }}/backend:${{ github.sha }}
-
-    - name: Generate Secret Key
-      run: |
-        echo "Generating secret key..."
-        SECRET_KEY=$(openssl rand -base64 32)
-        echo "SECRET_KEY=$SECRET_KEY" >> $GITHUB_ENV
-
-    - name: Configure Backend Environment Variables
-      run: |
-        echo "Setting up backend environment variables..."
-        az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings \
-          ENVIRONMENT=production \
-          LOG_LEVEL=DEBUG \
-          DEBUG=false \
-          PORT=9000 \
-          SECRET_KEY="$SECRET_KEY" \
-          ALLOWED_ORIGINS='["https://novitai-word-mcp-frontend.azurewebsites.net"]' \
-          ALLOWED_HOSTS='["*"]' \
-          AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
-          AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
-          AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini \
-          AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini \
-          AZURE_OPENAI_API_VERSION=2024-02-15-preview \
-          AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
-          AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
-          GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }} \
-          GOOGLE_CSE_ID=${{ secrets.GOOGLE_CSE_ID }} \
-          PATENTSVIEW_API_KEY=${{ secrets.PATENTSVIEW_API_KEY }} \
-          INTERNAL_MCP_HOST=localhost \
-          INTERNAL_MCP_PORT=8001 \
-          INTERNAL_MCP_PATH=/mcp \
-          INTERNAL_MCP_URL=http://localhost:8001/mcp \
-          EXPOSE_MCP_PUBLICLY=false \
-          APP_STARTER_MODE=true \
-          MAX_FILE_SIZE=10485760 \
-          WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
-          WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
-          DOCKER_ENABLE_CI=true \
-          SCM_DO_BUILD_DURING_DEPLOYMENT=1
-
-    - name: Set ACR Password for Backend
-      run: |
-        echo "Setting ACR password for backend..."
-        ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" --output tsv)
-        az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings DOCKER_REGISTRY_SERVER_PASSWORD="$ACR_PASSWORD"
-
-    - name: Deploy Frontend to Azure App Service
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ env.FRONTEND_APP_NAME }}
-        images: ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }}
-
-    - name: Configure Frontend Environment Variables
-      run: |
-        echo "Setting up frontend environment variables..."
-        az webapp config appsettings set --name ${{ env.FRONTEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings \
-          REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend.azurewebsites.net \
-          REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend.azurewebsites.net \
-          REACT_APP_FRONTEND_URL=https://novitai-word-mcp-frontend.azurewebsites.net \
-          REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
-          REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
-          REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
-          NODE_ENV=production \
-          DOCKER_ENABLE_CI=true
-
-    - name: Wait for Deployment with Health Check
-      run: |
-        echo "Waiting for deployment to become healthy..."
-        max_attempts=30
-        attempt=1
-        
-        while [ $attempt -le $max_attempts ]; do
-          if curl -s -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" >/dev/null 2>&1; then
-            echo "Deployment is healthy after ${attempt} attempts"
-            break
-          fi
-          
-          if [ $attempt -eq $max_attempts ]; then
-            echo "Deployment failed to become healthy after $max_attempts attempts"
-            exit 1
-          fi
-          
-          echo "Attempt $attempt/$max_attempts failed, waiting 10 seconds..."
-          sleep 10
-          attempt=$((attempt + 1))
-        done
-
-    - name: Run production health checks
-      run: |
-        echo "Running health checks on production..."
-        
-        # Basic health check
-        if ! curl -s -f "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health" >/dev/null 2>&1; then
-          echo "Production backend health check failed"
-          exit 1
-        fi
-        echo "Production backend health check passed"
-
-    - name: Deployment Status
-      run: |
-        if [ "${{ job.status }}" == "success" ]; then
-          echo "Production deployment SUCCESSFUL for ${{ github.repository }}#${{ github.run_number }}"
-        else
-          echo "Production deployment FAILED for ${{ github.repository }}#${{ github.run_number }}"
-        fi
-        echo "Backend: https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net"
-        echo "Frontend: https://${{ env.FRONTEND_APP_NAME }}.azurewebsites.net"
-
   # Rollback (if needed)
   rollback:
     runs-on: ubuntu-latest
-    needs: [deploy-production, deploy-production-prod]
-    if: always() && ((needs.deploy-production.result == 'failure' && github.ref == 'refs/heads/main') || (needs.deploy-production-prod.result == 'failure' && github.ref == 'refs/heads/prod'))
+    needs: [deploy-production-prod]
+    if: always() && needs.deploy-production-prod.result == 'failure' && github.ref == 'refs/heads/prod'
     environment: production
 
     steps:
