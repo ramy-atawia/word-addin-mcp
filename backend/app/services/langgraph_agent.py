@@ -694,12 +694,25 @@ async def _simple_workflow_planning(state: MultiStepAgentState) -> MultiStepAgen
     # Create tool mapping for easy lookup
     tool_map = {tool["name"]: tool for tool in available_tools}
     
-    # Simple heuristic: if query contains "search" and "draft", create a 2-step plan
-    if "search" in user_input.lower() and "draft" in user_input.lower():
-        workflow_plan = []
+    # Initialize workflow_plan
+    workflow_plan = []
+    
+    # Simple heuristic: if query contains "draft" and ("search" or "prior art"), create a 2-step plan
+    if "draft" in user_input.lower() and ("search" in user_input.lower() or "prior art" in user_input.lower()):
         
-        # Step 1: Web search
-        if "web_search_tool" in tool_map:
+        # Step 1: Search (web search or prior art search)
+        if "prior art" in user_input.lower() and "prior_art_search_tool" in tool_map:
+            # Extract query for prior art search
+            search_query = user_input.replace("draft", "").replace("then perform", "").replace("prior art", "").strip()
+            workflow_plan.append({
+                "step": 1,
+                "tool": "prior_art_search_tool",
+                "parameters": {"query": search_query},
+                "depends_on": None,
+                "output_key": "prior_art_results"
+            })
+        elif "web_search_tool" in tool_map:
+            # Extract query for web search
             search_query = user_input.replace("web search", "").replace("draft", "").strip()
             workflow_plan.append({
                 "step": 1,
@@ -712,12 +725,14 @@ async def _simple_workflow_planning(state: MultiStepAgentState) -> MultiStepAgen
         # Step 2: Claim drafting
         if "claim_drafting_tool" in tool_map:
             claim_query = user_input
+            # Use the appropriate context from the search step
+            context_key = "prior_art_results" if "prior art" in user_input.lower() else "web_search_results"
             workflow_plan.append({
                 "step": 2,
                 "tool": "claim_drafting_tool",
                 "parameters": {
                     "user_query": claim_query,
-                    "conversation_context": "{web_search_results}",
+                    "conversation_context": f"{{{context_key}}}",
                     "document_reference": state["document_content"]
                 },
                 "depends_on": 1,
