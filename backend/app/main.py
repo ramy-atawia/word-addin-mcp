@@ -18,6 +18,7 @@ from .core.config import settings
 from .core.logging import setup_logging
 from .middleware.auth0_jwt_middleware import Auth0JWTMiddleware
 from .api.v1 import mcp, external_mcp, session, health
+from .internal_mcp_app import app as internal_mcp_app
 
 # Setup logging
 setup_logging()
@@ -266,7 +267,8 @@ app.include_router(
     tags=["health"]
 )
 
-# Internal MCP runs as separate server (not mounted)
+# Mount internal MCP app AFTER authentication middleware for security
+app.mount("/internal-mcp", internal_mcp_app)
 
 
 @app.get("/")

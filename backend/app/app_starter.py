@@ -38,16 +38,21 @@ class AppStarter:
     
     async def start_internal_mcp(self):
         """Start the internal MCP server."""
-        # Start internal MCP server on separate port for all environments
-        # This matches the dev branch architecture
-        config = uvicorn.Config(
-            internal_mcp_app,
-            host="0.0.0.0",
-            port=8001,
-            log_level="info"
-        )
-        self.internal_mcp_server = uvicorn.Server(config)
-        await self.internal_mcp_server.serve()
+        # Check if we're in Azure App Service (production)
+        if os.getenv("ENVIRONMENT") == "production":
+            # In Azure App Service, internal MCP is mounted on the backend app
+            logger.info("Production mode: Internal MCP server is mounted on backend app")
+            return
+        else:
+            # In development/docker, use separate port
+            config = uvicorn.Config(
+                internal_mcp_app,
+                host="0.0.0.0",
+                port=8001,
+                log_level="info"
+            )
+            self.internal_mcp_server = uvicorn.Server(config)
+            await self.internal_mcp_server.serve()
     
     async def start_both(self):
         """Start both applications concurrently."""

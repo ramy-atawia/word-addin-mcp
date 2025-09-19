@@ -109,10 +109,13 @@ class Settings(BaseSettings):
     @property
     def internal_mcp_url(self) -> str:
         """Get internal MCP server URL based on environment."""
-        if self.expose_mcp_publicly:
+        if self.expose_mcp_publicly and self.mcp_public_url:
             return self.mcp_public_url
         elif self.environment == "docker":
             return f"http://internal-mcp:{self.internal_mcp_port}{self.internal_mcp_path}"
+        elif self.environment == "production":
+            # In production (Azure App Service), internal MCP is mounted on the same port
+            return f"http://localhost:9000/internal-mcp"
         else:
             return f"http://{self.internal_mcp_host}:{self.internal_mcp_port}{self.internal_mcp_path}"
     
@@ -149,7 +152,8 @@ class Settings(BaseSettings):
         "/api/v1/mcp/tools",
         "/api/v1/mcp/execute",
         "/api/v1/mcp/servers",
-        "/api/v1/mcp/health"
+        "/api/v1/mcp/health",
+        "/internal-mcp*"
     ]
     
     # API Configuration
