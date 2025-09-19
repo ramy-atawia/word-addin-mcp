@@ -105,7 +105,7 @@ Analyze the user's intent and select the most appropriate tool. If no tool is su
 Respond in this exact format:
 TOOL: [tool_name or "conversation"]
 INTENT: [brief description of intent]
-PARAMETERS: [JSON object with tool parameters, or empty object {}]
+PARAMETERS: [JSON object with tool parameters, or empty object {{}}]
 
 Examples:
 - "find prior art for AI patents" → TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
