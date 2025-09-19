@@ -89,17 +89,30 @@ async def agent_chat(request: AgentChatRequest):
             logger.warning(f"Failed to get available tools: {str(e)}")
         
         # Process message through agent service with frontend chat history
-        # Phase 2: Use LangGraph if enabled, otherwise use original method
+        # Phase 3: Use advanced LangGraph for multi-step workflows, basic LangGraph for single tools, or original method
         from app.core.config import settings
         
         if settings.use_langgraph:
-            logger.debug("Using LangGraph Phase 2 for agent processing")
-            response = await agent_service.process_user_message_langgraph(
-                user_message=request.message,
-                document_content=document_content,
-                available_tools=available_tools,
-                frontend_chat_history=parsed_chat_history
-            )
+            # Check if this is a complex query that needs multi-step workflow
+            complex_indicators = ["and then", "then", "after", "followed by", "next", "find", "search", "draft", "analyze"]
+            action_count = sum(1 for indicator in complex_indicators if indicator in request.message.lower())
+            
+            if action_count >= 2:
+                logger.debug("Using LangGraph Phase 3 (Advanced) for multi-step workflow")
+                response = await agent_service.process_user_message_advanced_langgraph(
+                    user_message=request.message,
+                    document_content=document_content,
+                    available_tools=available_tools,
+                    frontend_chat_history=parsed_chat_history
+                )
+            else:
+                logger.debug("Using LangGraph Phase 2 (Basic) for single tool execution")
+                response = await agent_service.process_user_message_langgraph(
+                    user_message=request.message,
+                    document_content=document_content,
+                    available_tools=available_tools,
+                    frontend_chat_history=parsed_chat_history
+                )
         else:
             logger.debug("Using original agent processing method")
             response = await agent_service.process_user_message(

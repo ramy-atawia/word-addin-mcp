@@ -104,6 +104,21 @@ class AgentService:
                 self.langgraph_agent = None
         return self.langgraph_agent
     
+    def _get_advanced_langgraph_agent(self):
+        """Get advanced LangGraph agent with multi-step support - Phase 3."""
+        if not hasattr(self, 'advanced_langgraph_agent'):
+            self.advanced_langgraph_agent = None
+            
+        if self.advanced_langgraph_agent is None:
+            try:
+                from .langgraph_agent import get_advanced_agent_graph
+                self.advanced_langgraph_agent = get_advanced_agent_graph()
+                logger.debug("Advanced LangGraph agent initialized (Phase 3)")
+            except ImportError as e:
+                logger.error(f"Failed to import advanced LangGraph agent: {e}")
+                self.advanced_langgraph_agent = None
+        return self.advanced_langgraph_agent
+    
     async def process_user_message_langgraph(
         self,
         user_message: str,
@@ -169,6 +184,92 @@ class AgentService:
                 "execution_time": execution_time,
                 "success": False,
                 "error": str(e)
+            }
+    
+    async def process_user_message_advanced_langgraph(
+        self,
+        user_message: str,
+        document_content: Optional[str] = None,
+        available_tools: List[Dict[str, Any]] = None,
+        frontend_chat_history: List[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process user message using advanced LangGraph workflow - Phase 3.
+        
+        This method supports multi-step workflows with context passing.
+        """
+        start_time = time.time()
+        logger.debug(f"LangGraph Phase 3 processing message: '{user_message[:50]}...'")
+        
+        try:
+            # Get advanced LangGraph agent
+            advanced_agent = self._get_advanced_langgraph_agent()
+            if not advanced_agent:
+                raise RuntimeError("Advanced LangGraph agent not available")
+            
+            # Prepare initial state for multi-step workflow
+            initial_state = {
+                "user_input": user_message,
+                "document_content": document_content or "",
+                "conversation_history": frontend_chat_history or [],
+                "available_tools": available_tools or [],
+                "workflow_plan": [],
+                "current_step": 0,
+                "total_steps": 0,
+                "step_results": {},
+                "selected_tool": "",
+                "tool_parameters": {},
+                "final_response": "",
+                "intent_type": "",
+                "execution_metadata": {}
+            }
+            
+            # Run advanced LangGraph workflow
+            result = await advanced_agent.ainvoke(initial_state)
+            
+            # Convert to existing response format
+            execution_time = time.time() - start_time
+            
+            # Extract tool name from workflow plan if available
+            tool_name = None
+            if result.get("workflow_plan"):
+                first_step = result["workflow_plan"][0]
+                tool_name = first_step.get("tool")
+            
+            response_data = {
+                "response": result["final_response"],
+                "intent_type": result["intent_type"],
+                "tool_name": tool_name,
+                "execution_time": execution_time,
+                "success": True,
+                "error": None,
+                "workflow_metadata": {
+                    "total_steps": result.get("total_steps", 0),
+                    "completed_steps": result.get("current_step", 0),
+                    "workflow_type": result.get("execution_metadata", {}).get("workflow_type", "unknown")
+                }
+            }
+            
+            logger.debug(f"LangGraph Phase 3 completed - response length: {len(result['final_response'])}")
+            return response_data
+            
+        except Exception as e:
+            execution_time = time.time() - start_time
+            error_response = f"LangGraph Phase 3 error: {str(e)}"
+            logger.error(f"LangGraph Phase 3 failed: {str(e)}")
+            
+            return {
+                "response": error_response,
+                "intent_type": "error",
+                "tool_name": None,
+                "execution_time": execution_time,
+                "success": False,
+                "error": str(e),
+                "workflow_metadata": {
+                    "total_steps": 0,
+                    "completed_steps": 0,
+                    "workflow_type": "error"
+                }
             }
     
     async def process_user_message(
