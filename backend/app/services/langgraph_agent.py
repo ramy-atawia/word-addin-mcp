@@ -936,8 +936,13 @@ def _route_workflow_type(state: MultiStepAgentState) -> str:
     
     if workflow_type == "conversation":
         return "conversation"
+    elif workflow_type == "single_tool":
+        return "single_tool"
+    elif workflow_type == "multi_step":
+        return "multi_step"
     else:
-        return "workflow_planning"
+        # Default to single_tool for any other workflow type
+        return "single_tool"
 
 
 # Global instance for lazy initialization
