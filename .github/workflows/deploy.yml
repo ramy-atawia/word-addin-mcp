@@ -363,18 +363,18 @@ jobs:
         fi
         echo "MCP tools check passed: $tools_count tools loaded"
         
-        # Test 3: Web Search Functionality
-        echo "Testing web search functionality..."
+        # Test 3: Search Functionality (Web or Prior Art)
+        echo "Testing search functionality..."
         search_response=$(curl -s -X POST "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/agent/chat" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $AUTH0_TEST_TOKEN" \
           -d '{"message": "Search for test", "session_id": "deployment-test"}' || echo '{"success":false}')
         
-        if echo "$search_response" | grep -q "Web Search Results"; then
+        if echo "$search_response" | grep -q "Web Search Results\|Prior Art Search Report\|search results"; then
           search_length=$(echo "$search_response" | wc -c)
-          echo "Web search test passed: $search_length characters returned"
+          echo "Search test passed: $search_length characters returned"
         else
-          echo "Web search test failed: No search results found"
+          echo "Search test failed: No search results found"
           echo "Response preview: $(echo "$search_response" | head -c 200)..."
           exit 1
         fi

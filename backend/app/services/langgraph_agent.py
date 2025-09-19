@@ -138,9 +138,18 @@ async def _simple_intent_detection(state: AgentState) -> AgentState:
     """Fallback simple intent detection for Phase 2."""
     user_input = state["user_input"].lower()
     
-    # Enhanced simple detection
-    if "prior art" in user_input or "search" in user_input or "find" in user_input:
+    # Enhanced simple detection with more specific matching
+    if "prior art" in user_input or "patent" in user_input:
         selected_tool = "prior_art_search_tool"
+        intent_type = "tool_execution"
+        tool_parameters = {"query": user_input}
+    elif "web search" in user_input or ("search" in user_input and "web" in user_input):
+        selected_tool = "web_search_tool"
+        intent_type = "tool_execution"
+        tool_parameters = {"query": user_input}
+    elif "search" in user_input or "find" in user_input:
+        # Default to web search for general search queries
+        selected_tool = "web_search_tool"
         intent_type = "tool_execution"
         tool_parameters = {"query": user_input}
     elif "draft" in user_input or "claim" in user_input:
