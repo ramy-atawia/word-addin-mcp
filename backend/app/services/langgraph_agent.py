@@ -619,7 +619,36 @@ async def plan_workflow_node(state: MultiStepAgentState) -> MultiStepAgentState:
         })
         step_counter += 1
     
-    # Pattern 3: "search web and find patents"
+    # Pattern 3: "web search and draft claims"
+    elif "web search" in user_input.lower() and "draft" in user_input.lower():
+        search_query = _extract_search_query(user_input, "web search")
+        
+        workflow_plan.append({
+            "step": step_counter,
+            "tool": "web_search_tool",
+            "parameters": {"query": search_query},
+            "depends_on": None,
+            "output_key": "web_search_results"
+        })
+        step_counter += 1
+        
+        # Extract claim drafting parameters
+        claim_query = _extract_claim_parameters(user_input)
+        
+        workflow_plan.append({
+            "step": step_counter,
+            "tool": "claim_drafting_tool",
+            "parameters": {
+                "user_query": claim_query,
+                "conversation_context": "{web_search_results}",
+                "document_reference": state["document_content"]
+            },
+            "depends_on": step_counter - 1,
+            "output_key": "draft_claims"
+        })
+        step_counter += 1
+    
+    # Pattern 4: "search web and find patents"
     elif "search" in user_input.lower() and "patent" in user_input.lower():
         search_query = _extract_search_query(user_input, "search")
         
@@ -646,12 +675,24 @@ async def plan_workflow_node(state: MultiStepAgentState) -> MultiStepAgentState:
     
     # If no specific pattern matched, create a simple single-step plan
     if not workflow_plan:
-        # Use the first available tool or default to conversation
-        if available_tools:
-            first_tool = available_tools[0]
+        # Prefer workflow tools over thinking tools
+        workflow_tools = ["web_search_tool", "prior_art_search_tool", "claim_drafting_tool", "claim_analysis_tool"]
+        preferred_tool = None
+        
+        # Find the first available workflow tool
+        for tool_name in workflow_tools:
+            if tool_name in tool_map:
+                preferred_tool = tool_map[tool_name]
+                break
+        
+        # Fallback to first available tool if no workflow tool found
+        if not preferred_tool and available_tools:
+            preferred_tool = available_tools[0]
+        
+        if preferred_tool:
             workflow_plan.append({
                 "step": 1,
-                "tool": first_tool["name"],
+                "tool": preferred_tool["name"],
                 "parameters": {"user_query": user_input},
                 "depends_on": None,
                 "output_key": "result"
