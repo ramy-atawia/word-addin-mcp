@@ -260,7 +260,10 @@ jobs:
           INTERNAL_MCP_HOST=localhost \
           INTERNAL_MCP_PORT=8001 \
           INTERNAL_MCP_PATH=/mcp \
+          INTERNAL_MCP_URL=http://localhost:8001/mcp \
           EXPOSE_MCP_PUBLICLY=false \
+          APP_STARTER_MODE=true \
+          USE_LANGGRAPH=true \
           MAX_FILE_SIZE=10485760 \
           WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
           WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
@@ -557,7 +560,10 @@ jobs:
           INTERNAL_MCP_HOST=localhost \
           INTERNAL_MCP_PORT=8001 \
           INTERNAL_MCP_PATH=/mcp \
+          INTERNAL_MCP_URL=http://localhost:9000/internal-mcp \
           EXPOSE_MCP_PUBLICLY=false \
+          APP_STARTER_MODE=true \
+          USE_LANGGRAPH=true \
           MAX_FILE_SIZE=10485760 \
           WEBSITE_HTTPLOGGING_RETENTION_DAYS=3 \
           WEBSITES_ENABLE_APP_SERVICE_STORAGE=false \
