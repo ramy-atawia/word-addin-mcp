@@ -87,13 +87,13 @@ export const LoginForm: React.FC = () => {
       <div className="login-header">
         <div className="header-logo-container">
           <img 
-            src="/assets/novitai-logo.png" 
-            alt="Novitai Logo" 
+            src="/assets/NovitaiPatentLogo3-removebg-preview.png" 
+            alt="NovitAI Logo" 
             className="header-logo large"
           />
         </div>
         <div className="header-text">
-          <h2>Welcome to Word Add-in MCP</h2>
+          <h2>Welcome to NovitAI MCP</h2>
           <p>Your AI-powered patent drafting companion</p>
         </div>
       </div>
