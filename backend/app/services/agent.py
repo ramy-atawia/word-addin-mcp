@@ -59,6 +59,7 @@ class AgentService:
         self.llm_client = None
         self.conversation_memory = ConversationMemory()
         self.mcp_orchestrator = None
+        self.langgraph_agent = None  # Phase 1: LangGraph integration
     
     def _get_llm_client(self):
         """Get LLM client with lazy initialization."""
@@ -90,6 +91,85 @@ class AgentService:
             except Exception as e:
                 raise RuntimeError(f"Failed to initialize MCP orchestrator: {str(e)}")
         return self.mcp_orchestrator
+    
+    def _get_langgraph_agent(self):
+        """Get LangGraph agent with lazy initialization - Phase 1."""
+        if self.langgraph_agent is None:
+            try:
+                from .langgraph_agent import get_basic_agent_graph
+                self.langgraph_agent = get_basic_agent_graph()
+                logger.debug("LangGraph agent initialized (Phase 1)")
+            except ImportError as e:
+                logger.error(f"Failed to import LangGraph agent: {e}")
+                self.langgraph_agent = None
+        return self.langgraph_agent
+    
+    async def process_user_message_langgraph(
+        self,
+        user_message: str,
+        document_content: Optional[str] = None,
+        available_tools: List[Dict[str, Any]] = None,
+        frontend_chat_history: List[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process user message using LangGraph workflow - Phase 1.
+        
+        This method provides the same interface as process_user_message
+        but uses LangGraph for workflow orchestration.
+        """
+        start_time = time.time()
+        logger.debug(f"LangGraph Phase 1 processing message: '{user_message[:50]}...'")
+        
+        try:
+            # Get LangGraph agent
+            langgraph_agent = self._get_langgraph_agent()
+            if not langgraph_agent:
+                raise RuntimeError("LangGraph agent not available")
+            
+            # Prepare initial state
+            initial_state = {
+                "user_input": user_message,
+                "document_content": document_content or "",
+                "conversation_history": frontend_chat_history or [],
+                "available_tools": available_tools or [],
+                "selected_tool": "",
+                "tool_parameters": {},
+                "tool_result": None,
+                "final_response": "",
+                "intent_type": ""
+            }
+            
+            # Run LangGraph workflow
+            result = await langgraph_agent.ainvoke(initial_state)
+            
+            # Convert to existing response format
+            execution_time = time.time() - start_time
+            
+            response_data = {
+                "response": result["final_response"],
+                "intent_type": result["intent_type"],
+                "tool_name": result["selected_tool"] if result["selected_tool"] else None,
+                "execution_time": execution_time,
+                "success": True,
+                "error": None
+            }
+            
+            logger.debug(f"LangGraph Phase 1 completed - response length: {len(result['final_response'])}")
+            return response_data
+            
+        except Exception as e:
+            execution_time = time.time() - start_time
+            error_response = f"LangGraph Phase 1 error: {str(e)}"
+            logger.error(f"LangGraph Phase 1 failed: {str(e)}")
+            
+            return {
+                "response": error_response,
+                "intent_type": "error",
+                "tool_name": None,
+                "execution_time": execution_time,
+                "success": False,
+                "error": str(e)
+            }
     
     async def process_user_message(
         self,

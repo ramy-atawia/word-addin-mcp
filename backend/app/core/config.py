@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     max_requests_per_minute: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "60"))
     max_requests_per_hour: int = int(os.getenv("MAX_REQUESTS_PER_HOUR", "1000"))
     
+    # LangGraph Configuration - Phase 1
+    use_langgraph: bool = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
+    
     # Rate limit aliases for middleware
     @property
     def RATE_LIMIT_PER_MINUTE(self) -> int:
