@@ -1,5 +1,6 @@
 # Complete deployment pipeline with all fixes applied
 # PROD BRANCH: Deploy secure dev architecture to production Azure resources
+# CLEAN DEPLOYMENT: Fresh production environment after resource cleanup
 name: Deployment Pipeline
 
 on:
