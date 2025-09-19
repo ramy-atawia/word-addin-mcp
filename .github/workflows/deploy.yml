@@ -775,11 +775,18 @@ jobs:
 
     - name: Build and push Frontend image
       run: |
-        echo "Building frontend image..."
+        echo "Building frontend image with production environment variables..."
         docker buildx build \
           --platform linux/amd64 \
           --file "Novitai MCP/Dockerfile" \
           --target production \
+          --build-arg REACT_APP_API_BASE_URL=https://novitai-word-mcp-backend.azurewebsites.net \
+          --build-arg REACT_APP_BACKEND_URL=https://novitai-word-mcp-backend.azurewebsites.net \
+          --build-arg REACT_APP_FRONTEND_URL=https://novitai-word-mcp-frontend.azurewebsites.net \
+          --build-arg REACT_APP_AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
+          --build-arg REACT_APP_AUTH0_CLIENT_ID=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
+          --build-arg REACT_APP_AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
+          --build-arg NODE_ENV=production \
           --tag ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ github.sha }} \
           --tag ${{ env.ACR_LOGIN_SERVER }}/frontend:latest \
           --push \
