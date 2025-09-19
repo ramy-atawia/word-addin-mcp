@@ -388,27 +388,36 @@ const MCPToolManager: React.FC = () => {
         padding: '60px 20px', 
         color: tokens.colorNeutralForeground3 
       }}>
-        <History24Regular style={{ fontSize: '48px', marginBottom: '16px' }} />
-        <Text size={400} style={{ marginBottom: '8px' }}>
-          Chat History Coming Soon
+        <History24Regular style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.6 }} />
+        <Text size={400} style={{ marginBottom: '8px', fontWeight: '600' }}>
+          Coming Soon
         </Text>
-        <Text size={200}>
+        <Text size={300} style={{ marginBottom: '24px', opacity: 0.8 }}>
           This tab will display your previous chat conversations and AI interactions
         </Text>
-        <Text size={200} style={{ marginTop: '16px', opacity: 0.7 }}>
-          Features planned:
-        </Text>
-        <ul style={{ 
-          textAlign: 'left', 
-          display: 'inline-block', 
-          marginTop: '8px',
-          opacity: 0.7 
+        
+        <div style={{
+          background: tokens.colorNeutralBackground2,
+          borderRadius: '8px',
+          padding: '20px',
+          margin: '0 auto',
+          maxWidth: '400px',
+          textAlign: 'left'
         }}>
-          <li>Previous chat sessions</li>
-          <li>Tool execution history</li>
-          <li>Document processing history</li>
-          <li>Search and filter capabilities</li>
-        </ul>
+          <Text size={300} style={{ marginBottom: '12px', fontWeight: '600' }}>
+            Planned Features:
+          </Text>
+          <ul style={{ 
+            margin: 0,
+            paddingLeft: '20px',
+            opacity: 0.8 
+          }}>
+            <li style={{ marginBottom: '6px' }}>Previous chat sessions</li>
+            <li style={{ marginBottom: '6px' }}>Tool execution history</li>
+            <li style={{ marginBottom: '6px' }}>Document processing history</li>
+            <li style={{ marginBottom: '6px' }}>Search and filter capabilities</li>
+          </ul>
+        </div>
       </div>
     </div>
   );
