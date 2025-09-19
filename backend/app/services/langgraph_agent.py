@@ -297,13 +297,16 @@ async def _llm_response_formatting(state: AgentState, llm_client) -> str:
         error_msg = tool_result.get("error", "Unknown error")
         return f"I encountered an issue while executing the {tool_name}: {error_msg}"
     
+    # Extract formatted content from tool result for LLM processing
+    formatted_content = tool_result.get("result", str(tool_result)) if isinstance(tool_result, dict) else str(tool_result)
+    
     # Create prompt for response formatting
     prompt = f"""
 You are an AI assistant that formats tool execution results into user-friendly responses.
 
 User's original request: "{user_input}"
 Tool executed: {tool_name}
-Tool result: {tool_result}
+Tool result: {formatted_content}
 
 Format the tool result into a clear, helpful response for the user. Focus on:
 1. Answering their specific question
@@ -332,15 +335,18 @@ async def _simple_response_formatting(state: AgentState) -> str:
         error_msg = tool_result.get("error", "Unknown error")
         return f"I encountered an issue while executing the {tool_name}: {error_msg}"
     
+    # Extract formatted content from tool result
+    formatted_content = tool_result.get("result", str(tool_result)) if isinstance(tool_result, dict) else str(tool_result)
+    
     # Simple formatting based on tool type
     if tool_name == "prior_art_search_tool":
-        return f"Here are the prior art search results:\n\n{tool_result}"
+        return f"Here are the prior art search results:\n\n{formatted_content}"
     elif tool_name == "claim_drafting_tool":
-        return f"Here are the drafted claims:\n\n{tool_result}"
+        return f"Here are the drafted claims:\n\n{formatted_content}"
     elif tool_name == "claim_analysis_tool":
-        return f"Here's the claim analysis:\n\n{tool_result}"
+        return f"Here's the claim analysis:\n\n{formatted_content}"
     else:
-        return f"Tool execution completed:\n\n{tool_result}"
+        return f"Tool execution completed:\n\n{formatted_content}"
 
 
 def create_basic_agent_graph() -> StateGraph:
@@ -939,17 +945,20 @@ async def generate_multi_step_response_node(state: MultiStepAgentState) -> Multi
                 step_result = step_results.get(step_number)
                 
                 if step_result and not step_result.get("error"):
-                    # Format step result
+                    # Extract formatted content from step result
+                    formatted_content = step_result.get("result", str(step_result))
+                    
+                    # Format step result with proper content
                     if step["tool"] == "prior_art_search_tool":
-                        response_parts.append(f"**Prior Art Search Results:**\n{step_result}")
+                        response_parts.append(f"**Prior Art Search Results:**\n{formatted_content}")
                     elif step["tool"] == "claim_drafting_tool":
-                        response_parts.append(f"**Draft Claims:**\n{step_result}")
+                        response_parts.append(f"**Draft Claims:**\n{formatted_content}")
                     elif step["tool"] == "claim_analysis_tool":
-                        response_parts.append(f"**Claim Analysis:**\n{step_result}")
+                        response_parts.append(f"**Claim Analysis:**\n{formatted_content}")
                     elif step["tool"] == "web_search_tool":
-                        response_parts.append(f"**Web Search Results:**\n{step_result}")
+                        response_parts.append(f"**Web Search Results:**\n{formatted_content}")
                     else:
-                        response_parts.append(f"**{step['tool']} Results:**\n{step_result}")
+                        response_parts.append(f"**{step['tool']} Results:**\n{formatted_content}")
             
             if response_parts:
                 final_response = "\n\n".join(response_parts)
