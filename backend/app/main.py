@@ -18,7 +18,6 @@ from .core.config import settings
 from .core.logging import setup_logging
 from .middleware.auth0_jwt_middleware import Auth0JWTMiddleware
 from .api.v1 import mcp, external_mcp, session, health
-from .internal_mcp_app import app as internal_mcp_app
 
 # Setup logging
 setup_logging()
@@ -168,10 +167,7 @@ async def add_process_time_header(request: Request, call_next):
 # We'll add it after other middlewares so it runs as the outermost layer
 
 
-# Mount internal MCP app BEFORE authentication middleware
-logger.info(f"Environment: {settings.environment}")
-logger.info("Force mounting internal MCP app at /internal-mcp for debugging")
-app.mount("/internal-mcp", internal_mcp_app)
+# Internal MCP runs as separate server on port 8001 (not mounted)
 
 # Add Auth0 JWT Middleware (this will execute AFTER the CORS middleware above)
 if settings.auth0_enabled:
@@ -270,7 +266,7 @@ app.include_router(
     tags=["health"]
 )
 
-# Internal MCP app is now mounted before authentication middleware
+# Internal MCP runs as separate server (not mounted)
 
 
 @app.get("/")

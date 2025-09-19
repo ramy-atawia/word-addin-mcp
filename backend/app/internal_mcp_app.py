@@ -35,7 +35,7 @@ tools = {
 }
 
 # MCP endpoint
-@app.post("/")
+@app.post("/mcp")
 async def mcp_endpoint(request: Request):
     """Handle MCP protocol requests."""
     try:
@@ -353,15 +353,6 @@ async def health_check():
         "server": "Internal MCP Server",
         "tools_count": len(tools),
         "tools": list(tools.keys())
-    }
-
-# Test endpoint to verify mounting
-@app.get("/")
-async def test_endpoint():
-    """Test endpoint to verify mounting."""
-    return {
-        "message": "Internal MCP Server is mounted",
-        "status": "working"
     }
 
 # Startup event

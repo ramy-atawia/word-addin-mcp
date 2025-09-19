@@ -367,18 +367,16 @@ class MCPOrchestrator:
     async def _register_internal_mcp_server(self):
         """Register the internal MCP server via MCP client."""
         try:
-            from app.core.config import settings
-            
             # Register in server registry directly (connection will be established when needed)
             server_info = {
                 "name": "Internal MCP Server",
-                "url": settings.internal_mcp_url,  # Use the correct URL from config
+                "server_url": "http://localhost:8001/mcp",
                 "type": "internal",
                 "tools": ["web_search_tool", "prior_art_search_tool", "claim_drafting_tool", "claim_analysis_tool"]
             }
             
             await self.server_registry.add_server(server_info)
-            logger.info(f"Internal MCP server registered successfully at {settings.internal_mcp_url}")
+            logger.info("Internal MCP server registered successfully")
             
         except Exception as e:
             logger.error(f"Failed to register internal MCP server: {str(e)}")
