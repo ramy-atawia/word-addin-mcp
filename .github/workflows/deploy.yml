@@ -696,10 +696,7 @@ jobs:
           secrets_missing=true
         fi
         
-        if [ -z "${{ secrets.SECRET_KEY }}" ]; then
-          echo "❌ SECRET_KEY is missing"
-          secrets_missing=true
-        fi
+        # SECRET_KEY is generated dynamically, not from secrets
         
         if [ "$secrets_missing" = true ]; then
           echo "❌ One or more required secrets are missing. Please check the repository secrets."
@@ -749,6 +746,12 @@ jobs:
       with:
         app-name: ${{ env.BACKEND_APP_NAME }}
         images: ${{ env.ACR_LOGIN_SERVER }}/backend:${{ github.sha }}
+
+    - name: Generate Secret Key
+      run: |
+        echo "Generating secret key..."
+        SECRET_KEY=$(openssl rand -base64 32)
+        echo "SECRET_KEY=$SECRET_KEY" >> $GITHUB_ENV
 
     - name: Configure Backend Environment Variables
       run: |
