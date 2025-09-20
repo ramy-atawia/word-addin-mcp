@@ -88,26 +88,26 @@ async def agent_chat(request: AgentChatRequest):
         except Exception as e:
             logger.warning(f"Failed to get available tools: {str(e)}")
         
-            # Process message through agent service with frontend chat history
-            # Use unified LangGraph for all workflows or original method
-            from app.core.config import settings
-            
-            if settings.use_langgraph:
-                logger.debug("Using unified LangGraph for workflow processing")
-                response = await agent_service.process_user_message_unified_langgraph(
-                    user_message=request.message,
-                    document_content=document_content,
-                    available_tools=available_tools,
-                    frontend_chat_history=parsed_chat_history
-                )
-            else:
-                logger.debug("Using original agent processing method")
-                response = await agent_service.process_user_message(
-                    user_message=request.message,
-                    document_content=document_content,
-                    available_tools=available_tools,
-                    frontend_chat_history=parsed_chat_history
-                )
+        # Process message through agent service with frontend chat history
+        # Use unified LangGraph for all workflows or original method
+        from app.core.config import settings
+        
+        if settings.use_langgraph:
+            logger.debug("Using unified LangGraph for workflow processing")
+            response = await agent_service.process_user_message_unified_langgraph(
+                user_message=request.message,
+                document_content=document_content,
+                available_tools=available_tools,
+                frontend_chat_history=parsed_chat_history
+            )
+        else:
+            logger.debug("Using original agent processing method")
+            response = await agent_service.process_user_message(
+                user_message=request.message,
+                document_content=document_content,
+                available_tools=available_tools,
+                frontend_chat_history=parsed_chat_history
+            )
 
         logger.info(f"Chat processed - intent: {response.get('intent_type')}, tool: {response.get('tool_name')}, time: {response.get('execution_time', 0):.2f}s")
         logger.debug(f"DEBUG: Agent response type: {type(response)}")
