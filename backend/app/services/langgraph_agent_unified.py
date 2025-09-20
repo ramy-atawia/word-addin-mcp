@@ -118,9 +118,15 @@ Available tools:
 User query: "{user_input}"{conversation_context}{document_context}
 
 Analyze the user's intent and determine if this requires:
-1. SINGLE_TOOL: One tool execution (e.g., "search for AI patents")
+1. SINGLE_TOOL: One tool execution (e.g., "search for AI patents", "draft 5 claims for blockchain")
 2. MULTI_STEP: Multiple sequential tool executions (e.g., "search for AI patents then draft 5 claims")
-3. CONVERSATION: General conversation (e.g., "hello how are you")
+3. CONVERSATION: General conversation (e.g., "hello how are you", "draft a letter", "write an email")
+
+IMPORTANT RULES:
+- Only use SINGLE_TOOL for PATENT-RELATED tasks (search, prior art, claim drafting, claim analysis)
+- Use CONVERSATION for general requests like "draft a letter", "write an email", "compose a message"
+- Extract the actual search terms from the user query for patent-related searches
+- For patent claim drafting, use "draft X claims for [topic]" format
 
 IMPORTANT: Extract the actual search terms from the user query. For example:
 - "web search ramy atawia then prior art search" → extract "ramy atawia" for web search
@@ -137,6 +143,9 @@ Examples:
 - "web search ramy atawia then prior art search" → WORKFLOW_TYPE: MULTI_STEP, TOOL: web_search_tool, INTENT: web search then prior art, PARAMETERS: {{"query": "ramy atawia"}}
 - "find prior art for AI patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
 - "draft 5 claims for blockchain" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}
+- "draft a letter" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: draft letter, PARAMETERS: {{}}
+- "write an email" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: write email, PARAMETERS: {{}}
+- "compose a message" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: compose message, PARAMETERS: {{}}
 - "hello how are you" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: greeting, PARAMETERS: {{}}
 """
         
@@ -734,7 +743,11 @@ async def _generate_conversational_response(state: AgentState) -> str:
 
 User: {user_input}{conversation_context}
 
-Please provide a friendly, helpful response. If the user is greeting you, respond warmly and ask how you can help with their patent or document work. If they're asking about capabilities, explain what you can do. Keep responses concise but engaging."""
+Please provide a friendly, helpful response. If the user is greeting you, respond warmly and ask how you can help with their patent or document work. If they're asking about capabilities, explain what you can do. 
+
+For letter/email drafting requests (like "draft a letter", "write an email", "compose a message"), provide a helpful response explaining that you can help with patent-related document drafting, but for general letters and emails, they might want to use a different tool. Offer to help with patent claim drafting instead.
+
+Keep responses concise but engaging."""
         
         # Get LLM response
         response = llm_client.generate_text(
