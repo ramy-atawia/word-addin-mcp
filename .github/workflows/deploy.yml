@@ -354,11 +354,12 @@ jobs:
         
         # Test 2: MCP Tools Count
         echo "Testing MCP tools loading..."
-        tools_response=$(curl -s -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" || echo '{"tools":[]}')
+        tools_response=$(curl -s "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools" || echo '{"tools":[]}')
         tools_count=$(echo "$tools_response" | jq '.tools | length // 0')
         
         if [ "$tools_count" -lt 4 ]; then
           echo "MCP tools count check failed: Expected at least 4, got $tools_count"
+          echo "Response: $tools_response"
           exit 1
         fi
         echo "MCP tools check passed: $tools_count tools loaded"
@@ -385,16 +386,30 @@ jobs:
         
         # Test 4: API Endpoints Availability
         echo "Testing API endpoints availability..."
-        endpoints=("/health" "/api/v1/mcp/tools" "/api/v1/debug/config")
         
-        for endpoint in "${endpoints[@]}"; do
-          http_code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net$endpoint")
-          if [ "$http_code" -ne 200 ]; then
-            echo "API endpoint $endpoint returned HTTP $http_code"
-            exit 1
-          fi
-          echo "API endpoint $endpoint is accessible (HTTP $http_code)"
-        done
+        # Test health endpoint (no auth required)
+        health_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/health")
+        if [ "$health_code" -ne 200 ]; then
+          echo "API endpoint /health returned HTTP $health_code"
+          exit 1
+        fi
+        echo "API endpoint /health is accessible (HTTP $health_code)"
+        
+        # Test MCP tools endpoint (no auth required)
+        tools_code=$(curl -s -o /dev/null -w "%{http_code}" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/mcp/tools")
+        if [ "$tools_code" -ne 200 ]; then
+          echo "API endpoint /api/v1/mcp/tools returned HTTP $tools_code"
+          exit 1
+        fi
+        echo "API endpoint /api/v1/mcp/tools is accessible (HTTP $tools_code)"
+        
+        # Test debug config endpoint (requires auth)
+        debug_code=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $AUTH0_TEST_TOKEN" "https://${{ env.BACKEND_APP_NAME }}.azurewebsites.net/api/v1/debug/config")
+        if [ "$debug_code" -ne 200 ]; then
+          echo "API endpoint /api/v1/debug/config returned HTTP $debug_code"
+          exit 1
+        fi
+        echo "API endpoint /api/v1/debug/config is accessible (HTTP $debug_code)"
         
         # Test 5: Patent Search Functionality
         echo "Testing patent search functionality..."
