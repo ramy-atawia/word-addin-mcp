@@ -3,7 +3,7 @@ import { makeStyles, tokens } from '@fluentui/react-components';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import { ChatMessage } from './MessageBubble';
-import { MCPTool } from '../../services/types';
+import { MCPTool, StreamingEvent, StreamingProgress } from '../../services/types';
 import { documentContextService } from '../../services/documentContextService';
 import { officeIntegrationService } from '../../services/officeIntegrationService';
 import { useState, useCallback, useRef } from 'react';
@@ -63,8 +63,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout>();
   const [isProcessing, setIsProcessing] = useState(false);
   
+  // Streaming state variables
+  const [streamingResponse, setStreamingResponse] = useState('');
+  const [streamingThoughts, setStreamingThoughts] = useState<string[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingProgress, setStreamingProgress] = useState<StreamingProgress>({
+    currentStep: 0,
+    totalSteps: 0,
+    status: 'complete'
+  });
+  
   const messages = externalMessages.length > 0 ? externalMessages : internalMessages;
-  const loading = externalLoading || internalLoading;
+  const loading = externalLoading || internalLoading || isStreaming;
   
   // Using mcpToolService instead of mcpService
 
@@ -212,41 +222,204 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       console.log('📚 Conversation history for context:', conversationHistory);
       console.log('📄 Document content for context:', documentContent.substring(0, 100) + '...');
       
-      // Use our new agent chat method
-      const agentResponse = await mcpToolService.chatWithAgent({
+      // Use streaming agent chat method
+      console.log('🚀 Starting streaming agent chat...');
+      
+      // Reset streaming state
+      setStreamingResponse('');
+      setStreamingThoughts([]);
+      setIsStreaming(true);
+      setStreamingProgress({
+        currentStep: 0,
+        totalSteps: 0,
+        status: 'intent_detection'
+      });
+
+      // Create a temporary streaming message that will be updated in real-time
+      const streamingMessageId = (Date.now() + 1).toString();
+      const initialStreamingMessage: ChatMessage = {
+        id: streamingMessageId,
+        type: 'assistant',
+        content: '🤔 Thinking...',
+        timestamp: new Date(),
+        metadata: {
+          isStreaming: true,
+          streamingProgress: 'intent_detection'
+        }
+      };
+
+      // Add the streaming message to the UI
+      if (onMessage) {
+        onMessage(initialStreamingMessage);
+      } else {
+        setInternalMessages(prev => [...prev, initialStreamingMessage]);
+      }
+
+      // Use streaming agent service
+      await mcpToolService.chatWithAgentStreaming({
         message: userMessage,
         context: {
           document_content: documentContent,
           chat_history: JSON.stringify(conversationHistory),
           available_tools: availableTools.map(t => t.name).join(', ')
         },
-        sessionId: `session-${Date.now()}`
-      });
-
-      console.log('🎯 Agent response:', agentResponse);
-
-      if (agentResponse.success && agentResponse.result) {
-        // The agent has already handled tool execution and routing
-        const agentMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: 'assistant',
-          content: agentResponse.result.response || 'Agent processed your request successfully',
-          timestamp: new Date(),
-          metadata: {
-            agentResponse: true,
-            toolUsed: agentResponse.result.tool_name,
-            intentType: agentResponse.result.intent_type
+        sessionId: `session-${Date.now()}`,
+        callbacks: {
+          onEvent: (event: StreamingEvent) => {
+            console.log('📡 Streaming event:', event);
+            
+            // Handle different event types
+            if (event.event_type === 'langgraph_chunk') {
+              const data = event.data;
+              
+              // Handle node updates (workflow progress)
+              if (data.updates) {
+                for (const [nodeName, nodeData] of Object.entries(data.updates as Record<string, any>)) {
+                  console.log(`🔄 Node update: ${nodeName}`, nodeData);
+                  
+                  // Update progress based on node
+                  let status: StreamingProgress['status'] = 'intent_detection';
+                  if (nodeName === 'intent_detection') {
+                    status = 'intent_detection';
+                  } else if (nodeName === 'workflow_planning') {
+                    status = 'tool_execution';
+                  } else if (nodeName === 'response_generation') {
+                    status = 'response_generation';
+                  }
+                  
+                  setStreamingProgress(prev => ({
+                    ...prev,
+                    status,
+                    currentStep: prev.currentStep + 1
+                  }));
+                  
+                  // Update the streaming message content
+                  const progressText = status === 'intent_detection' ? '🔍 Detecting intent...' :
+                                    status === 'tool_execution' ? '⚙️ Planning workflow...' :
+                                    status === 'response_generation' ? '✍️ Generating response...' : '🤔 Thinking...';
+                  
+                  const updatedMessage: ChatMessage = {
+                    id: streamingMessageId,
+                    type: 'assistant',
+                    content: `${progressText}\n\n${streamingResponse || 'Processing...'}`,
+                    timestamp: new Date(),
+                    metadata: {
+                      isStreaming: true,
+                      streamingProgress: status,
+                      currentStep: streamingProgress.currentStep + 1
+                    }
+                  };
+                  
+                  if (onMessage) {
+                    onMessage(updatedMessage);
+                  } else {
+                    setInternalMessages(prev => 
+                      prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
+                    );
+                  }
+                }
+              }
+              
+              // Handle LLM token streaming
+              if (data.messages && data.messages.length > 0) {
+                for (const message of data.messages) {
+                  if (message.content) {
+                    setStreamingResponse(prev => prev + message.content);
+                    
+                    // Update the streaming message with accumulated content
+                    const updatedMessage: ChatMessage = {
+                      id: streamingMessageId,
+                      type: 'assistant',
+                      content: message.content,
+                      timestamp: new Date(),
+                      metadata: {
+                        isStreaming: true,
+                        streamingProgress: 'response_generation'
+                      }
+                    };
+                    
+                    if (onMessage) {
+                      onMessage(updatedMessage);
+                    } else {
+                      setInternalMessages(prev => 
+                        prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
+                      );
+                    }
+                  }
+                }
+              }
+            }
+          },
+          onComplete: (finalResponse: any) => {
+            console.log('✅ Streaming completed:', finalResponse);
+            
+            // Finalize the message
+            const finalMessage: ChatMessage = {
+              id: streamingMessageId,
+              type: 'assistant',
+              content: streamingResponse || finalResponse?.response || 'Request completed successfully',
+              timestamp: new Date(),
+              metadata: {
+                agentResponse: true,
+                toolUsed: finalResponse?.tool_name,
+                intentType: finalResponse?.intent_type,
+                isStreaming: false
+              }
+            };
+            
+            if (onMessage) {
+              onMessage(finalMessage);
+            } else {
+              setInternalMessages(prev => 
+                prev.map(msg => msg.id === streamingMessageId ? finalMessage : msg)
+              );
+            }
+            
+            // Reset streaming state
+            setIsStreaming(false);
+            setStreamingResponse('');
+            setStreamingThoughts([]);
+            setStreamingProgress({
+              currentStep: 0,
+              totalSteps: 0,
+              status: 'complete'
+            });
+          },
+          onError: (error: string) => {
+            console.error('❌ Streaming error:', error);
+            
+            // Show error message
+            const errorMessage: ChatMessage = {
+              id: streamingMessageId,
+              type: 'assistant',
+              content: `❌ Error: ${error}`,
+              timestamp: new Date(),
+              metadata: {
+                error: 'true',
+                isStreaming: false
+              }
+            };
+            
+            if (onMessage) {
+              onMessage(errorMessage);
+            } else {
+              setInternalMessages(prev => 
+                prev.map(msg => msg.id === streamingMessageId ? errorMessage : msg)
+              );
+            }
+            
+            // Reset streaming state
+            setIsStreaming(false);
+            setStreamingResponse('');
+            setStreamingThoughts([]);
+            setStreamingProgress({
+              currentStep: 0,
+              totalSteps: 0,
+              status: 'complete'
+            });
           }
-        };
-
-        if (onMessage) {
-          onMessage(agentMessage);
-        } else {
-          setInternalMessages(prev => [...prev, agentMessage]);
         }
-      } else {
-        throw new Error(agentResponse.error || 'Agent failed to process request');
-      }
+      });
 
     } catch (error) {
       console.error('Intent detection failed:', error);

@@ -76,3 +76,23 @@ export interface MCPToolResponse {
   error?: string;
   id?: string;
 }
+
+// Streaming types
+export interface StreamingEvent {
+  event_type: string;
+  data: Record<string, any>;
+  timestamp: number;
+}
+
+export interface StreamingProgress {
+  currentStep: number;
+  totalSteps: number;
+  currentTool?: string;
+  status: 'intent_detection' | 'tool_execution' | 'response_generation' | 'complete' | 'error';
+}
+
+export interface AgentStreamingCallbacks {
+  onEvent: (event: StreamingEvent) => void;
+  onComplete: (finalResponse: any) => void;
+  onError: (error: string) => void;
+}

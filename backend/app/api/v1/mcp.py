@@ -7,17 +7,16 @@ MCP hub implementation.
 
 import json
 import logging
+import time
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, status, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ...services.mcp.orchestrator import get_initialized_mcp_orchestrator
 # Removed old MCP schema imports - using official MCP types now
 from ...schemas.agent import AgentChatRequest, AgentChatResponse
-from ...schemas.streaming import StreamingAgentChatRequest
 from ...services.agent import agent_service
-from ...services.streaming_agent import StreamingAgentService
 from ...schemas.mcp import ExternalServerRequest
 
 logger = logging.getLogger(__name__)
@@ -141,6 +140,100 @@ async def agent_chat(request: AgentChatRequest):
             detail={
                 "error": "Internal Server Error",
                 "message": f"Failed to process agent chat request: {str(e)}"
+            }
+        )
+
+
+@router.post("/agent/chat/stream")
+async def agent_chat_stream(request: AgentChatRequest):
+    """
+    Stream agent responses in real-time using Server-Sent Events.
+    
+    This endpoint provides real-time updates during workflow execution:
+    - Intent detection progress
+    - Tool execution status
+    - LLM token streaming
+    - Workflow completion
+    
+    Args:
+        request: Agent chat request with message and context
+        
+    Returns:
+        Server-Sent Events stream with real-time updates
+    """
+    try:
+        logger.info(f"Processing streaming chat request: '{request.message[:50]}...' ({len(request.message)} chars)")
+
+        # Extract context information (same as regular endpoint)
+        document_content = request.context.get("document_content", "")
+        chat_history = request.context.get("chat_history", "")
+        available_tools_string = request.context.get("available_tools", "")
+        
+        # Parse chat history from frontend
+        parsed_chat_history = []
+        if chat_history:
+            try:
+                parsed_chat_history = json.loads(chat_history)
+                logger.debug(f"Parsed {len(parsed_chat_history)} messages from frontend chat history")
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse chat history: {str(e)}")
+                parsed_chat_history = []
+        
+        # Get available tools from MCP orchestrator
+        available_tools = []
+        try:
+            mcp_orchestrator = get_initialized_mcp_orchestrator()
+            tools_data = await mcp_orchestrator.list_all_tools()
+            available_tools = tools_data.get("tools", [])
+            logger.debug(f"Retrieved {len(available_tools)} available tools")
+        except Exception as e:
+            logger.warning(f"Failed to get available tools: {str(e)}")
+        
+        async def generate_stream():
+            """Generate Server-Sent Events stream."""
+            try:
+                # Use streaming agent service
+                async for event in agent_service.process_user_message_streaming(
+                    user_message=request.message,
+                    document_content=document_content,
+                    available_tools=available_tools,
+                    frontend_chat_history=parsed_chat_history
+                ):
+                    # Format as Server-Sent Event
+                    yield f"data: {json.dumps(event, default=str)}\n\n"
+                    
+            except Exception as e:
+                logger.error(f"Streaming error: {str(e)}")
+                # Send error event
+                error_event = {
+                    "event_type": "stream_error",
+                    "data": {
+                        "message": f"Streaming failed: {str(e)}",
+                        "error": str(e)
+                    },
+                    "timestamp": time.time()
+                }
+                yield f"data: {json.dumps(error_event, default=str)}\n\n"
+        
+        return StreamingResponse(
+            generate_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Content-Type": "text/event-stream",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Cache-Control"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Agent chat stream request failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "Internal Server Error",
+                "message": f"Failed to process agent chat stream request: {str(e)}"
             }
         )
 
@@ -583,95 +676,3 @@ async def test_external_server_connection(server_id: str):
             }
         )
 
-
-
-@router.post("/agent/chat/stream")
-async def stream_agent_chat(request: StreamingAgentChatRequest):
-    """
-    Stream agent response with real-time progress updates.
-    
-    This endpoint provides Server-Sent Events (SSE) for real-time progress
-    updates during agent workflow execution.
-    
-    Args:
-        request: Streaming agent chat request
-        
-    Returns:
-        StreamingResponse with SSE events
-    """
-    try:
-        logger.info(f"Starting streaming chat request: {request.message[:100]}...")
-        
-        # Parse context
-        document_content = request.context.get("document_content", "")
-        chat_history_str = request.context.get("chat_history", "")
-        available_tools_str = request.context.get("available_tools", "")
-        
-        # Parse chat history
-        parsed_chat_history = []
-        if chat_history_str:
-            try:
-                import json
-                parsed_chat_history = json.loads(chat_history_str)
-            except json.JSONDecodeError:
-                logger.warning("Failed to parse chat history, using empty list")
-                parsed_chat_history = []
-        
-        # Parse available tools
-        available_tools = []
-        if available_tools_str:
-            tool_names = [name.strip() for name in available_tools_str.split(",") if name.strip()]
-            # Get tool details from MCP orchestrator
-            try:
-                mcp_orchestrator = get_initialized_mcp_orchestrator()
-                all_tools = await mcp_orchestrator.list_all_tools()
-                available_tools = [
-                    tool for tool in all_tools.get("tools", [])
-                    if tool.get("name") in tool_names
-                ]
-            except Exception as e:
-                logger.warning(f"Failed to get tool details: {e}")
-                available_tools = [{"name": name, "description": f"{name} tool"} for name in tool_names]
-        
-        # Create streaming service
-        streaming_service = StreamingAgentService()
-        
-        # Generate streaming response
-        event_generator = streaming_service.stream_agent_response(
-            user_message=request.message,
-            document_content=document_content,
-            available_tools=available_tools,
-            frontend_chat_history=parsed_chat_history
-        )
-        
-        # Return streaming response
-        return streaming_service.create_streaming_response(event_generator)
-        
-    except Exception as e:
-        logger.error(f"Streaming chat failed: {str(e)}")
-        # Return error as SSE event
-        from ...schemas.streaming import ErrorEvent
-        error_event = ErrorEvent(
-            data={
-                "error": str(e),
-                "error_type": type(e).__name__,
-                "status": "error"
-            }
-        )
-        
-        async def error_generator():
-            yield f"data: {json.dumps({\"event\": \"error\", \"timestamp\": time.time(), \"data\": error_event.data})}
-
-"
-        
-        return StreamingResponse(
-            error_generator(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Content-Type": "text/event-stream",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
-        )

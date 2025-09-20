@@ -1,4 +1,4 @@
-import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus } from './types';
+import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus, StreamingEvent, AgentStreamingCallbacks } from './types';
 import { getAccessToken } from '../../services/authTokenStore';
 
 class MCPToolService {
@@ -180,6 +180,139 @@ class MCPToolService {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to chat with agent',
       };
+    }
+  }
+
+  async chatWithAgentStreaming(params: {
+    message: string;
+    context: {
+      document_content: string;
+      chat_history: string;
+      available_tools: string;
+    };
+    sessionId: string;
+    callbacks: AgentStreamingCallbacks;
+  }): Promise<void> {
+    try {
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Use fetch with streaming response
+      const response = await fetch(`${this.baseUrl}/api/v1/mcp/agent/chat/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: params.message,
+          context: params.context,
+          session_id: params.sessionId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      // Read the streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          // Decode the chunk and add to buffer
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete lines
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const eventData = line.slice(6); // Remove 'data: ' prefix
+                if (eventData.trim()) {
+                  const streamingEvent: StreamingEvent = JSON.parse(eventData);
+                  params.callbacks.onEvent(streamingEvent);
+                  
+                  // Check if this is a completion event
+                  if (streamingEvent.event_type === 'workflow_complete') {
+                    params.callbacks.onComplete(streamingEvent.data);
+                    return;
+                  }
+                  
+                  // Check if this is an error event
+                  if (streamingEvent.event_type === 'workflow_error' || streamingEvent.event_type === 'stream_error') {
+                    params.callbacks.onError(streamingEvent.data.message || 'Streaming error occurred');
+                    return;
+                  }
+                  
+                  // Handle LangGraph chunks
+                  if (streamingEvent.event_type === 'langgraph_chunk') {
+                    const chunk = streamingEvent.data;
+                    
+                    // Process LangGraph updates
+                    if (chunk.updates) {
+                      for (const [nodeName, nodeData] of Object.entries(chunk.updates)) {
+                        params.callbacks.onEvent({
+                          event_type: `node_${nodeName}`,
+                          data: {
+                            node: nodeName,
+                            message: `Completed ${nodeName}`,
+                            state: nodeData
+                          },
+                          timestamp: streamingEvent.timestamp
+                        });
+                      }
+                    }
+                    
+                    // Process LangGraph messages (LLM tokens)
+                    if (chunk.messages) {
+                      for (const message of chunk.messages) {
+                        if (message.content) {
+                          params.callbacks.onEvent({
+                            event_type: 'llm_token',
+                            data: {
+                              content: message.content,
+                              is_streaming: true
+                            },
+                            timestamp: streamingEvent.timestamp
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch (parseError) {
+                console.error('Failed to parse streaming event:', parseError);
+                // Continue processing other events
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      
+    } catch (error) {
+      console.error('Failed to start streaming chat:', error);
+      params.callbacks.onError(error instanceof Error ? error.message : 'Failed to start streaming chat');
     }
   }
 

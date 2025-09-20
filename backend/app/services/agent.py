@@ -12,7 +12,7 @@ This service uses Azure OpenAI LLM for:
 
 import structlog
 import time
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Dict, Any, List, Optional, Tuple, Union, AsyncGenerator
 from datetime import datetime
 import json
 import re
@@ -193,6 +193,85 @@ class AgentService:
                     "completed_steps": 0,
                     "workflow_type": "error"
                 }
+            }
+    
+    
+    async def process_user_message_streaming(
+        self,
+        user_message: str,
+        document_content: Optional[str] = None,
+        available_tools: List[Dict[str, Any]] = None,
+        frontend_chat_history: List[Dict[str, Any]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        Process user message with LangGraph native streaming.
+        
+        Uses LangGraph's built-in .astream() method - no custom streaming needed!
+        """
+        start_time = time.time()
+        logger.debug(f"Streaming LangGraph processing message: '{user_message[:50]}...'")
+        
+        try:
+            # Get unified LangGraph agent
+            langgraph_agent = self._get_unified_langgraph_agent()
+            if not langgraph_agent:
+                raise RuntimeError("Unified LangGraph agent not available")
+            
+            # Prepare initial state (same as non-streaming version)
+            initial_state = {
+                "user_input": user_message,
+                "document_content": document_content or "",
+                "conversation_history": frontend_chat_history or [],
+                "available_tools": available_tools or [],
+                "selected_tool": "",
+                "tool_parameters": {},
+                "tool_result": None,
+                "final_response": "",
+                "intent_type": "",
+                "workflow_plan": None,
+                "current_step": 0,
+                "total_steps": 0,
+                "step_results": {}
+            }
+            
+            # Use LangGraph's built-in streaming - that's it!
+            async for chunk in langgraph_agent.astream(
+                initial_state, 
+                stream_mode=["updates", "messages"]  # LangGraph handles everything
+            ):
+                # LangGraph returns chunks as tuples: (node_name, node_data)
+                # Convert to proper format for streaming
+                if isinstance(chunk, tuple) and len(chunk) == 2:
+                    node_name, node_data = chunk
+                    yield {
+                        "event_type": "langgraph_chunk",
+                        "data": {
+                            "node": node_name,
+                            "updates": node_data,
+                            "messages": []  # Will be populated by LangGraph
+                        },
+                        "timestamp": time.time()
+                    }
+                else:
+                    # Handle other chunk formats
+                    yield {
+                        "event_type": "langgraph_chunk",
+                        "data": chunk,
+                        "timestamp": time.time()
+                    }
+            
+        except Exception as e:
+            execution_time = time.time() - start_time
+            logger.error(f"Streaming LangGraph failed: {str(e)}")
+            
+            yield {
+                "event_type": "workflow_error",
+                "data": {
+                    "message": f"Workflow failed: {str(e)}",
+                    "error": str(e),
+                    "execution_time": execution_time
+                },
+                "timestamp": time.time()
             }
     
     

@@ -147,7 +147,8 @@ class Settings(BaseSettings):
         "/openapi.json",
         "/api/v1/health",
         "/api/v1/health/live",
-        "/api/v1/health/ready"
+        "/api/v1/health/ready",
+        "/api/v1/mcp/agent/chat/stream"  # Add streaming endpoint for testing
     ]
     
     # API Configuration
