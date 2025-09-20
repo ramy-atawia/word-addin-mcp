@@ -122,12 +122,18 @@ User query: "{user_input}"{conversation_context}{document_context}
 
 Analyze the user's intent and select the most appropriate tool. Consider the conversation history and document content when making your decision. If no tool is suitable, respond with "conversation".
 
+IMPORTANT: Extract the actual search terms from the user query. For example:
+- "web search ramy atawia then prior art search" → extract "ramy atawia" for web search
+- "search for blockchain technology" → extract "blockchain technology"
+- "prior art search AI patents" → extract "AI patents"
+
 Respond in this exact format:
 TOOL: [tool_name or "conversation"]
 INTENT: [brief description of intent]
 PARAMETERS: [JSON object with tool parameters, or empty object {{}}]
 
 Examples:
+- "web search ramy atawia then prior art search" → TOOL: web_search_tool, INTENT: web search, PARAMETERS: {{"query": "ramy atawia"}}
 - "find prior art for AI patents" → TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
 - "draft 5 claims for blockchain" → TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}
 - "hello how are you" → TOOL: conversation, INTENT: greeting, PARAMETERS: {{}}
@@ -159,29 +165,21 @@ async def _simple_intent_detection(state: AgentState) -> AgentState:
     user_input = state["user_input"]
     user_input_lower = user_input.lower()
     
-    # Enhanced simple detection with more specific matching
+    # Simple detection without custom query extraction logic
+    # Let the LLM handle proper parameter extraction
     if "prior art" in user_input_lower or "patent" in user_input_lower:
         selected_tool = "prior_art_search_tool"
         intent_type = "tool_execution"
-        # Extract query after "prior art" or "patent"
-        query = _extract_search_query(user_input, "prior art")
-        tool_parameters = {"query": query}
+        tool_parameters = {"query": user_input}  # Let LLM extract proper query
     elif "web search" in user_input_lower:
         selected_tool = "web_search_tool"
         intent_type = "tool_execution"
-        # Extract query after "web search"
-        query = _extract_search_query(user_input, "web search")
-        tool_parameters = {"query": query}
+        tool_parameters = {"query": user_input}  # Let LLM extract proper query
     elif "search" in user_input_lower or "find" in user_input_lower:
         # Default to web search for general search queries
         selected_tool = "web_search_tool"
         intent_type = "tool_execution"
-        # Extract query after "search" or "find"
-        if "search" in user_input_lower:
-            query = _extract_search_query(user_input, "search")
-        else:
-            query = _extract_search_query(user_input, "find")
-        tool_parameters = {"query": query}
+        tool_parameters = {"query": user_input}  # Let LLM extract proper query
     elif "draft" in user_input_lower or "claim" in user_input_lower:
         selected_tool = "claim_drafting_tool"
         intent_type = "tool_execution"
@@ -484,6 +482,11 @@ User query: "{user_input}"{conversation_context}{document_context}
 
 Analyze if this query requires multiple steps or can be handled with a single tool. Consider the conversation history and document content when making your decision.
 
+IMPORTANT: Extract the actual search terms from the user query. For example:
+- "web search ramy atawia then prior art search" → extract "ramy atawia" for web search, "prior art search" for prior art
+- "search for blockchain technology" → extract "blockchain technology"
+- "prior art search AI patents" → extract "AI patents"
+
 Multi-step indicators:
 - Multiple actions: "find X and then draft Y"
 - Sequential dependencies: "search for prior art, then analyze it, then draft claims"
@@ -496,6 +499,7 @@ TOOLS: [comma-separated list of tools needed, or empty for conversation]
 PARAMETERS: [JSON object with parameters for each tool]
 
 Examples:
+- "web search ramy atawia then prior art search" → WORKFLOW_TYPE: multi_step, INTENT: web search then prior art, TOOLS: web_search_tool,prior_art_search_tool, PARAMETERS: {{"step1": {{"tool": "web_search_tool", "params": {{"query": "ramy atawia"}}}}, "step2": {{"tool": "prior_art_search_tool", "params": {{"query": "prior art search"}}}}}}
 - "find prior art for AI patents" → WORKFLOW_TYPE: single_tool, INTENT: search prior art, TOOLS: prior_art_search_tool, PARAMETERS: {{"query": "AI patents"}}
 - "find prior art and draft 5 claims" → WORKFLOW_TYPE: multi_step, INTENT: research and draft, TOOLS: prior_art_search_tool,claim_drafting_tool, PARAMETERS: {{"step1": {{"tool": "prior_art_search_tool", "params": {{"query": "AI patents"}}}}, "step2": {{"tool": "claim_drafting_tool", "params": {{"user_query": "draft 5 claims", "prior_art_context": "{{step1_result}}"}}}}}}
 - "hello how are you" → WORKFLOW_TYPE: conversation, INTENT: greeting, TOOLS: , PARAMETERS: {{}}
@@ -841,30 +845,10 @@ async def _simple_workflow_planning(state: MultiStepAgentState) -> MultiStepAgen
 
 
 def _extract_search_query(user_input: str, context: str) -> str:
-    """Extract search query from user input."""
-    if context in user_input.lower():
-        # Find text after the context word
-        start_idx = user_input.lower().find(context) + len(context)
-        remaining = user_input[start_idx:].strip()
-        
-        # Remove common connecting words at the start (with proper spacing)
-        connecting_words = ["and", "then", "for", "about", "on", "search"]
-        for word in connecting_words:
-            if remaining.lower().startswith(word):
-                remaining = remaining[len(word):].strip()
-        
-        # Stop at common connecting words that indicate the next command
-        next_command_indicators = [" then ", " and ", " after ", " followed by "]
-        for indicator in next_command_indicators:
-            if indicator in remaining.lower():
-                # Find the position of the indicator and cut off there
-                indicator_pos = remaining.lower().find(indicator)
-                remaining = remaining[:indicator_pos].strip()
-                break
-        
-        return remaining if remaining else "patent search"
-    
-    return "patent search"
+    """Extract search query from user input using simple fallback."""
+    # Simple fallback - just return the user input as-is
+    # The LLM should handle proper query extraction in the intent detection
+    return user_input
 
 
 def _extract_claim_parameters(user_input: str) -> str:
