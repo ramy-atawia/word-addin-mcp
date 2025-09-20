@@ -147,11 +147,7 @@ class Settings(BaseSettings):
         "/openapi.json",
         "/api/v1/health",
         "/api/v1/health/live",
-        "/api/v1/health/ready",
-        "/api/v1/mcp/tools",
-        "/api/v1/mcp/execute",
-        "/api/v1/mcp/servers",
-        "/api/v1/mcp/health"
+        "/api/v1/health/ready"
     ]
     
     # API Configuration
