@@ -168,7 +168,8 @@ class AgentService:
                 "workflow_metadata": {
                     "total_steps": result.get("total_steps", 0),
                     "completed_steps": result.get("current_step", 0),
-                    "workflow_type": "multi_step" if result.get("workflow_plan") else "single_tool"
+                    "workflow_type": "multi_step" if result.get("total_steps", 0) > 1 else "single_tool",
+                    "workflow_plan": result.get("workflow_plan", [])
                 }
             }
             

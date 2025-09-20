@@ -1,0 +1,281 @@
+# End-to-End Logic Flow with LangGraph - Visual Diagram
+
+## Complete System Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND (Word Add-in)                            │
+│  User Input: "hello" or "prior art search 5g ai, draft 2 claims"              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ HTTP Request
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            API GATEWAY (Azure APIM)                            │
+│  • Auth0 JWT Authentication                                                    │
+│  • Rate Limiting                                                               │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ Authenticated Request
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        BACKEND API (/api/v1/mcp/agent/chat)                    │
+│                                                                                 │
+│  1. Parse Request (message, document, chat_history, tools)                     │
+│  2. Get Available Tools from MCP Orchestrator                                 │
+│  3. Route Decision: USE_LANGGRAPH=true/false                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ Route Decision
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              LANGGRAPH AGENT                                   │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                    1. INTENT DETECTION NODE                            │   │
+│  │                                                                         │   │
+│  │  Input: user_input, conversation_history, document_content, tools      │   │
+│  │                                                                         │   │
+│  │  Process:                                                               │   │
+│  │  • Get LLM client                                                      │   │
+│  │  • Create tool descriptions                                            │   │
+│  │  • Prepare conversation context (last 5 messages)                      │   │
+│  │  • Send to LLM with structured prompt                                  │   │
+│  │                                                                         │   │
+│  │  LLM Analysis:                                                          │   │
+│  │  "hello" → CONVERSATION, tool="", intent="greeting"                    │   │
+│  │  "search AI patents" → SINGLE_TOOL, tool="prior_art_search_tool"       │   │
+│  │  "search AI then draft claims" → MULTI_STEP, tool="prior_art_search_tool" │
+│  │                                                                         │   │
+│  │  Output: workflow_type, selected_tool, intent_type, tool_parameters     │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                        │                                       │
+│                                        │ State Update                          │
+│                                        ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                    2. WORKFLOW PLANNING NODE                           │   │
+│  │                                                                         │   │
+│  │  Input: Updated state from intent detection                            │   │
+│  │                                                                         │   │
+│  │  Process:                                                               │   │
+│  │  • If workflow_plan is None → Skip (conversation/single tool)         │   │
+│  │  • If workflow_plan is [] → Plan multi-step workflow                   │   │
+│  │                                                                         │   │
+│  │  Multi-Step Planning:                                                   │   │
+│  │  • Send to LLM with workflow planning prompt                           │   │
+│  │  • LLM creates step-by-step execution plan                             │   │
+│  │                                                                         │   │
+│  │  Example Output:                                                        │   │
+│  │  [                                                                     │   │
+│  │    {"step": 1, "tool": "prior_art_search_tool", "params": {"query": "5g ai"}}, │
+│  │    {"step": 2, "tool": "claim_drafting_tool", "params": {"user_query": "draft 2 claims"}} │
+│  │  ]                                                                     │   │
+│  │                                                                         │   │
+│  │  Output: workflow_plan, total_steps, current_step, step_results        │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                        │                                       │
+│                                        │ State Update                          │
+│                                        ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                    3. ROUTING DECISION                                │   │
+│  │                                                                         │   │
+│  │  _route_workflow() function:                                           │   │
+│  │                                                                         │   │
+│  │  if intent_type in ["conversation", "greeting", "chat"]:              │   │
+│  │    → "response_generation" (Skip tool execution)                       │   │
+│  │  elif workflow_plan exists and has steps:                             │   │
+│  │    → "tool_execution" (Multi-step workflow)                           │   │
+│  │  else:                                                                 │   │
+│  │    → "response_generation" (Single tool or conversation)              │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                        │                                       │
+│                                        │ Route Decision                        │
+│                                        ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                    4. TOOL EXECUTION NODE                             │   │
+│  │                                                                         │   │
+│  │  Input: State with workflow_plan and current_step                      │   │
+│  │                                                                         │   │
+│  │  Process:                                                               │   │
+│  │  • Check if workflow_plan exists (multi-step)                          │   │
+│  │  • If yes: → _execute_multi_step_workflow()                           │   │
+│  │  • If no: → _execute_single_tool()                                    │   │
+│  │                                                                         │   │
+│  │  Multi-Step Execution:                                                 │   │
+│  │  • Get current step from workflow_plan[current_step]                   │   │
+│  │  • Prepare parameters with context substitution                        │   │
+│  │  • Call MCP Orchestrator to execute tool                              │   │
+│  │  • Store result in step_results[output_key]                           │   │
+│  │  • Increment current_step                                              │   │
+│  │                                                                         │   │
+│  │  Single Tool Execution:                                                │   │
+│  │  • Get MCP Orchestrator                                               │   │
+│  │  • Execute tool with parameters                                        │   │
+│  │  • Store result in tool_result                                         │   │
+│  │                                                                         │   │
+│  │  MCP Orchestrator:                                                     │   │
+│  │  • Routes to appropriate MCP server                                    │   │
+│  │  • Executes tool via MCP protocol                                      │   │
+│  │  • Returns formatted result                                            │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                        │                                       │
+│                                        │ Tool Results                          │
+│                                        ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                    5. ROUTING DECISION (Multi-step)                   │   │
+│  │                                                                         │   │
+│  │  _route_multi_step() function:                                         │   │
+│  │                                                                         │   │
+│  │  if current_step < total_steps:                                        │   │
+│  │    → "tool_execution" (Continue with next step)                        │   │
+│  │  else:                                                                 │   │
+│  │    → "response_generation" (All steps completed)                       │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                        │                                       │
+│                                        │ Continue or Finish                    │
+│                                        ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │                    6. RESPONSE GENERATION NODE                        │   │
+│  │                                                                         │   │
+│  │  Input: State with tool results and workflow metadata                  │   │
+│  │                                                                         │   │
+│  │  Process:                                                               │   │
+│  │  • Check if multi-step workflow (workflow_plan + step_results)         │   │
+│  │  • If yes: → _generate_multi_step_response()                          │   │
+│  │  • If no: → _generate_single_tool_response()                          │   │
+│  │                                                                         │   │
+│  │  Multi-Step Response:                                                  │   │
+│  │  • Check for failed steps                                              │   │
+│  │  • Format each step result with proper headers                         │   │
+│  │  • Combine all results into comprehensive response                     │   │
+│  │                                                                         │   │
+│  │  Single Tool Response:                                                 │   │
+│  │  • If intent_type in ["conversation", "greeting", "chat"]:            │   │
+│  │    → _generate_conversational_response() (LLM-generated friendly response) │
+│  │  • If tool_result exists:                                              │   │
+│  │    → Extract and format tool result                                    │   │
+│  │  • If no tool_result:                                                  │   │
+│  │    → "I'm not sure how to help with that request."                     │   │
+│  │                                                                         │   │
+│  │  Conversational Response Generation:                                   │   │
+│  │  • Get LLM client                                                      │   │
+│  │  • Prepare conversation context                                         │   │
+│  │  • Send to LLM with conversational prompt                              │   │
+│  │  • Return friendly, helpful response                                    │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ Final Response
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        BACKEND API RESPONSE FORMATTING                         │
+│  • Convert to AgentChatResponse format                                         │
+│  • Add execution metadata                                                      │
+│  • Include workflow information                                                │
+│  • Return structured JSON response                                             │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ JSON Response
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            API GATEWAY (Azure APIM)                            │
+│  • Response formatting                                                         │
+│  • CORS headers                                                                │
+│  • Response routing                                                            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ Formatted Response
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND (Word Add-in)                            │
+│  • Display response in chat interface                                          │
+│  • Update conversation history                                                 │
+│  • Handle markdown formatting                                                  │
+│  • Show tool execution status                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+## Key Decision Points
+
+### 1. Agent Selection
+```
+USE_LANGGRAPH=true  → LangGraph Agent (Unified, Multi-step capable)
+USE_LANGGRAPH=false → Original Agent (Legacy, Single-tool only)
+```
+
+### 2. Intent Classification
+```
+"hello" → CONVERSATION → Skip tools → Generate friendly response
+"search for AI patents" → SINGLE_TOOL → Execute tool → Format result
+"search AI patents then draft claims" → MULTI_STEP → Plan workflow → Execute steps → Combine results
+```
+
+### 3. Workflow Routing
+```
+Conversation Intent → response_generation (Skip tool execution)
+Multi-step Intent → tool_execution → response_generation
+Single Tool Intent → tool_execution → response_generation
+```
+
+### 4. Multi-step Loop
+```
+For each step in workflow_plan:
+  Execute tool → Store result → Increment step
+  If more steps → Continue loop
+  If all done → Generate combined response
+```
+
+## State Flow Examples
+
+### Example 1: Conversation ("hello")
+```
+Input: "hello"
+Intent Detection: CONVERSATION, tool="", intent="greeting"
+Workflow Planning: Skip (workflow_plan = None)
+Routing: response_generation (conversation intent)
+Tool Execution: Skip
+Response Generation: Generate friendly conversational response
+Output: "Hello! It's great to hear from you! How can I assist you today..."
+```
+
+### Example 2: Single Tool ("search for AI patents")
+```
+Input: "search for AI patents"
+Intent Detection: SINGLE_TOOL, tool="prior_art_search_tool", intent="tool_execution"
+Workflow Planning: Skip (workflow_plan = None)
+Routing: response_generation (single tool)
+Tool Execution: Execute prior_art_search_tool with query="AI patents"
+Response Generation: Format tool result
+Output: "**Prior Art Search Results:**\n[Search results...]"
+```
+
+### Example 3: Multi-step ("search AI patents then draft 2 claims")
+```
+Input: "search AI patents then draft 2 claims"
+Intent Detection: MULTI_STEP, tool="prior_art_search_tool", intent="multi_step"
+Workflow Planning: Create 2-step plan
+Routing: tool_execution (multi-step workflow)
+Tool Execution: Execute step 1 (prior_art_search_tool)
+Routing: tool_execution (continue multi-step)
+Tool Execution: Execute step 2 (claim_drafting_tool)
+Routing: response_generation (all steps done)
+Response Generation: Combine both results
+Output: "**Prior Art Search Results:**\n[Search results...]\n\n**Draft Claims:**\n[Claims...]"
+```
+
+## Error Handling Flow
+
+```
+LLM Failure → Fallback to simple heuristics
+Tool Execution Failure → Continue with next step or return error
+MCP Orchestrator Failure → Return error response
+Network Failure → Retry with exponential backoff
+```
+
+## Performance Optimizations
+
+```
+Lazy Loading: LLM client and MCP orchestrator initialized on demand
+Context Truncation: Conversation history limited to last 5 messages
+Document Truncation: Document content limited to 10k characters
+Parallel Execution: Future enhancement for independent tools
+```

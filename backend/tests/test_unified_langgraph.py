@@ -105,9 +105,9 @@ class TestUnifiedLangGraph:
             tool_result=None,
             final_response="",
             intent_type="tool_execution",
-            workflow_plan=None,
+            workflow_plan=[{"step": 1, "tool": "web_search_tool", "params": {"query": "AI patents"}, "output_key": "search_results"}],
             current_step=0,
-            total_steps=0,
+            total_steps=1,
             step_results={}
         )
         
@@ -169,15 +169,16 @@ class TestUnifiedLangGraph:
             tool_result={"success": True, "result": "Search results here"},
             final_response="",
             intent_type="tool_execution",
-            workflow_plan=None,
-            current_step=0,
-            total_steps=0,
-            step_results={}
+            workflow_plan=[{"step": 1, "tool": "web_search_tool", "params": {"query": "AI patents"}, "output_key": "search_results"}],
+            current_step=1,
+            total_steps=1,
+            step_results={"search_results": {"success": True, "result": "Search results here"}}
         )
         
         result = await generate_response_node(state)
         assert "final_response" in result
-        assert result["final_response"] == "Search results here"
+        assert "Search results here" in result["final_response"]
+        assert "Web Search Results" in result["final_response"]
     
     @pytest.mark.asyncio
     async def test_generate_response_node_multi_step(self):
@@ -238,9 +239,9 @@ class TestUnifiedLangGraphIntegration:
                 "final_response": "Mock unified LangGraph response",
                 "intent_type": "mock_intent",
                 "selected_tool": "mock_tool",
-                "workflow_plan": None,
-                "total_steps": 0,
-                "current_step": 0
+                "workflow_plan": [],
+                "total_steps": 1,
+                "current_step": 1
             }
         
         mock_agent = Mock()
@@ -262,3 +263,15 @@ class TestUnifiedLangGraphIntegration:
             assert "execution_time" in result
             assert "workflow_metadata" in result
             assert result["success"] is True
+            
+            # Test workflow_metadata structure
+            workflow_metadata = result["workflow_metadata"]
+            assert "total_steps" in workflow_metadata
+            assert "completed_steps" in workflow_metadata
+            assert "workflow_type" in workflow_metadata
+            assert "workflow_plan" in workflow_metadata
+            
+            # Test workflow_type classification logic
+            # Single step (1) should be classified as "single_tool"
+            assert workflow_metadata["workflow_type"] == "single_tool"
+            assert workflow_metadata["total_steps"] == 1

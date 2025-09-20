@@ -1,0 +1,90 @@
+[
+  {
+    "test_name": "Conversation - Greeting",
+    "input": "hi",
+    "actual_intent": "greeting",
+    "actual_workflow_type": "single_tool",
+    "actual_steps": 0,
+    "success": true,
+    "workflow_plan_length": 0,
+    "passed": true,
+    "issues": []
+  },
+  {
+    "test_name": "Conversation - Help Request",
+    "input": "what can you help me with?",
+    "actual_intent": "general inquiry about assistance",
+    "actual_workflow_type": "single_tool",
+    "actual_steps": 0,
+    "success": true,
+    "workflow_plan_length": 0,
+    "passed": true,
+    "issues": []
+  },
+  {
+    "test_name": "Conversation - Capabilities Question",
+    "input": "what tools do you have available?",
+    "actual_intent": "inquire about available tools",
+    "actual_workflow_type": "single_tool",
+    "actual_steps": 0,
+    "success": true,
+    "workflow_plan_length": 0,
+    "passed": true,
+    "issues": []
+  },
+  {
+    "test_name": "Single Tool - Web Search",
+    "input": "web search atawia",
+    "actual_intent": "single_tool_workflow",
+    "actual_workflow_type": "single_tool",
+    "actual_steps": 1,
+    "success": true,
+    "workflow_plan_length": 1,
+    "passed": true,
+    "issues": []
+  },
+  {
+    "test_name": "Single Tool - Prior Art Search",
+    "input": "prior art search AI patents",
+    "actual_intent": "single_tool_workflow",
+    "actual_workflow_type": "single_tool",
+    "actual_steps": 1,
+    "success": true,
+    "workflow_plan_length": 1,
+    "passed": true,
+    "issues": []
+  },
+  {
+    "test_name": "Single Tool - Claim Drafting",
+    "input": "draft 5 claims for blockchain",
+    "actual_intent": "single_tool_workflow",
+    "actual_workflow_type": "single_tool",
+    "actual_steps": 1,
+    "success": true,
+    "workflow_plan_length": 1,
+    "passed": true,
+    "issues": []
+  },
+  {
+    "test_name": "Multi-Step - Web + Prior Art",
+    "input": "web search atawia then prior art search",
+    "actual_intent": "multi_step_workflow",
+    "actual_workflow_type": "multi_step",
+    "actual_steps": 2,
+    "success": true,
+    "workflow_plan_length": 2,
+    "passed": true,
+    "issues": []
+  },
+  {
+    "test_name": "Multi-Step - Search + Draft",
+    "input": "search for AI patents then draft 3 claims",
+    "actual_intent": "multi_step_workflow",
+    "actual_workflow_type": "multi_step",
+    "actual_steps": 2,
+    "success": true,
+    "workflow_plan_length": 2,
+    "passed": true,
+    "issues": []
+  }
+]

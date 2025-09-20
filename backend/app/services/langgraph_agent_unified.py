@@ -141,20 +141,34 @@ Examples:
 """
         
         # Get LLM response
-        response = await llm_client.ainvoke(prompt)
-        response_text = response.content if hasattr(response, 'content') else str(response)
+        response = llm_client.generate_text(
+            prompt=prompt,
+            max_tokens=2000,
+            temperature=0.0,
+            system_message="You are an AI assistant that analyzes user queries and determines the appropriate workflow."
+        )
+        response_text = response.get("text", "") if response.get("success") else str(response)
         
         # Parse LLM response
         workflow_type, selected_tool, intent_type, tool_parameters = _parse_llm_response(response_text)
         
         logger.debug(f"LLM detected workflow: {workflow_type}, tool: {selected_tool}")
         
+        # Set intent_type based on workflow_type for consistency
+        if workflow_type == "MULTI_STEP":
+            final_intent_type = "multi_step"
+        elif workflow_type == "CONVERSATION":
+            # Use LLM-generated intent type directly
+            final_intent_type = intent_type
+        else:
+            final_intent_type = "single_tool"
+        
         return {
             **state,
             "selected_tool": selected_tool,
-            "intent_type": intent_type,
+            "intent_type": final_intent_type,
             "tool_parameters": tool_parameters,
-            "workflow_plan": [] if workflow_type != "MULTI_STEP" else None
+            "workflow_plan": []  # Always create workflow plan, even for single tools
         }
         
     except Exception as e:
@@ -198,7 +212,7 @@ async def _simple_intent_detection(state: AgentState) -> AgentState:
         "selected_tool": selected_tool,
         "intent_type": intent_type,
         "tool_parameters": tool_parameters,
-        "workflow_plan": None
+        "workflow_plan": []  # Always create workflow plan, even for single tools
     }
 
 
@@ -283,13 +297,31 @@ def _parse_llm_response(response_text: str) -> tuple[str, str, str, dict]:
 
 async def plan_workflow_node(state: AgentState) -> AgentState:
     """
-    Plan multi-step workflow if needed.
+    Plan workflow - always creates a plan (single tool is just 1-step workflow).
     """
     logger.debug("Planning workflow")
     
-    # If no workflow plan needed, skip
-    if not state.get("workflow_plan") is None:
+    # Always create a workflow plan
+    if state.get("workflow_plan") is not None and len(state.get("workflow_plan", [])) > 0:
         return state
+    
+    # If it's a conversation (any non-tool intent), don't create a workflow plan
+    if state.get("intent_type") not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
+        return {
+            **state,
+            "workflow_plan": [],
+            "total_steps": 0,
+            "current_step": 0,
+            "step_results": {}
+        }
+    
+    # If we already have a selected tool from intent detection AND it's not multi-step, use simple planning
+    if state.get("selected_tool") and state.get("intent_type") not in ["multi_step", "multi_step_workflow"]:
+        return await _simple_workflow_planning(state)
+    
+    # Only proceed with LLM workflow planning if it's a multi-step workflow
+    if state.get("intent_type") not in ["multi_step", "multi_step_workflow"]:
+        return await _simple_workflow_planning(state)
     
     user_input = state["user_input"]
     conversation_history = state.get("conversation_history", [])
@@ -343,8 +375,13 @@ Examples:
 """
         
         # Get LLM response
-        response = await llm_client.ainvoke(prompt)
-        response_text = response.content if hasattr(response, 'content') else str(response)
+        response = llm_client.generate_text(
+            prompt=prompt,
+            max_tokens=2000,
+            temperature=0.0,
+            system_message="You are an AI assistant that analyzes user queries and determines the appropriate workflow."
+        )
+        response_text = response.get("text", "") if response.get("success") else str(response)
         
         # Parse workflow plan
         workflow_plan = _parse_workflow_plan(response_text)
@@ -398,26 +435,19 @@ def _create_dynamic_workflow_plan(user_input: str, available_tools: List[Dict[st
     # Detect workflow patterns dynamically
     detected_tools = _detect_workflow_tools(user_input_lower, tool_names, tool_descriptions)
     
-    if len(detected_tools) <= 1:
-        # Single tool workflow
-        if state.get("selected_tool"):
-            workflow_plan = [{
-                "step": 1,
-                "tool": state["selected_tool"],
-                "params": state["tool_parameters"],
-                "output_key": "tool_results"
-            }]
-        else:
-            # Use first detected tool
-            tool = detected_tools[0] if detected_tools else tool_names[0] if tool_names else ""
-            workflow_plan = [{
-                "step": 1,
-                "tool": tool,
-                "params": _get_default_parameters(tool, user_input),
-                "output_key": "tool_results"
-            }]
-    else:
-        # Multi-step workflow using configuration
+    # Always create workflow plan (single tool is just 1 step)
+    workflow_plan = []
+    
+    if state.get("selected_tool"):
+        # Use the tool selected by intent detection
+        workflow_plan = [{
+            "step": 1,
+            "tool": state["selected_tool"],
+            "params": state["tool_parameters"],
+            "output_key": f"{state['selected_tool']}_results"
+        }]
+    elif detected_tools:
+        # Use detected tools
         tool_mappings = create_dynamic_tool_mapping(available_tools)
         
         for i, tool in enumerate(detected_tools, 1):
@@ -437,6 +467,16 @@ def _create_dynamic_workflow_plan(user_input: str, available_tools: List[Dict[st
                 "params": params,
                 "output_key": f"{tool}_results"
             })
+    else:
+        # Fallback to first available tool
+        tool = tool_names[0] if tool_names else ""
+        if tool:
+            workflow_plan = [{
+                "step": 1,
+                "tool": tool,
+                "params": _get_default_parameters(tool, user_input),
+                "output_key": f"{tool}_results"
+            }]
     
     return workflow_plan
 
@@ -570,48 +610,14 @@ def _parse_workflow_plan(response_text: str) -> List[Dict[str, Any]]:
 
 async def execute_tool_node(state: AgentState) -> AgentState:
     """
-    Execute tools - either single tool or multi-step workflow.
+    Execute tools - always uses multi-step workflow (single tool is 1-step).
     """
     logger.debug("Executing tools")
     
-    # Check if this is a multi-step workflow
-    if state.get("workflow_plan"):
-        return await _execute_multi_step_workflow(state)
-    else:
-        return await _execute_single_tool(state)
+    # Always use multi-step workflow (single tool is just 1 step)
+    return await _execute_multi_step_workflow(state)
 
 
-async def _execute_single_tool(state: AgentState) -> AgentState:
-    """Execute a single tool."""
-    if not state["selected_tool"]:
-        return {**state, "tool_result": None}
-    
-    try:
-        from app.services.agent import AgentService
-        agent_service = AgentService()
-        
-        # Get MCP orchestrator
-        orchestrator = agent_service._get_mcp_orchestrator()
-        if not orchestrator:
-            raise RuntimeError("MCP orchestrator not available")
-        
-        # Execute tool
-        result = await orchestrator.execute_tool(
-            tool_name=state["selected_tool"],
-            parameters=state["tool_parameters"]
-        )
-        
-        return {
-            **state,
-            "tool_result": result
-        }
-        
-    except Exception as e:
-        logger.error(f"Tool execution failed: {e}")
-        return {
-            **state,
-            "tool_result": {"error": str(e), "success": False}
-        }
 
 
 async def _execute_multi_step_workflow(state: AgentState) -> AgentState:
@@ -689,45 +695,80 @@ def _prepare_parameters_with_context(params: Dict[str, Any], step_results: Dict[
 
 async def generate_response_node(state: AgentState) -> AgentState:
     """
-    Generate final response from tool results.
+    Generate final response from tool results - always uses multi-step response.
     """
     logger.debug("Generating response")
     
-    # Check if this is a multi-step workflow
-    if state.get("workflow_plan") and state.get("step_results"):
-        return await _generate_multi_step_response(state)
-    else:
-        return await _generate_single_tool_response(state)
+    # Always use multi-step response (single tool is just 1 step)
+    return await _generate_multi_step_response(state)
 
 
-async def _generate_single_tool_response(state: AgentState) -> AgentState:
-    """Generate response for single tool execution."""
-    tool_result = state.get("tool_result")
+
+
+async def _generate_conversational_response(state: AgentState) -> str:
+    """Generate conversational response using LLM."""
+    user_input = state["user_input"]
+    conversation_history = state.get("conversation_history", [])
     
-    if not tool_result:
-        final_response = "I'm not sure how to help with that request."
-    elif isinstance(tool_result, dict) and tool_result.get("error"):
-        final_response = f"I encountered an error: {tool_result['error']}"
-    else:
-        # Extract formatted content
-        if isinstance(tool_result, dict) and "result" in tool_result:
-            formatted_content = tool_result["result"]
-        else:
-            formatted_content = str(tool_result)
+    try:
+        from app.services.agent import AgentService
+        agent_service = AgentService()
         
-        final_response = formatted_content
-    
-    return {
-        **state,
-        "final_response": final_response,
-        "intent_type": state.get("intent_type", "tool_execution")
-    }
+        # Get LLM client
+        llm_client = agent_service._get_llm_client()
+        if not llm_client:
+            return "Hello! I'm here to help you with patent research, claim drafting, and document analysis. What would you like to work on today?"
+        
+        # Prepare conversation context
+        conversation_context = ""
+        if conversation_history:
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            history_text = "\n".join([
+                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+                for msg in recent_history
+            ])
+            conversation_context = f"\n\nPrevious conversation:\n{history_text}"
+        
+        # Create conversational prompt
+        prompt = f"""You are a helpful AI assistant specializing in patent research, claim drafting, and document analysis.
+
+User: {user_input}{conversation_context}
+
+Please provide a friendly, helpful response. If the user is greeting you, respond warmly and ask how you can help with their patent or document work. If they're asking about capabilities, explain what you can do. Keep responses concise but engaging."""
+        
+        # Get LLM response
+        response = llm_client.generate_text(
+            prompt=prompt,
+            max_tokens=500,
+            temperature=0.7,
+            system_message="You are a helpful AI assistant for patent research and document analysis. Be friendly, professional, and helpful."
+        )
+        
+        if response.get("success"):
+            return response.get("text", "Hello! How can I help you today?")
+        else:
+            return "Hello! I'm here to help you with patent research, claim drafting, and document analysis. What would you like to work on today?"
+            
+    except Exception as e:
+        logger.warning(f"Conversational response generation failed: {e}")
+        return "Hello! I'm here to help you with patent research, claim drafting, and document analysis. What would you like to work on today?"
 
 
 async def _generate_multi_step_response(state: AgentState) -> AgentState:
-    """Generate response for multi-step workflow."""
+    """Generate response for multi-step workflow (including single tool as 1-step)."""
     step_results = state.get("step_results", {})
     workflow_plan = state.get("workflow_plan", [])
+    intent_type = state.get("intent_type", "tool_execution")
+    
+    # Handle conversation intents (any non-tool intent)
+    if intent_type not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
+        logger.debug("Generating conversational response")
+        final_response = await _generate_conversational_response(state)
+        return {
+            **state,
+            "final_response": final_response,
+            "intent_type": intent_type
+        }
     
     if not step_results:
         final_response = "I'm not sure how to help with that request."
@@ -772,21 +813,28 @@ async def _generate_multi_step_response(state: AgentState) -> AgentState:
             else:
                 final_response = "I completed the workflow but didn't get any results."
     
+    # Determine intent type based on workflow length, but preserve non-tool intents
+    if intent_type not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
+        workflow_intent = intent_type
+    else:
+        workflow_intent = "multi_step_workflow" if len(workflow_plan) > 1 else "single_tool_workflow"
+    
     return {
         **state,
         "final_response": final_response,
-        "intent_type": "multi_step_workflow"
+        "intent_type": workflow_intent
     }
 
 
 def _route_workflow(state: AgentState) -> str:
     """Route workflow based on state."""
-    if state.get("intent_type") == "conversation":
+    # Route non-tool intents directly to response generation
+    if state.get("intent_type") not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
         return "response_generation"
-    elif state.get("workflow_plan") is not None:
+    elif state.get("workflow_plan") is not None and len(state.get("workflow_plan", [])) > 0:
         return "tool_execution"
     else:
-        return "tool_execution"
+        return "response_generation"
 
 
 def _route_multi_step(state: AgentState) -> str:
