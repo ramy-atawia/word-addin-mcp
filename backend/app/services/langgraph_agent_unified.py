@@ -76,40 +76,39 @@ async def detect_intent_node(state: AgentState) -> AgentState:
     conversation_history = state.get("conversation_history", [])
     document_content = state.get("document_content", "")
     
-    try:
-        from app.services.agent import AgentService
-        agent_service = AgentService()
-        
-        # Get LLM client
-        llm_client = agent_service._get_llm_client()
-        if not llm_client:
-            return await _simple_intent_detection(state)
-        
-        # Create tool descriptions for LLM
-        tool_descriptions = []
-        for tool in available_tools:
-            tool_descriptions.append(f"- {tool['name']}: {tool.get('description', 'No description')}")
-        
-        tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
-        
-        # Prepare conversation history context
-        conversation_context = ""
-        if conversation_history:
-            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
-            history_text = "\n".join([
-                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
-                for msg in recent_history
-            ])
-            conversation_context = f"\n\nConversation History (last {len(recent_history)} messages):\n{history_text}"
-        
-        # Prepare document content context
-        document_context = ""
-        if document_content:
-            doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
-            document_context = f"\n\nCurrent Document Content:\n'''\n{doc_preview}\n'''"
-        
-        # LLM prompt for intent detection
-        prompt = f"""
+    from app.services.agent import AgentService
+    agent_service = AgentService()
+    
+    # Get LLM client
+    llm_client = agent_service._get_llm_client()
+    if not llm_client:
+        raise RuntimeError("LLM client not available - cannot perform intent detection")
+    
+    # Create tool descriptions for LLM
+    tool_descriptions = []
+    for tool in available_tools:
+        tool_descriptions.append(f"- {tool['name']}: {tool.get('description', 'No description')}")
+    
+    tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+    
+    # Prepare conversation history context
+    conversation_context = ""
+    if conversation_history:
+        recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+        history_text = "\n".join([
+            f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+            for msg in recent_history
+        ])
+        conversation_context = f"\n\nConversation History (last {len(recent_history)} messages):\n{history_text}"
+    
+    # Prepare document content context
+    document_context = ""
+    if document_content:
+        doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
+        document_context = f"\n\nCurrent Document Content:\n'''\n{doc_preview}\n'''"
+    
+    # LLM prompt for intent detection
+    prompt = f"""
 You are an AI assistant that analyzes user queries and determines the appropriate workflow.
 
 Available tools:
@@ -156,127 +155,62 @@ Examples:
 - "compose a message" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: compose message, PARAMETERS: {{}}
 - "hello how are you" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: greeting, PARAMETERS: {{}}
 """
-        
-        # Get LLM response
-        response = llm_client.generate_text(
-            prompt=prompt,
-            max_tokens=2000,
-            temperature=0.0,
-            system_message="You are an AI assistant that analyzes user queries and determines the appropriate workflow."
-        )
-        response_text = response.get("text", "") if response.get("success") else str(response)
-        
-        # Parse LLM response
-        workflow_type, selected_tool, intent_type, tool_parameters = _parse_llm_response(response_text)
-        
-        logger.debug(f"LLM detected workflow: {workflow_type}, tool: {selected_tool}")
-        
-        # Set intent_type based on workflow_type for consistency
-        if workflow_type == "MULTI_STEP":
-            final_intent_type = "multi_step"
-        elif workflow_type == "CONVERSATION":
-            # Use LLM-generated intent type directly
-            final_intent_type = intent_type
-        else:
-            final_intent_type = "single_tool"
-        
-        return {
-            **state,
-            "selected_tool": selected_tool,
-            "intent_type": final_intent_type,
-            "tool_parameters": tool_parameters,
-            "workflow_plan": []  # Always create workflow plan, even for single tools
-        }
-        
-    except Exception as e:
-        logger.warning(f"LLM intent detection failed, using fallback: {e}")
-        return await _simple_intent_detection(state)
-
-
-async def _simple_intent_detection(state: AgentState) -> AgentState:
-    """Fallback simple intent detection using basic heuristics."""
-    user_input = state["user_input"]
-    available_tools = state.get("available_tools", [])
     
-    # Create a simple tool mapping based on available tools
-    tool_mapping = _create_tool_mapping(available_tools)
+    # Get LLM response
+    response = llm_client.generate_text(
+        prompt=prompt,
+        max_tokens=2000,
+        temperature=0.0,
+        system_message="You are an AI assistant that analyzes user queries and determines the appropriate workflow."
+    )
     
-    # Use basic keyword matching as last resort
-    selected_tool = ""
-    intent_type = "conversation"
-    tool_parameters = {}
+    if not response.get("success"):
+        raise RuntimeError(f"LLM intent detection failed: {response.get('error', 'Unknown error')}")
     
-    # Check for multi-step indicators first
-    if _has_multi_step_indicators(user_input):
-        return {
-            **state,
-            "selected_tool": "",
-            "intent_type": "multi_step",
-            "tool_parameters": {},
-            "workflow_plan": []  # Will be planned later
-        }
+    response_text = response.get("text", "")
+    if not response_text.strip():
+        raise RuntimeError("LLM returned empty response for intent detection")
     
-    # Simple keyword-based tool selection
-    for tool_name, keywords in tool_mapping.items():
-        if any(keyword in user_input.lower() for keyword in keywords):
-            selected_tool = tool_name
-            intent_type = "tool_execution"
-            tool_parameters = _get_default_parameters(tool_name, user_input)
-            break
+    # Parse LLM response
+    workflow_type, selected_tool, intent_type, tool_parameters = _parse_llm_response(response_text)
+    
+    # Validate parsed response
+    if workflow_type not in ["SINGLE_TOOL", "MULTI_STEP", "CONVERSATION"]:
+        raise RuntimeError(f"Invalid workflow type from LLM: {workflow_type}")
+    
+    if workflow_type in ["SINGLE_TOOL", "MULTI_STEP"] and not selected_tool:
+        raise RuntimeError(f"Tool required for {workflow_type} but none provided by LLM")
+    
+    logger.debug(f"LLM detected workflow: {workflow_type}, tool: {selected_tool}")
+    
+    # Set intent_type based on workflow_type for consistency
+    if workflow_type == "MULTI_STEP":
+        final_intent_type = "multi_step"
+    elif workflow_type == "CONVERSATION":
+        # Use LLM-generated intent type directly
+        final_intent_type = intent_type
+    else:
+        final_intent_type = "single_tool"
     
     return {
         **state,
         "selected_tool": selected_tool,
-        "intent_type": intent_type,
+        "intent_type": final_intent_type,
         "tool_parameters": tool_parameters,
         "workflow_plan": []  # Always create workflow plan, even for single tools
     }
 
 
-def _create_tool_mapping(available_tools: List[Dict[str, Any]]) -> Dict[str, List[str]]:
-    """Create dynamic tool mapping based on available tools using configuration."""
-    from app.config.tool_mappings import create_dynamic_tool_mapping
-    
-    # Use configuration-based tool mapping
-    tool_mappings = create_dynamic_tool_mapping(available_tools)
-    
-    # Convert to simple keyword mapping for backward compatibility
-    tool_mapping = {}
-    for tool_name, mapping in tool_mappings.items():
-        # Combine keywords from name and description
-        all_keywords = mapping.keywords + mapping.description_keywords
-        tool_mapping[tool_name] = list(set(all_keywords))
-    
-    return tool_mapping
+# Removed _simple_intent_detection - no fallbacks, fail fast with clear errors
 
 
-def _has_multi_step_indicators(user_input: str) -> bool:
-    """Check if user input indicates multi-step workflow."""
-    multi_step_indicators = [
-        "then", "and then", "after", "followed by", "next",
-        "and", "also", "plus", "additionally", "furthermore"
-    ]
-    
-    # Check for multiple action words
-    action_words = ["search", "find", "draft", "analyze", "create", "generate"]
-    action_count = sum(1 for word in action_words if word in user_input.lower())
-    
-    return (
-        any(indicator in user_input.lower() for indicator in multi_step_indicators) or
-        action_count >= 2
-    )
+# Removed _create_tool_mapping - no fallbacks, fail fast with clear errors
 
 
-def _get_default_parameters(tool_name: str, user_input: str) -> Dict[str, Any]:
-    """Get default parameters for a tool based on its name."""
-    if "search" in tool_name.lower():
-        return {"query": user_input}
-    elif "draft" in tool_name.lower() or "claim" in tool_name.lower():
-        return {"user_query": user_input}
-    elif "analyze" in tool_name.lower():
-        return {"user_query": user_input}
-    else:
-        return {"user_query": user_input}
+# Removed _has_multi_step_indicators - no fallbacks, fail fast with clear errors
+
+
+# Removed _get_default_parameters - no fallbacks, fail fast with clear errors
 
 
 def _parse_llm_response(response_text: str) -> tuple[str, str, str, dict]:
@@ -332,51 +266,61 @@ async def plan_workflow_node(state: AgentState) -> AgentState:
             "step_results": {}
         }
     
-    # If we already have a selected tool from intent detection AND it's not multi-step, use simple planning
+    # If we already have a selected tool from intent detection AND it's not multi-step, create simple plan
     if state.get("selected_tool") and state.get("intent_type") not in ["multi_step", "multi_step_workflow"]:
-        return await _simple_workflow_planning(state)
+        return {
+            **state,
+            "workflow_plan": [{
+                "step": 1,
+                "tool": state["selected_tool"],
+                "params": state["tool_parameters"],
+                "output_key": f"{state['selected_tool']}_results"
+            }],
+            "total_steps": 1,
+            "current_step": 0,
+            "step_results": {}
+        }
     
     # Only proceed with LLM workflow planning if it's a multi-step workflow
     if state.get("intent_type") not in ["multi_step", "multi_step_workflow"]:
-        return await _simple_workflow_planning(state)
+        raise RuntimeError(f"Invalid intent type for workflow planning: {state.get('intent_type')}")
     
     user_input = state["user_input"]
     conversation_history = state.get("conversation_history", [])
     document_content = state.get("document_content", "")
     
-    try:
-        from app.services.agent import AgentService
-        agent_service = AgentService()
-        
-        # Get LLM client
-        llm_client = agent_service._get_llm_client()
-        if not llm_client:
-            return await _simple_workflow_planning(state)
-        
-        # Get available tools and create descriptions
-        available_tools = state.get("available_tools", [])
-        tool_descriptions = []
-        for tool in available_tools:
-            tool_descriptions.append(f"- {tool['name']}: {tool.get('description', 'No description')}")
-        tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
-        
-        # Prepare context
-        conversation_context = ""
-        if conversation_history:
-            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
-            history_text = "\n".join([
-                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
-                for msg in recent_history
-            ])
-            conversation_context = f"\n\nConversation History:\n{history_text}"
-        
-        document_context = ""
-        if document_content:
-            doc_preview = document_content[:5000] + "..." if len(document_content) > 5000 else document_content
-            document_context = f"\n\nDocument Content:\n'''\n{doc_preview}\n'''"
-        
-        # LLM prompt for workflow planning
-        prompt = f"""
+    from app.services.agent import AgentService
+    agent_service = AgentService()
+    
+    # Get LLM client
+    llm_client = agent_service._get_llm_client()
+    if not llm_client:
+        raise RuntimeError("LLM client not available - cannot perform workflow planning")
+    
+    # Get available tools and create descriptions
+    available_tools = state.get("available_tools", [])
+    tool_descriptions = []
+    for tool in available_tools:
+        tool_descriptions.append(f"- {tool['name']}: {tool.get('description', 'No description')}")
+    tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+    
+    # Prepare context
+    conversation_context = ""
+    if conversation_history:
+        recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+        history_text = "\n".join([
+            f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+            for msg in recent_history
+        ])
+        conversation_context = f"\n\nConversation History:\n{history_text}"
+    
+    document_context = ""
+    if document_content:
+        doc_preview = document_content[:5000] + "..." if len(document_content) > 5000 else document_content
+        document_context = f"\n\nDocument Content:\n'''\n{doc_preview}\n'''"
+    
+    # LLM prompt for workflow planning
+    prompt = f"""
 You are an AI assistant that creates execution plans for multi-step workflows.
 
 Available tools:
@@ -400,39 +344,27 @@ Examples:
 - "web search ramy atawia then prior art search" → [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "ramy atawia"}}, "output_key": "web_search_results"}}, {{"step": 2, "tool": "prior_art_search_tool", "params": {{"query": "prior art search"}}, "output_key": "prior_art_results"}}]
 - "search for AI patents then draft 5 claims" → [{{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "AI patents"}}, "output_key": "prior_art_results"}}, {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft 5 claims", "prior_art_context": "{{prior_art_results}}"}}, "output_key": "draft_results"}}]
 """
-        
-        # Get LLM response
-        response = llm_client.generate_text(
-            prompt=prompt,
-            max_tokens=2000,
-            temperature=0.0,
-            system_message="You are an AI assistant that analyzes user queries and determines the appropriate workflow."
-        )
-        response_text = response.get("text", "") if response.get("success") else str(response)
-        
-        # Parse workflow plan
-        workflow_plan = _parse_workflow_plan(response_text)
-        
-        return {
-            **state,
-            "workflow_plan": workflow_plan,
-            "total_steps": len(workflow_plan),
-            "current_step": 0,
-            "step_results": {}
-        }
-        
-    except Exception as e:
-        logger.warning(f"LLM workflow planning failed, using fallback: {e}")
-        return await _simple_workflow_planning(state)
-
-
-async def _simple_workflow_planning(state: AgentState) -> AgentState:
-    """Simple fallback workflow planning using dynamic tool detection."""
-    user_input = state["user_input"]
-    available_tools = state.get("available_tools", [])
     
-    # Create dynamic workflow plan based on available tools and user input
-    workflow_plan = _create_dynamic_workflow_plan(user_input, available_tools, state)
+    # Get LLM response
+    response = llm_client.generate_text(
+        prompt=prompt,
+        max_tokens=2000,
+        temperature=0.0,
+        system_message="You are an AI assistant that analyzes user queries and determines the appropriate workflow."
+    )
+    
+    if not response.get("success"):
+        raise RuntimeError(f"LLM workflow planning failed: {response.get('error', 'Unknown error')}")
+    
+    response_text = response.get("text", "")
+    if not response_text.strip():
+        raise RuntimeError("LLM returned empty response for workflow planning")
+    
+    # Parse workflow plan
+    workflow_plan = _parse_workflow_plan(response_text)
+    
+    if not workflow_plan:
+        raise RuntimeError("Failed to parse workflow plan from LLM response")
     
     return {
         **state,
@@ -443,180 +375,19 @@ async def _simple_workflow_planning(state: AgentState) -> AgentState:
     }
 
 
-def _create_dynamic_workflow_plan(user_input: str, available_tools: List[Dict[str, Any]], state: AgentState) -> List[Dict[str, Any]]:
-    """Create dynamic workflow plan based on available tools and user input using configuration."""
-    from app.config.tool_mappings import detect_multi_step_pattern, create_dynamic_tool_mapping
-    
-    user_input_lower = user_input.lower()
-    workflow_plan = []
-    
-    # Check for predefined multi-step patterns first
-    pattern = detect_multi_step_pattern(user_input, available_tools)
-    if pattern:
-        return _create_pattern_based_workflow(user_input, pattern, available_tools)
-    
-    # Extract available tool names and descriptions
-    tool_names = [tool.get("name", "") for tool in available_tools]
-    tool_descriptions = {tool.get("name", ""): tool.get("description", "") for tool in available_tools}
-    
-    # Detect workflow patterns dynamically
-    detected_tools = _detect_workflow_tools(user_input_lower, tool_names, tool_descriptions)
-    
-    # Always create workflow plan (single tool is just 1 step)
-    workflow_plan = []
-    
-    if state.get("selected_tool"):
-        # Use the tool selected by intent detection
-        workflow_plan = [{
-            "step": 1,
-            "tool": state["selected_tool"],
-            "params": state["tool_parameters"],
-            "output_key": f"{state['selected_tool']}_results"
-        }]
-    elif detected_tools:
-        # Use detected tools
-        tool_mappings = create_dynamic_tool_mapping(available_tools)
-        
-        for i, tool in enumerate(detected_tools, 1):
-            mapping = tool_mappings.get(tool, None)
-            if mapping:
-                params = _get_configured_parameters(mapping, user_input)
-            else:
-                params = _get_default_parameters(tool, user_input)
-            
-            # Add context from previous steps
-            if i > 1:
-                params = _add_context_to_parameters(params, tool, detected_tools[:i-1])
-            
-            workflow_plan.append({
-                "step": i,
-                "tool": tool,
-                "params": params,
-                "output_key": f"{tool}_results"
-            })
-    else:
-        # Fallback to first available tool
-        tool = tool_names[0] if tool_names else ""
-        if tool:
-            workflow_plan = [{
-                "step": 1,
-                "tool": tool,
-                "params": _get_default_parameters(tool, user_input),
-                "output_key": f"{tool}_results"
-            }]
-    
-    return workflow_plan
+# Removed _simple_workflow_planning - no fallbacks, fail fast with clear errors
 
 
-def _create_pattern_based_workflow(user_input: str, pattern: Dict[str, Any], available_tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Create workflow based on detected pattern."""
-    from app.config.tool_mappings import create_dynamic_tool_mapping
-    
-    workflow_plan = []
-    tool_mappings = create_dynamic_tool_mapping(available_tools)
-    
-    for i, tool_name in enumerate(pattern["tools"], 1):
-        # Find actual tool name from available tools
-        actual_tool = None
-        for tool in available_tools:
-            tool_name_lower = tool.get("name", "").lower()
-            if tool_name in tool_name_lower or tool_name_lower in tool_name:
-                actual_tool = tool.get("name", "")
-                break
-        
-        if not actual_tool:
-            continue
-        
-        mapping = tool_mappings.get(actual_tool, None)
-        if mapping:
-            params = _get_configured_parameters(mapping, user_input)
-        else:
-            params = _get_default_parameters(actual_tool, user_input)
-        
-        # Add context based on pattern
-        context_mapping = pattern.get("context_mapping", {})
-        if tool_name in context_mapping:
-            context_key = context_mapping[tool_name]
-            params[context_key] = f"{{{{{context_key}}}}}"
-        
-        workflow_plan.append({
-            "step": i,
-            "tool": actual_tool,
-            "params": params,
-            "output_key": f"{actual_tool}_results"
-        })
-    
-    return workflow_plan
+# Removed _create_dynamic_workflow_plan - no fallbacks, fail fast with clear errors
 
 
-def _get_configured_parameters(mapping, user_input: str) -> Dict[str, Any]:
-    """Get parameters using tool mapping configuration."""
-    params = {}
-    
-    for key, value in mapping.default_parameters.items():
-        if isinstance(value, str) and "{user_input}" in value:
-            params[key] = value.replace("{user_input}", user_input)
-        else:
-            params[key] = value
-    
-    return params
+# Removed _create_pattern_based_workflow - no fallbacks, fail fast with clear errors
 
 
-def _detect_workflow_tools(user_input: str, tool_names: List[str], tool_descriptions: Dict[str, str]) -> List[str]:
-    """Detect which tools should be used in the workflow."""
-    detected_tools = []
-    
-    # Create tool mapping for detection
-    tool_mapping = _create_tool_mapping([{"name": name, "description": tool_descriptions.get(name, "")} for name in tool_names])
-    
-    # Check for each tool
-    for tool_name in tool_names:
-        keywords = tool_mapping.get(tool_name, [])
-        if any(keyword in user_input for keyword in keywords):
-            detected_tools.append(tool_name)
-    
-    # If no tools detected, use common patterns
-    if not detected_tools:
-        if "search" in user_input or "find" in user_input:
-            # Look for search tools
-            search_tools = [name for name in tool_names if "search" in name.lower()]
-            if search_tools:
-                detected_tools.extend(search_tools[:1])  # Take first search tool
-        
-        if "draft" in user_input or "claim" in user_input:
-            # Look for drafting tools
-            draft_tools = [name for name in tool_names if "draft" in name.lower() or "claim" in name.lower()]
-            if draft_tools:
-                detected_tools.extend(draft_tools[:1])  # Take first draft tool
-    
-    # Remove duplicates while preserving order
-    seen = set()
-    unique_tools = []
-    for tool in detected_tools:
-        if tool not in seen:
-            seen.add(tool)
-            unique_tools.append(tool)
-    
-    return unique_tools
+# Removed _get_configured_parameters - no fallbacks, fail fast with clear errors
 
 
-def _add_context_to_parameters(params: Dict[str, Any], current_tool: str, previous_tools: List[str]) -> Dict[str, Any]:
-    """Add context from previous tools to current tool parameters."""
-    if not previous_tools:
-        return params
-    
-    # Add context based on tool type
-    if "draft" in current_tool.lower() or "claim" in current_tool.lower():
-        # For drafting tools, add context from search results
-        search_tools = [tool for tool in previous_tools if "search" in tool.lower()]
-        if search_tools:
-            last_search_tool = search_tools[-1]
-            if "prior" in last_search_tool.lower() or "art" in last_search_tool.lower():
-                params["prior_art_context"] = f"{{{{{last_search_tool}_results}}}}"
-            else:
-                params["conversation_context"] = f"{{{{{last_search_tool}_results}}}}"
-    
-    return params
+# Removed _detect_workflow_tools and _add_context_to_parameters - no fallbacks, fail fast with clear errors
 
 
 def _get_tool_display_name(tool_name: str, available_tools: List[Dict[str, Any]]) -> str:
