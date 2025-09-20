@@ -130,6 +130,8 @@ IMPORTANT RULES:
 - "prior art search" or "prior art" should ALWAYS use prior_art_search_tool
 - "draft claims" or "draft X claims" should use claim_drafting_tool
 - "web search" or "search for" should use web_search_tool
+- "draft a letter", "write an email", "compose a message" should ALWAYS use CONVERSATION
+- Only use claim_drafting_tool for PATENT CLAIM drafting, not general document drafting
 
 IMPORTANT: Extract the actual search terms from the user query. For example:
 - "web search ramy atawia then prior art search" → extract "ramy atawia" for web search
@@ -148,6 +150,7 @@ Examples:
 - "find prior art for AI patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
 - "search for blockchain patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "blockchain patents"}}
 - "draft 5 claims for blockchain" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}
+- "draft claims for AI system" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft claims for AI system"}}
 - "draft a letter" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: draft letter, PARAMETERS: {{}}
 - "write an email" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: write email, PARAMETERS: {{}}
 - "compose a message" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: compose message, PARAMETERS: {{}}
