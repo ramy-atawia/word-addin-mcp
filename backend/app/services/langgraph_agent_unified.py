@@ -819,6 +819,8 @@ def create_agent_graph() -> StateGraph:
     workflow.add_node("response_generation", generate_response_node)
     
     # Add edges
+    # Entry point: START -> intent_detection
+    workflow.add_edge("__start__", "intent_detection")
     workflow.add_edge("intent_detection", "workflow_planning")
     workflow.add_conditional_edges(
         "workflow_planning",
