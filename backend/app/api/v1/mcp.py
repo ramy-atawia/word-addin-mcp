@@ -15,7 +15,9 @@ from pydantic import BaseModel
 from ...services.mcp.orchestrator import get_initialized_mcp_orchestrator
 # Removed old MCP schema imports - using official MCP types now
 from ...schemas.agent import AgentChatRequest, AgentChatResponse
+from ...schemas.streaming import StreamingAgentChatRequest
 from ...services.agent import agent_service
+from ...services.streaming_agent import StreamingAgentService
 from ...schemas.mcp import ExternalServerRequest
 
 logger = logging.getLogger(__name__)
@@ -581,3 +583,95 @@ async def test_external_server_connection(server_id: str):
             }
         )
 
+
+
+@router.post("/agent/chat/stream")
+async def stream_agent_chat(request: StreamingAgentChatRequest):
+    """
+    Stream agent response with real-time progress updates.
+    
+    This endpoint provides Server-Sent Events (SSE) for real-time progress
+    updates during agent workflow execution.
+    
+    Args:
+        request: Streaming agent chat request
+        
+    Returns:
+        StreamingResponse with SSE events
+    """
+    try:
+        logger.info(f"Starting streaming chat request: {request.message[:100]}...")
+        
+        # Parse context
+        document_content = request.context.get("document_content", "")
+        chat_history_str = request.context.get("chat_history", "")
+        available_tools_str = request.context.get("available_tools", "")
+        
+        # Parse chat history
+        parsed_chat_history = []
+        if chat_history_str:
+            try:
+                import json
+                parsed_chat_history = json.loads(chat_history_str)
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse chat history, using empty list")
+                parsed_chat_history = []
+        
+        # Parse available tools
+        available_tools = []
+        if available_tools_str:
+            tool_names = [name.strip() for name in available_tools_str.split(",") if name.strip()]
+            # Get tool details from MCP orchestrator
+            try:
+                mcp_orchestrator = get_initialized_mcp_orchestrator()
+                all_tools = await mcp_orchestrator.list_all_tools()
+                available_tools = [
+                    tool for tool in all_tools.get("tools", [])
+                    if tool.get("name") in tool_names
+                ]
+            except Exception as e:
+                logger.warning(f"Failed to get tool details: {e}")
+                available_tools = [{"name": name, "description": f"{name} tool"} for name in tool_names]
+        
+        # Create streaming service
+        streaming_service = StreamingAgentService()
+        
+        # Generate streaming response
+        event_generator = streaming_service.stream_agent_response(
+            user_message=request.message,
+            document_content=document_content,
+            available_tools=available_tools,
+            frontend_chat_history=parsed_chat_history
+        )
+        
+        # Return streaming response
+        return streaming_service.create_streaming_response(event_generator)
+        
+    except Exception as e:
+        logger.error(f"Streaming chat failed: {str(e)}")
+        # Return error as SSE event
+        from ...schemas.streaming import ErrorEvent
+        error_event = ErrorEvent(
+            data={
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "status": "error"
+            }
+        )
+        
+        async def error_generator():
+            yield f"data: {json.dumps({\"event\": \"error\", \"timestamp\": time.time(), \"data\": error_event.data})}
+
+"
+        
+        return StreamingResponse(
+            error_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Content-Type": "text/event-stream",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Cache-Control"
+            }
+        )
