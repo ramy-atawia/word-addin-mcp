@@ -1,0 +1,230 @@
+{
+  "summary": {
+    "total_tests": 27,
+    "passed_tests": 0,
+    "failed_tests": 27,
+    "success_rate": 0.0,
+    "total_execution_time": 0.03803586959838867,
+    "average_response_time": 0.001399817290129485,
+    "max_response_time": 0.0065958499908447266
+  },
+  "test_results": [
+    {
+      "test_name": "API Endpoints - Health Endpoint",
+      "status": "FAILED",
+      "start_time": 1758327218.712536,
+      "duration": 0.0065958499908447266,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "API Endpoints - Tools List Endpoint",
+      "status": "FAILED",
+      "start_time": 1758327218.7191339,
+      "duration": 0.001238107681274414,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "API Endpoints - Agent Chat Endpoint",
+      "status": "FAILED",
+      "start_time": 1758327218.720374,
+      "duration": 0.0011568069458007812,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "API Endpoints - Tool Execution Endpoint",
+      "status": "FAILED",
+      "start_time": 1758327218.7215319,
+      "duration": 0.0010271072387695312,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "API Endpoints - External Servers Endpoint",
+      "status": "FAILED",
+      "start_time": 1758327218.72256,
+      "duration": 0.0018188953399658203,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "API Endpoints - Add External Server Endpoint",
+      "status": "FAILED",
+      "start_time": 1758327218.72438,
+      "duration": 0.0012440681457519531,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "API Endpoints - Test Connection Endpoint",
+      "status": "FAILED",
+      "start_time": 1758327218.7256262,
+      "duration": 0.0012927055358886719,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - Web Search Tool",
+      "status": "FAILED",
+      "start_time": 1758327218.726946,
+      "duration": 0.0011749267578125,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - Prior Art Search Tool",
+      "status": "FAILED",
+      "start_time": 1758327218.728123,
+      "duration": 0.0010678768157958984,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - Claim Drafting Tool",
+      "status": "FAILED",
+      "start_time": 1758327218.729193,
+      "duration": 0.0010440349578857422,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - Claim Analysis Tool",
+      "status": "FAILED",
+      "start_time": 1758327218.730239,
+      "duration": 0.001013040542602539,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - File Reader Tool",
+      "status": "FAILED",
+      "start_time": 1758327218.731253,
+      "duration": 0.0010151863098144531,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - Tool Parameter Validation",
+      "status": "FAILED",
+      "start_time": 1758327218.732269,
+      "duration": 0.0011551380157470703,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "MCP Tools - Tool Error Handling",
+      "status": "FAILED",
+      "start_time": 1758327218.7334259,
+      "duration": 0.001020193099975586,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Frontend Integration - Frontend Health Check",
+      "status": "FAILED",
+      "start_time": 1758327218.734472,
+      "duration": 0.0010139942169189453,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Frontend Integration - CORS Headers",
+      "status": "FAILED",
+      "start_time": 1758327218.735487,
+      "duration": 0.0010402202606201172,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Frontend Integration - JSON Response Format",
+      "status": "FAILED",
+      "start_time": 1758327218.7365289,
+      "duration": 0.001032114028930664,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "LLM Capabilities - LLM Intent Detection",
+      "status": "FAILED",
+      "start_time": 1758327218.737588,
+      "duration": 0.0010280609130859375,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "LLM Capabilities - LLM Tool Selection",
+      "status": "FAILED",
+      "start_time": 1758327218.7386172,
+      "duration": 0.0009887218475341797,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Performance - Response Time Performance",
+      "status": "FAILED",
+      "start_time": 1758327218.739638,
+      "duration": 0.0010280609130859375,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Performance - Concurrent Requests",
+      "status": "FAILED",
+      "start_time": 1758327218.7406678,
+      "duration": 0.0034761428833007812,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Performance - Memory Usage Stability",
+      "status": "FAILED",
+      "start_time": 1758327218.74415,
+      "duration": 0.0012650489807128906,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Error Handling - Invalid Endpoint Handling",
+      "status": "FAILED",
+      "start_time": 1758327218.745443,
+      "duration": 0.0010139942169189453,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Error Handling - Malformed JSON Handling",
+      "status": "FAILED",
+      "start_time": 1758327218.746458,
+      "duration": 0.0010330677032470703,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Error Handling - Large Payload Handling",
+      "status": "FAILED",
+      "start_time": 1758327218.747492,
+      "duration": 0.000988006591796875,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Security - SQL Injection Protection",
+      "status": "FAILED",
+      "start_time": 1758327218.748505,
+      "duration": 0.0009388923645019531,
+      "error": "All connection attempts failed",
+      "details": {}
+    },
+    {
+      "test_name": "Security - XSS Protection",
+      "status": "FAILED",
+      "start_time": 1758327218.7494452,
+      "duration": 0.0010848045349121094,
+      "error": "All connection attempts failed",
+      "details": {}
+    }
+  ],
+  "performance_metrics": {}
+}
