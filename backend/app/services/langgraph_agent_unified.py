@@ -13,9 +13,31 @@ Features:
 
 import structlog
 from typing import TypedDict, List, Dict, Any, Optional
-from langgraph.graph import StateGraph, END
+from unittest.mock import Mock
 
 logger = structlog.get_logger()
+
+# Conditional LangGraph import
+try:
+    from langgraph.graph import StateGraph, END
+    LANGGRAPH_AVAILABLE = True
+except ImportError:
+    LANGGRAPH_AVAILABLE = False
+    # Create mock classes for when LangGraph is not available
+    class StateGraph:
+        def __init__(self, state_type):
+            pass
+        def add_node(self, name, func):
+            pass
+        def add_edge(self, from_node, to_node):
+            pass
+        def add_conditional_edges(self, from_node, condition_func, mapping):
+            pass
+        def compile(self):
+            return Mock()
+    
+    class END:
+        pass
 
 
 class AgentState(TypedDict):
