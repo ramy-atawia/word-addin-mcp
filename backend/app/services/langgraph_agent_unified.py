@@ -757,20 +757,26 @@ async def _generate_conversational_response(state: AgentState) -> str:
             conversation_context = f"\n\nPrevious conversation:\n{history_text}"
         
         # Create conversational prompt
-        prompt = f"""You are a helpful AI assistant specializing in patent research, claim drafting, and document analysis.
+        prompt = f"""You are a helpful AI assistant that can help with a wide range of tasks including patent research, document drafting, general questions, and more.
 
 User: {user_input}{conversation_context}
 
-Please provide a friendly, helpful response. If the user is greeting you, respond warmly and ask how you can help with their patent or document work. If they're asking about capabilities, explain what you can do. 
+Please provide a helpful, engaging response. You can:
+- Answer general knowledge questions
+- Help with document drafting (letters, emails, reports, etc.)
+- Provide friendly greetings and conversation
+- Explain concepts and provide information
+- Help with writing and communication tasks
+- Assist with patent-related work when relevant
 
-For letter/email drafting requests (like "draft a letter", "write an email", "compose a message"), provide a helpful response explaining that you can help with patent-related document drafting, but for general letters and emails, they might want to use a different tool. Offer to help with patent claim drafting instead.
+Be helpful, professional, and engaging. Generate actual content when requested (like drafting documents) rather than just explaining what you can do.
 
-Keep responses concise but engaging."""
+Keep responses concise but comprehensive."""
         
         # Get LLM response
         response = llm_client.generate_text(
             prompt=prompt,
-            max_tokens=500,
+            max_tokens=1000,
             temperature=0.7,
             system_message="You are a helpful AI assistant for patent research and document analysis. Be friendly, professional, and helpful."
         )
