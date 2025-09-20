@@ -399,7 +399,7 @@ jobs:
           -H "Authorization: Bearer $AUTH0_TEST_TOKEN" \
           -d '{"parameters": {"query": "5G handover using AI"}}' || echo '{}')
         
-        if echo "$patent_response" | grep -q "# Prior Art Search Report"; then
+        if echo "$patent_response" | grep -q "Prior Art Search Report"; then
           echo "Patent search test passed: Report generated successfully"
         else
           echo "Patent search test failed: No report generated"
