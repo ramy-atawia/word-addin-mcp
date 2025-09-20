@@ -127,6 +127,9 @@ IMPORTANT RULES:
 - Use CONVERSATION for general requests like "draft a letter", "write an email", "compose a message"
 - Extract the actual search terms from the user query for patent-related searches
 - For patent claim drafting, use "draft X claims for [topic]" format
+- "prior art search" or "prior art" should ALWAYS use prior_art_search_tool
+- "draft claims" or "draft X claims" should use claim_drafting_tool
+- "web search" or "search for" should use web_search_tool
 
 IMPORTANT: Extract the actual search terms from the user query. For example:
 - "web search ramy atawia then prior art search" → extract "ramy atawia" for web search
@@ -141,7 +144,9 @@ PARAMETERS: [JSON object with tool parameters]
 
 Examples:
 - "web search ramy atawia then prior art search" → WORKFLOW_TYPE: MULTI_STEP, TOOL: web_search_tool, INTENT: web search then prior art, PARAMETERS: {{"query": "ramy atawia"}}
+- "prior art search" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "prior art search"}}
 - "find prior art for AI patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
+- "search for blockchain patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "blockchain patents"}}
 - "draft 5 claims for blockchain" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}
 - "draft a letter" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: draft letter, PARAMETERS: {{}}
 - "write an email" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: write email, PARAMETERS: {{}}
