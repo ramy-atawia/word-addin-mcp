@@ -345,6 +345,13 @@ async def plan_workflow_node(state: AgentState) -> AgentState:
         if not llm_client:
             return await _simple_workflow_planning(state)
         
+        # Get available tools and create descriptions
+        available_tools = state.get("available_tools", [])
+        tool_descriptions = []
+        for tool in available_tools:
+            tool_descriptions.append(f"- {tool['name']}: {tool.get('description', 'No description')}")
+        tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+        
         # Prepare context
         conversation_context = ""
         if conversation_history:
@@ -363,6 +370,9 @@ async def plan_workflow_node(state: AgentState) -> AgentState:
         # LLM prompt for workflow planning
         prompt = f"""
 You are an AI assistant that creates execution plans for multi-step workflows.
+
+Available tools:
+{tools_text}
 
 User query: "{user_input}"{conversation_context}{document_context}
 
