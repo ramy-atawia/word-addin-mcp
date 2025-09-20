@@ -619,6 +619,31 @@ def _add_context_to_parameters(params: Dict[str, Any], current_tool: str, previo
     return params
 
 
+def _get_tool_display_name(tool_name: str, available_tools: List[Dict[str, Any]]) -> str:
+    """Get user-friendly display name for a tool."""
+    # Look for tool in available tools first
+    for tool in available_tools:
+        if tool.get("name") == tool_name:
+            # Use tool's display name if available, otherwise use description
+            display_name = tool.get("display_name") or tool.get("description", tool_name)
+            # Clean up the display name
+            if display_name and display_name != tool_name:
+                return display_name.replace("Tool", "").replace("tool", "").strip()
+    
+    # Fallback to tool name with proper formatting
+    if tool_name == "prior_art_search_tool":
+        return "Prior Art Search Results"
+    elif tool_name == "claim_drafting_tool":
+        return "Draft Claims"
+    elif tool_name == "claim_analysis_tool":
+        return "Claim Analysis"
+    elif tool_name == "web_search_tool":
+        return "Web Search Results"
+    else:
+        # Convert tool_name to readable format
+        return tool_name.replace("_", " ").replace("tool", "").strip().title() + " Results"
+
+
 def _parse_workflow_plan(response_text: str) -> List[Dict[str, Any]]:
     """Parse LLM workflow plan response."""
     try:
@@ -834,16 +859,13 @@ async def _generate_multi_step_response(state: AgentState) -> AgentState:
                     formatted_content = step_result.get("result", str(step_result))
                     
                     # Format step result with proper content
-                    if step["tool"] == "prior_art_search_tool":
-                        response_parts.append(f"**Prior Art Search Results:**\n{formatted_content}")
-                    elif step["tool"] == "claim_drafting_tool":
-                        response_parts.append(f"**Draft Claims:**\n{formatted_content}")
-                    elif step["tool"] == "claim_analysis_tool":
-                        response_parts.append(f"**Claim Analysis:**\n{formatted_content}")
-                    elif step["tool"] == "web_search_tool":
-                        response_parts.append(f"**Web Search Results:**\n{formatted_content}")
-                    else:
-                        response_parts.append(f"**{step['tool']} Results:**\n{formatted_content}")
+                    tool_name = step["tool"]
+                    
+                    # Get tool display name from available tools or use default
+                    display_name = _get_tool_display_name(tool_name, state.get("available_tools", []))
+                    
+                    # Format with dynamic header
+                    response_parts.append(f"**{display_name}:**\n{formatted_content}")
             
             if response_parts:
                 final_response = "\n\n".join(response_parts)

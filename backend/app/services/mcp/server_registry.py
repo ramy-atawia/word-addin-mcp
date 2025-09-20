@@ -437,17 +437,54 @@ class MCPServerRegistry:
                     if response.status == 200:
                         data = await response.json()
                         if "result" in data:
-                            return data["result"]
+                            result = data["result"]
+                            
+                            # Validate result is not empty
+                            if not result or (isinstance(result, str) and not result.strip()):
+                                logger.error(f"Empty result from internal tool {tool_info.name}")
+                                return {
+                                    "status": "error",
+                                    "result": f"Tool '{tool_info.name}' returned empty result. This may indicate an API configuration issue.",
+                                    "error": "Empty result from tool execution",
+                                    "timestamp": time.time()
+                                }
+                            
+                            return result
                         elif "error" in data:
-                            raise ConnectionError(f"MCP server error: {data['error']['message']}")
+                            error_msg = data['error'].get('message', 'Unknown error')
+                            logger.error(f"MCP server error for tool {tool_info.name}: {error_msg}")
+                            return {
+                                "status": "error",
+                                "result": f"Tool execution failed: {error_msg}",
+                                "error": error_msg,
+                                "timestamp": time.time()
+                            }
                         else:
-                            raise ConnectionError("Invalid response from internal MCP server")
+                            logger.error(f"Invalid response format from internal MCP server for tool {tool_info.name}")
+                            return {
+                                "status": "error",
+                                "result": "Invalid response format from internal MCP server",
+                                "error": "Invalid response format",
+                                "timestamp": time.time()
+                            }
                     else:
-                        raise ConnectionError(f"HTTP error {response.status} from internal MCP server")
+                        error_msg = f"HTTP error {response.status} from internal MCP server"
+                        logger.error(f"HTTP error {response.status} for tool {tool_info.name}")
+                        return {
+                            "status": "error",
+                            "result": f"Tool execution failed: {error_msg}",
+                            "error": error_msg,
+                            "timestamp": time.time()
+                        }
             
         except Exception as e:
-            logger.error(f"Failed to execute tool on internal MCP server: {e}")
-            raise ConnectionError(f"Failed to execute tool: {e}")
+            logger.error(f"Failed to execute tool {tool_info.name} on internal MCP server: {e}")
+            return {
+                "status": "error",
+                "result": f"Tool execution failed: {str(e)}",
+                "error": str(e),
+                "timestamp": time.time()
+            }
     
     async def _execute_external_tool(self, server: MCPServerInfo, tool_info: UnifiedTool, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool on external server using persistent connections."""

@@ -116,6 +116,11 @@ class PriorArtSearchTool(BaseInternalTool):
         
         logger.info(f"Executing prior art search for query: {query}")
         
+        # Validate query
+        if not query or not query.strip():
+            logger.error("Empty query provided to prior art search")
+            return "# Prior Art Search Report\n\n**Query**: (empty)\n\n**Error**: Query cannot be empty. Please provide a search term.\n\n**Suggestion**: Please provide a valid search query and try again."
+        
         try:
             # Execute the patent search
             search_result, generated_queries = await self.patent_service.search_patents(
@@ -127,11 +132,23 @@ class PriorArtSearchTool(BaseInternalTool):
             
             logger.info(f"Prior art search completed for '{query}' - {search_result['results_found']} results")
             
+            # Validate search result
+            if not search_result or not isinstance(search_result, dict):
+                logger.error(f"Invalid search result format: {type(search_result)}")
+                return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: Invalid search result format received.\n\n**Technical Details**: Search result is not a valid dictionary."
+            
+            # Check if report exists and is not empty
+            report = search_result.get("report", "")
+            if not report or not report.strip():
+                logger.error(f"Empty report generated for query: {query}")
+                return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: No report generated. This may be due to API issues or no results found.\n\n**Technical Details**: Report field is empty or missing."
+            
             execution_time = time.time() - start_time
             self.update_usage_stats(execution_time)
             
-            # Return just the markdown report
-            return search_result["report"]
+            # Return the markdown report
+            logger.info(f"Returning report of {len(report)} characters for query: {query}")
+            return report
             
         except ValueError as e:
             execution_time = time.time() - start_time
