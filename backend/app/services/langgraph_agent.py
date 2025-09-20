@@ -72,6 +72,8 @@ async def detect_intent_node(state: AgentState) -> AgentState:
     
     user_input = state["user_input"]
     available_tools = state["available_tools"]
+    conversation_history = state.get("conversation_history", [])
+    document_content = state.get("document_content", "")
     
     # Phase 2: Use LLM for intent detection
     try:
@@ -91,16 +93,34 @@ async def detect_intent_node(state: AgentState) -> AgentState:
         
         tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
         
-        # LLM prompt for intent detection
+        # Prepare conversation history context
+        conversation_context = ""
+        if conversation_history:
+            # Keep only the last 5 messages to maintain context while staying within limits
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            history_text = "\n".join([
+                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+                for msg in recent_history
+            ])
+            conversation_context = f"\n\nConversation History (last {len(recent_history)} messages):\n{history_text}"
+        
+        # Prepare document content context
+        document_context = ""
+        if document_content:
+            # Use full document content (up to 10000 chars)
+            doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
+            document_context = f"\n\nCurrent Document Content:\n'''\n{doc_preview}\n'''"
+        
+        # LLM prompt for intent detection with full context
         prompt = f"""
 You are an AI assistant that analyzes user queries and selects the most appropriate tool.
 
 Available tools:
 {tools_text}
 
-User query: "{user_input}"
+User query: "{user_input}"{conversation_context}{document_context}
 
-Analyze the user's intent and select the most appropriate tool. If no tool is suitable, respond with "conversation".
+Analyze the user's intent and select the most appropriate tool. Consider the conversation history and document content when making your decision. If no tool is suitable, respond with "conversation".
 
 Respond in this exact format:
 TOOL: [tool_name or "conversation"]
@@ -136,27 +156,37 @@ Examples:
 
 async def _simple_intent_detection(state: AgentState) -> AgentState:
     """Fallback simple intent detection for Phase 2."""
-    user_input = state["user_input"].lower()
+    user_input = state["user_input"]
+    user_input_lower = user_input.lower()
     
     # Enhanced simple detection with more specific matching
-    if "prior art" in user_input or "patent" in user_input:
+    if "prior art" in user_input_lower or "patent" in user_input_lower:
         selected_tool = "prior_art_search_tool"
         intent_type = "tool_execution"
-        tool_parameters = {"query": user_input}
-    elif "web search" in user_input or ("search" in user_input and "web" in user_input):
+        # Extract query after "prior art" or "patent"
+        query = _extract_search_query(user_input, "prior art")
+        tool_parameters = {"query": query}
+    elif "web search" in user_input_lower:
         selected_tool = "web_search_tool"
         intent_type = "tool_execution"
-        tool_parameters = {"query": user_input}
-    elif "search" in user_input or "find" in user_input:
+        # Extract query after "web search"
+        query = _extract_search_query(user_input, "web search")
+        tool_parameters = {"query": query}
+    elif "search" in user_input_lower or "find" in user_input_lower:
         # Default to web search for general search queries
         selected_tool = "web_search_tool"
         intent_type = "tool_execution"
-        tool_parameters = {"query": user_input}
-    elif "draft" in user_input or "claim" in user_input:
+        # Extract query after "search" or "find"
+        if "search" in user_input_lower:
+            query = _extract_search_query(user_input, "search")
+        else:
+            query = _extract_search_query(user_input, "find")
+        tool_parameters = {"query": query}
+    elif "draft" in user_input_lower or "claim" in user_input_lower:
         selected_tool = "claim_drafting_tool"
         intent_type = "tool_execution"
         tool_parameters = {"user_query": user_input}
-    elif "analyze" in user_input or "analysis" in user_input:
+    elif "analyze" in user_input_lower or "analysis" in user_input_lower:
         selected_tool = "claim_analysis_tool"
         intent_type = "tool_execution"
         tool_parameters = {"user_query": user_input}
@@ -406,6 +436,8 @@ async def detect_intent_advanced_node(state: MultiStepAgentState) -> MultiStepAg
     
     user_input = state["user_input"]
     available_tools = state["available_tools"]
+    conversation_history = state.get("conversation_history", [])
+    document_content = state.get("document_content", "")
     
     try:
         from app.services.agent import AgentService
@@ -423,16 +455,34 @@ async def detect_intent_advanced_node(state: MultiStepAgentState) -> MultiStepAg
         
         tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
         
-        # LLM prompt for multi-step intent detection
+        # Prepare conversation history context
+        conversation_context = ""
+        if conversation_history:
+            # Keep only the last 5 messages to maintain context while staying within limits
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            history_text = "\n".join([
+                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+                for msg in recent_history
+            ])
+            conversation_context = f"\n\nConversation History (last {len(recent_history)} messages):\n{history_text}"
+        
+        # Prepare document content context
+        document_context = ""
+        if document_content:
+            # Use full document content (up to 10000 chars)
+            doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
+            document_context = f"\n\nCurrent Document Content:\n'''\n{doc_preview}\n'''"
+        
+        # LLM prompt for multi-step intent detection with full context
         prompt = f"""
 You are an AI assistant that analyzes user queries and determines if they require multi-step workflows.
 
 Available tools:
 {tools_text}
 
-User query: "{user_input}"
+User query: "{user_input}"{conversation_context}{document_context}
 
-Analyze if this query requires multiple steps or can be handled with a single tool.
+Analyze if this query requires multiple steps or can be handled with a single tool. Consider the conversation history and document content when making your decision.
 
 Multi-step indicators:
 - Multiple actions: "find X and then draft Y"
@@ -556,6 +606,8 @@ async def plan_workflow_node(state: MultiStepAgentState) -> MultiStepAgentState:
     
     user_input = state["user_input"]
     available_tools = state["available_tools"]
+    conversation_history = state.get("conversation_history", [])
+    document_content = state.get("document_content", "")
     execution_metadata = state.get("execution_metadata", {})
     
     try:
@@ -574,16 +626,34 @@ async def plan_workflow_node(state: MultiStepAgentState) -> MultiStepAgentState:
         
         tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
         
-        # LLM prompt for workflow planning
+        # Prepare conversation history context
+        conversation_context = ""
+        if conversation_history:
+            # Keep only the last 5 messages to maintain context while staying within limits
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            history_text = "\n".join([
+                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+                for msg in recent_history
+            ])
+            conversation_context = f"\n\nConversation History (last {len(recent_history)} messages):\n{history_text}"
+        
+        # Prepare document content context
+        document_context = ""
+        if document_content:
+            # Use full document content (up to 10000 chars)
+            doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
+            document_context = f"\n\nCurrent Document Content:\n'''\n{doc_preview}\n'''"
+        
+        # LLM prompt for workflow planning with full context
         prompt = f"""
 You are an AI workflow planner that creates execution plans for complex user queries.
 
 Available tools:
 {tools_text}
 
-User query: "{user_input}"
+User query: "{user_input}"{conversation_context}{document_context}
 
-Analyze the user's query and create a step-by-step execution plan. Consider:
+Analyze the user's query and create a step-by-step execution plan. Consider the conversation history and document content when planning. Consider:
 1. What information needs to be gathered first?
 2. What tools should be used in sequence?
 3. How should results from one step inform the next step?
@@ -777,11 +847,20 @@ def _extract_search_query(user_input: str, context: str) -> str:
         start_idx = user_input.lower().find(context) + len(context)
         remaining = user_input[start_idx:].strip()
         
-        # Remove common connecting words
-        connecting_words = ["and", "then", "for", "about", "on"]
+        # Remove common connecting words at the start (with proper spacing)
+        connecting_words = ["and", "then", "for", "about", "on", "search"]
         for word in connecting_words:
-            if remaining.startswith(word):
+            if remaining.lower().startswith(word):
                 remaining = remaining[len(word):].strip()
+        
+        # Stop at common connecting words that indicate the next command
+        next_command_indicators = [" then ", " and ", " after ", " followed by "]
+        for indicator in next_command_indicators:
+            if indicator in remaining.lower():
+                # Find the position of the indicator and cut off there
+                indicator_pos = remaining.lower().find(indicator)
+                remaining = remaining[:indicator_pos].strip()
+                break
         
         return remaining if remaining else "patent search"
     
@@ -916,6 +995,20 @@ def _prepare_parameters_with_context(
             elif context_key == "document_content":
                 prepared_params[key] = state["document_content"]
             
+            elif context_key == "conversation_history":
+                # Format conversation history for tool parameters
+                conversation_history = state.get("conversation_history", [])
+                if conversation_history:
+                    # Keep only the last 5 messages to maintain context while staying within limits
+                    recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+                    history_text = "\n".join([
+                        f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+                        for msg in recent_history
+                    ])
+                    prepared_params[key] = history_text
+                else:
+                    prepared_params[key] = ""
+            
             else:
                 # Fallback to original value
                 prepared_params[key] = value
@@ -1039,9 +1132,9 @@ def _route_workflow_type(state: MultiStepAgentState) -> str:
     if workflow_type == "conversation":
         return "conversation"
     elif workflow_type == "single_tool":
-        return "single_tool"
+        return "single_tool"  # Route single_tool to workflow_planning
     elif workflow_type == "multi_step":
-        return "multi_step"
+        return "multi_step"  # Route multi_step to workflow_planning
     else:
         # Default to single_tool for any other workflow type
         return "single_tool"
