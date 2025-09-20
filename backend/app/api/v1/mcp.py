@@ -92,22 +92,34 @@ async def agent_chat(request: AgentChatRequest):
         # Use unified LangGraph for all workflows or original method
         from app.core.config import settings
         
-        if settings.use_langgraph:
-            logger.debug("Using unified LangGraph for workflow processing")
-            response = await agent_service.process_user_message_unified_langgraph(
-                user_message=request.message,
-                document_content=document_content,
-                available_tools=available_tools,
-                frontend_chat_history=parsed_chat_history
-            )
-        else:
-            logger.debug("Using original agent processing method")
-            response = await agent_service.process_user_message(
-                user_message=request.message,
-                document_content=document_content,
-                available_tools=available_tools,
-                frontend_chat_history=parsed_chat_history
-            )
+        try:
+            if settings.use_langgraph:
+                logger.debug("Using unified LangGraph for workflow processing")
+                response = await agent_service.process_user_message_unified_langgraph(
+                    user_message=request.message,
+                    document_content=document_content,
+                    available_tools=available_tools,
+                    frontend_chat_history=parsed_chat_history
+                )
+            else:
+                logger.debug("Using original agent processing method")
+                response = await agent_service.process_user_message(
+                    user_message=request.message,
+                    document_content=document_content,
+                    available_tools=available_tools,
+                    frontend_chat_history=parsed_chat_history
+                )
+        except Exception as e:
+            logger.error(f"Agent processing failed: {str(e)}")
+            # Create a fallback response
+            response = {
+                "response": f"Error processing request: {str(e)}",
+                "intent_type": "error",
+                "tool_name": None,
+                "execution_time": 0.0,
+                "success": False,
+                "error": str(e)
+            }
 
         logger.info(f"Chat processed - intent: {response.get('intent_type')}, tool: {response.get('tool_name')}, time: {response.get('execution_time', 0):.2f}s")
         logger.debug(f"DEBUG: Agent response type: {type(response)}")
