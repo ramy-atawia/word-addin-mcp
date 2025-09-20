@@ -59,7 +59,7 @@ class AgentService:
         self.llm_client = None
         self.conversation_memory = ConversationMemory()
         self.mcp_orchestrator = None
-        self.langgraph_agent = None  # Phase 1: LangGraph integration
+        self.unified_langgraph_agent = None  # Unified LangGraph integration
     
     def _get_llm_client(self):
         """Get LLM client with lazy initialization."""
@@ -92,34 +92,20 @@ class AgentService:
                 raise RuntimeError(f"Failed to initialize MCP orchestrator: {str(e)}")
         return self.mcp_orchestrator
     
-    def _get_langgraph_agent(self):
-        """Get LangGraph agent with lazy initialization - Phase 1."""
-        if self.langgraph_agent is None:
+    def _get_unified_langgraph_agent(self):
+        """Get unified LangGraph agent with lazy initialization."""
+        if self.unified_langgraph_agent is None:
             try:
-                from .langgraph_agent import get_basic_agent_graph
-                self.langgraph_agent = get_basic_agent_graph()
-                logger.debug("LangGraph agent initialized (Phase 1)")
+                from .langgraph_agent_unified import get_agent_graph
+                self.unified_langgraph_agent = get_agent_graph()
+                logger.debug("Unified LangGraph agent initialized")
             except ImportError as e:
-                logger.error(f"Failed to import LangGraph agent: {e}")
-                self.langgraph_agent = None
-        return self.langgraph_agent
+                logger.error(f"Failed to import unified LangGraph agent: {e}")
+                self.unified_langgraph_agent = None
+        return self.unified_langgraph_agent
     
-    def _get_advanced_langgraph_agent(self):
-        """Get advanced LangGraph agent with multi-step support - Phase 3."""
-        if not hasattr(self, 'advanced_langgraph_agent'):
-            self.advanced_langgraph_agent = None
-            
-        if self.advanced_langgraph_agent is None:
-            try:
-                from .langgraph_agent import get_advanced_agent_graph
-                self.advanced_langgraph_agent = get_advanced_agent_graph()
-                logger.debug("Advanced LangGraph agent initialized (Phase 3)")
-            except ImportError as e:
-                logger.error(f"Failed to import advanced LangGraph agent: {e}")
-                self.advanced_langgraph_agent = None
-        return self.advanced_langgraph_agent
     
-    async def process_user_message_langgraph(
+    async def process_user_message_unified_langgraph(
         self,
         user_message: str,
         document_content: Optional[str] = None,
@@ -127,19 +113,19 @@ class AgentService:
         frontend_chat_history: List[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Process user message using LangGraph workflow - Phase 1.
+        Process user message using unified LangGraph workflow.
         
-        This method provides the same interface as process_user_message
-        but uses LangGraph for workflow orchestration.
+        This method handles both single-tool and multi-step workflows
+        in one clean, unified architecture.
         """
         start_time = time.time()
-        logger.debug(f"LangGraph Phase 1 processing message: '{user_message[:50]}...'")
+        logger.debug(f"Unified LangGraph processing message: '{user_message[:50]}...'")
         
         try:
-            # Get LangGraph agent
-            langgraph_agent = self._get_langgraph_agent()
+            # Get unified LangGraph agent
+            langgraph_agent = self._get_unified_langgraph_agent()
             if not langgraph_agent:
-                raise RuntimeError("LangGraph agent not available")
+                raise RuntimeError("Unified LangGraph agent not available")
             
             # Prepare initial state
             initial_state = {
@@ -151,81 +137,15 @@ class AgentService:
                 "tool_parameters": {},
                 "tool_result": None,
                 "final_response": "",
-                "intent_type": ""
-            }
-            
-            # Run LangGraph workflow
-            result = await langgraph_agent.ainvoke(initial_state)
-            
-            # Convert to existing response format
-            execution_time = time.time() - start_time
-            
-            response_data = {
-                "response": result["final_response"],
-                "intent_type": result["intent_type"],
-                "tool_name": result["selected_tool"] if result["selected_tool"] else None,
-                "execution_time": execution_time,
-                "success": True,
-                "error": None
-            }
-            
-            logger.debug(f"LangGraph Phase 1 completed - response length: {len(result['final_response'])}")
-            return response_data
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            error_response = f"LangGraph Phase 1 error: {str(e)}"
-            logger.error(f"LangGraph Phase 1 failed: {str(e)}")
-            
-            return {
-                "response": error_response,
-                "intent_type": "error",
-                "tool_name": None,
-                "execution_time": execution_time,
-                "success": False,
-                "error": str(e)
-            }
-    
-    async def process_user_message_advanced_langgraph(
-        self,
-        user_message: str,
-        document_content: Optional[str] = None,
-        available_tools: List[Dict[str, Any]] = None,
-        frontend_chat_history: List[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Process user message using advanced LangGraph workflow - Phase 3.
-        
-        This method supports multi-step workflows with context passing.
-        """
-        start_time = time.time()
-        logger.debug(f"LangGraph Phase 3 processing message: '{user_message[:50]}...'")
-        
-        try:
-            # Get advanced LangGraph agent
-            advanced_agent = self._get_advanced_langgraph_agent()
-            if not advanced_agent:
-                raise RuntimeError("Advanced LangGraph agent not available")
-            
-            # Prepare initial state for multi-step workflow
-            initial_state = {
-                "user_input": user_message,
-                "document_content": document_content or "",
-                "conversation_history": frontend_chat_history or [],
-                "available_tools": available_tools or [],
-                "workflow_plan": [],
+                "intent_type": "",
+                "workflow_plan": None,
                 "current_step": 0,
                 "total_steps": 0,
-                "step_results": {},
-                "selected_tool": "",
-                "tool_parameters": {},
-                "final_response": "",
-                "intent_type": "",
-                "execution_metadata": {}
+                "step_results": {}
             }
             
-            # Run advanced LangGraph workflow
-            result = await advanced_agent.ainvoke(initial_state)
+            # Run unified LangGraph workflow
+            result = await langgraph_agent.ainvoke(initial_state)
             
             # Convert to existing response format
             execution_time = time.time() - start_time
@@ -235,6 +155,8 @@ class AgentService:
             if result.get("workflow_plan"):
                 first_step = result["workflow_plan"][0]
                 tool_name = first_step.get("tool")
+            elif result.get("selected_tool"):
+                tool_name = result["selected_tool"]
             
             response_data = {
                 "response": result["final_response"],
@@ -246,17 +168,17 @@ class AgentService:
                 "workflow_metadata": {
                     "total_steps": result.get("total_steps", 0),
                     "completed_steps": result.get("current_step", 0),
-                    "workflow_type": result.get("execution_metadata", {}).get("workflow_type", "unknown")
+                    "workflow_type": "multi_step" if result.get("workflow_plan") else "single_tool"
                 }
             }
             
-            logger.debug(f"LangGraph Phase 3 completed - response length: {len(result['final_response'])}")
+            logger.debug(f"Unified LangGraph completed - response length: {len(result['final_response'])}")
             return response_data
             
         except Exception as e:
             execution_time = time.time() - start_time
-            error_response = f"LangGraph Phase 3 error: {str(e)}"
-            logger.error(f"LangGraph Phase 3 failed: {str(e)}")
+            error_response = f"Unified LangGraph error: {str(e)}"
+            logger.error(f"Unified LangGraph failed: {str(e)}")
             
             return {
                 "response": error_response,
@@ -271,6 +193,7 @@ class AgentService:
                     "workflow_type": "error"
                 }
             }
+    
     
     async def process_user_message(
         self,

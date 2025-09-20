@@ -1,0 +1,655 @@
+"""
+Unified LangGraph Agent Service
+
+A simplified, unified LangGraph implementation that handles both single-tool
+and multi-step workflows in one clean architecture.
+
+Features:
+- Single unified state management
+- Intelligent workflow detection
+- Context-aware tool execution
+- Clean, maintainable code
+"""
+
+import structlog
+from typing import TypedDict, List, Dict, Any, Optional
+from langgraph.graph import StateGraph, END
+
+logger = structlog.get_logger()
+
+
+class AgentState(TypedDict):
+    """Unified agent state for both single-tool and multi-step workflows."""
+    
+    # User input and context
+    user_input: str
+    document_content: str
+    conversation_history: List[Dict[str, Any]]
+    available_tools: List[Dict[str, Any]]
+    
+    # Tool execution
+    selected_tool: str
+    tool_parameters: Dict[str, Any]
+    tool_result: Any
+    
+    # Response generation
+    final_response: str
+    intent_type: str
+    
+    # Multi-step workflow (optional)
+    workflow_plan: Optional[List[Dict[str, Any]]]
+    current_step: int
+    total_steps: int
+    step_results: Dict[str, Any]
+
+
+async def detect_intent_node(state: AgentState) -> AgentState:
+    """
+    Detect user intent and determine if single-tool or multi-step workflow is needed.
+    """
+    logger.debug("Detecting intent and workflow type")
+    
+    user_input = state["user_input"]
+    available_tools = state["available_tools"]
+    conversation_history = state.get("conversation_history", [])
+    document_content = state.get("document_content", "")
+    
+    try:
+        from app.services.agent import AgentService
+        agent_service = AgentService()
+        
+        # Get LLM client
+        llm_client = agent_service._get_llm_client()
+        if not llm_client:
+            return await _simple_intent_detection(state)
+        
+        # Create tool descriptions for LLM
+        tool_descriptions = []
+        for tool in available_tools:
+            tool_descriptions.append(f"- {tool['name']}: {tool.get('description', 'No description')}")
+        
+        tools_text = "\n".join(tool_descriptions) if tool_descriptions else "No tools available"
+        
+        # Prepare conversation history context
+        conversation_context = ""
+        if conversation_history:
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            history_text = "\n".join([
+                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+                for msg in recent_history
+            ])
+            conversation_context = f"\n\nConversation History (last {len(recent_history)} messages):\n{history_text}"
+        
+        # Prepare document content context
+        document_context = ""
+        if document_content:
+            doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
+            document_context = f"\n\nCurrent Document Content:\n'''\n{doc_preview}\n'''"
+        
+        # LLM prompt for intent detection
+        prompt = f"""
+You are an AI assistant that analyzes user queries and determines the appropriate workflow.
+
+Available tools:
+{tools_text}
+
+User query: "{user_input}"{conversation_context}{document_context}
+
+Analyze the user's intent and determine if this requires:
+1. SINGLE_TOOL: One tool execution (e.g., "search for AI patents")
+2. MULTI_STEP: Multiple sequential tool executions (e.g., "search for AI patents then draft 5 claims")
+3. CONVERSATION: General conversation (e.g., "hello how are you")
+
+IMPORTANT: Extract the actual search terms from the user query. For example:
+- "web search ramy atawia then prior art search" → extract "ramy atawia" for web search
+- "search for blockchain technology" → extract "blockchain technology"
+- "prior art search AI patents" → extract "AI patents"
+
+Respond in this exact format:
+WORKFLOW_TYPE: [SINGLE_TOOL, MULTI_STEP, or CONVERSATION]
+TOOL: [tool_name for single tool, or first tool for multi-step, or empty for conversation]
+INTENT: [brief description of intent]
+PARAMETERS: [JSON object with tool parameters]
+
+Examples:
+- "web search ramy atawia then prior art search" → WORKFLOW_TYPE: MULTI_STEP, TOOL: web_search_tool, INTENT: web search then prior art, PARAMETERS: {{"query": "ramy atawia"}}
+- "find prior art for AI patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
+- "draft 5 claims for blockchain" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}
+- "hello how are you" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: greeting, PARAMETERS: {{}}
+"""
+        
+        # Get LLM response
+        response = await llm_client.ainvoke(prompt)
+        response_text = response.content if hasattr(response, 'content') else str(response)
+        
+        # Parse LLM response
+        workflow_type, selected_tool, intent_type, tool_parameters = _parse_llm_response(response_text)
+        
+        logger.debug(f"LLM detected workflow: {workflow_type}, tool: {selected_tool}")
+        
+        return {
+            **state,
+            "selected_tool": selected_tool,
+            "intent_type": intent_type,
+            "tool_parameters": tool_parameters,
+            "workflow_plan": [] if workflow_type != "MULTI_STEP" else None
+        }
+        
+    except Exception as e:
+        logger.warning(f"LLM intent detection failed, using fallback: {e}")
+        return await _simple_intent_detection(state)
+
+
+async def _simple_intent_detection(state: AgentState) -> AgentState:
+    """Fallback simple intent detection."""
+    user_input = state["user_input"]
+    user_input_lower = user_input.lower()
+    
+    # Simple detection without custom query extraction logic
+    if "prior art" in user_input_lower or "patent" in user_input_lower:
+        selected_tool = "prior_art_search_tool"
+        intent_type = "tool_execution"
+        tool_parameters = {"query": user_input}
+    elif "web search" in user_input_lower:
+        selected_tool = "web_search_tool"
+        intent_type = "tool_execution"
+        tool_parameters = {"query": user_input}
+    elif "search" in user_input_lower or "find" in user_input_lower:
+        selected_tool = "web_search_tool"
+        intent_type = "tool_execution"
+        tool_parameters = {"query": user_input}
+    elif "draft" in user_input_lower or "claim" in user_input_lower:
+        selected_tool = "claim_drafting_tool"
+        intent_type = "tool_execution"
+        tool_parameters = {"user_query": user_input}
+    elif "analyze" in user_input_lower or "analysis" in user_input_lower:
+        selected_tool = "claim_analysis_tool"
+        intent_type = "tool_execution"
+        tool_parameters = {"user_query": user_input}
+    else:
+        selected_tool = ""
+        intent_type = "conversation"
+        tool_parameters = {}
+    
+    return {
+        **state,
+        "selected_tool": selected_tool,
+        "intent_type": intent_type,
+        "tool_parameters": tool_parameters,
+        "workflow_plan": None
+    }
+
+
+def _parse_llm_response(response_text: str) -> tuple[str, str, str, dict]:
+    """Parse LLM response for intent detection."""
+    try:
+        lines = response_text.strip().split('\n')
+        workflow_type = "CONVERSATION"
+        tool = ""
+        intent = "conversation"
+        parameters = {}
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith("WORKFLOW_TYPE:"):
+                workflow_type = line.split(":", 1)[1].strip()
+            elif line.startswith("TOOL:"):
+                tool = line.split(":", 1)[1].strip()
+            elif line.startswith("INTENT:"):
+                intent = line.split(":", 1)[1].strip()
+            elif line.startswith("PARAMETERS:"):
+                params_text = line.split(":", 1)[1].strip()
+                if params_text and params_text != "{}":
+                    try:
+                        import json
+                        parameters = json.loads(params_text)
+                    except json.JSONDecodeError:
+                        parameters = {}
+        
+        return workflow_type, tool, intent, parameters
+        
+    except Exception as e:
+        logger.warning(f"Failed to parse LLM response: {e}")
+        return "CONVERSATION", "", "conversation", {}
+
+
+async def plan_workflow_node(state: AgentState) -> AgentState:
+    """
+    Plan multi-step workflow if needed.
+    """
+    logger.debug("Planning workflow")
+    
+    # If no workflow plan needed, skip
+    if not state.get("workflow_plan") is None:
+        return state
+    
+    user_input = state["user_input"]
+    conversation_history = state.get("conversation_history", [])
+    document_content = state.get("document_content", "")
+    
+    try:
+        from app.services.agent import AgentService
+        agent_service = AgentService()
+        
+        # Get LLM client
+        llm_client = agent_service._get_llm_client()
+        if not llm_client:
+            return await _simple_workflow_planning(state)
+        
+        # Prepare context
+        conversation_context = ""
+        if conversation_history:
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            history_text = "\n".join([
+                f"{msg.get('role', 'user')}: {msg.get('content', '')}"
+                for msg in recent_history
+            ])
+            conversation_context = f"\n\nConversation History:\n{history_text}"
+        
+        document_context = ""
+        if document_content:
+            doc_preview = document_content[:5000] + "..." if len(document_content) > 5000 else document_content
+            document_context = f"\n\nDocument Content:\n'''\n{doc_preview}\n'''"
+        
+        # LLM prompt for workflow planning
+        prompt = f"""
+You are an AI assistant that creates execution plans for multi-step workflows.
+
+User query: "{user_input}"{conversation_context}{document_context}
+
+Create a step-by-step execution plan. Each step should specify:
+- step: step number (1, 2, 3, etc.)
+- tool: tool name to execute
+- params: parameters for the tool
+- output_key: key to store results (e.g., "search_results", "draft_results")
+
+Respond with a JSON array of steps:
+[
+  {{"step": 1, "tool": "web_search_tool", "params": {{"query": "extracted query"}}, "output_key": "web_search_results"}},
+  {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "conversation_context": "{{web_search_results}}"}}, "output_key": "draft_results"}}
+]
+
+Examples:
+- "web search ramy atawia then prior art search" → [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "ramy atawia"}}, "output_key": "web_search_results"}}, {{"step": 2, "tool": "prior_art_search_tool", "params": {{"query": "prior art search"}}, "output_key": "prior_art_results"}}]
+- "search for AI patents then draft 5 claims" → [{{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "AI patents"}}, "output_key": "prior_art_results"}}, {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft 5 claims", "prior_art_context": "{{prior_art_results}}"}}, "output_key": "draft_results"}}]
+"""
+        
+        # Get LLM response
+        response = await llm_client.ainvoke(prompt)
+        response_text = response.content if hasattr(response, 'content') else str(response)
+        
+        # Parse workflow plan
+        workflow_plan = _parse_workflow_plan(response_text)
+        
+        return {
+            **state,
+            "workflow_plan": workflow_plan,
+            "total_steps": len(workflow_plan),
+            "current_step": 0,
+            "step_results": {}
+        }
+        
+    except Exception as e:
+        logger.warning(f"LLM workflow planning failed, using fallback: {e}")
+        return await _simple_workflow_planning(state)
+
+
+async def _simple_workflow_planning(state: AgentState) -> AgentState:
+    """Simple fallback workflow planning."""
+    user_input = state["user_input"].lower()
+    
+    workflow_plan = []
+    
+    # Simple heuristic for multi-step workflows
+    if "draft" in user_input and ("search" in user_input or "prior art" in user_input):
+        if "prior art" in user_input:
+            # Prior art search + claim drafting
+            workflow_plan = [
+                {
+                    "step": 1,
+                    "tool": "prior_art_search_tool",
+                    "params": {"query": user_input},
+                    "output_key": "prior_art_results"
+                },
+                {
+                    "step": 2,
+                    "tool": "claim_drafting_tool",
+                    "params": {
+                        "user_query": user_input,
+                        "prior_art_context": "{{prior_art_results}}"
+                    },
+                    "output_key": "draft_results"
+                }
+            ]
+        else:
+            # Web search + claim drafting
+            workflow_plan = [
+                {
+                    "step": 1,
+                    "tool": "web_search_tool",
+                    "params": {"query": user_input},
+                    "output_key": "web_search_results"
+                },
+                {
+                    "step": 2,
+                    "tool": "claim_drafting_tool",
+                    "params": {
+                        "user_query": user_input,
+                        "conversation_context": "{{web_search_results}}"
+                    },
+                    "output_key": "draft_results"
+                }
+            ]
+    else:
+        # Single step fallback
+        workflow_plan = [{
+            "step": 1,
+            "tool": state["selected_tool"],
+            "params": state["tool_parameters"],
+            "output_key": "tool_results"
+        }]
+    
+    return {
+        **state,
+        "workflow_plan": workflow_plan,
+        "total_steps": len(workflow_plan),
+        "current_step": 0,
+        "step_results": {}
+    }
+
+
+def _parse_workflow_plan(response_text: str) -> List[Dict[str, Any]]:
+    """Parse LLM workflow plan response."""
+    try:
+        import json
+        # Extract JSON from response
+        start_idx = response_text.find('[')
+        end_idx = response_text.rfind(']') + 1
+        if start_idx != -1 and end_idx != -1:
+            json_text = response_text[start_idx:end_idx]
+            return json.loads(json_text)
+    except Exception as e:
+        logger.warning(f"Failed to parse workflow plan: {e}")
+    
+    return []
+
+
+async def execute_tool_node(state: AgentState) -> AgentState:
+    """
+    Execute tools - either single tool or multi-step workflow.
+    """
+    logger.debug("Executing tools")
+    
+    # Check if this is a multi-step workflow
+    if state.get("workflow_plan"):
+        return await _execute_multi_step_workflow(state)
+    else:
+        return await _execute_single_tool(state)
+
+
+async def _execute_single_tool(state: AgentState) -> AgentState:
+    """Execute a single tool."""
+    if not state["selected_tool"]:
+        return {**state, "tool_result": None}
+    
+    try:
+        from app.services.agent import AgentService
+        agent_service = AgentService()
+        
+        # Get MCP orchestrator
+        orchestrator = agent_service._get_mcp_orchestrator()
+        if not orchestrator:
+            raise RuntimeError("MCP orchestrator not available")
+        
+        # Execute tool
+        result = await orchestrator.execute_tool(
+            tool_name=state["selected_tool"],
+            parameters=state["tool_parameters"]
+        )
+        
+        return {
+            **state,
+            "tool_result": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Tool execution failed: {e}")
+        return {
+            **state,
+            "tool_result": {"error": str(e), "success": False}
+        }
+
+
+async def _execute_multi_step_workflow(state: AgentState) -> AgentState:
+    """Execute multi-step workflow."""
+    workflow_plan = state["workflow_plan"]
+    current_step = state["current_step"]
+    step_results = state["step_results"]
+    
+    if current_step >= len(workflow_plan):
+        return state
+    
+    try:
+        from app.services.agent import AgentService
+        agent_service = AgentService()
+        
+        # Get MCP orchestrator
+        orchestrator = agent_service._get_mcp_orchestrator()
+        if not orchestrator:
+            raise RuntimeError("MCP orchestrator not available")
+        
+        # Get current step
+        step = workflow_plan[current_step]
+        
+        # Prepare parameters with context substitution
+        params = _prepare_parameters_with_context(step["params"], step_results)
+        
+        # Execute tool
+        result = await orchestrator.execute_tool(
+            tool_name=step["tool"],
+            parameters=params
+        )
+        
+        # Store result
+        step_results[step["output_key"]] = result
+        
+        return {
+            **state,
+            "current_step": current_step + 1,
+            "step_results": step_results,
+            "tool_result": result  # For compatibility
+        }
+        
+    except Exception as e:
+        logger.error(f"Multi-step execution failed at step {current_step}: {e}")
+        step_results[f"step_{current_step}_error"] = str(e)
+        return {
+            **state,
+            "current_step": current_step + 1,
+            "step_results": step_results,
+            "tool_result": {"error": str(e), "success": False}
+        }
+
+
+def _prepare_parameters_with_context(params: Dict[str, Any], step_results: Dict[str, Any]) -> Dict[str, Any]:
+    """Prepare parameters with context substitution."""
+    prepared_params = {}
+    
+    for key, value in params.items():
+        if isinstance(value, str) and "{{" in value and "}}" in value:
+            # Simple context substitution
+            for result_key, result_value in step_results.items():
+                if f"{{{{{result_key}}}}}" in value:
+                    if isinstance(result_value, dict) and "result" in result_value:
+                        # Extract formatted content
+                        formatted_content = result_value["result"]
+                        value = value.replace(f"{{{{{result_key}}}}}", str(formatted_content))
+                    else:
+                        value = value.replace(f"{{{{{result_key}}}}}", str(result_value))
+            prepared_params[key] = value
+        else:
+            prepared_params[key] = value
+    
+    return prepared_params
+
+
+async def generate_response_node(state: AgentState) -> AgentState:
+    """
+    Generate final response from tool results.
+    """
+    logger.debug("Generating response")
+    
+    # Check if this is a multi-step workflow
+    if state.get("workflow_plan") and state.get("step_results"):
+        return await _generate_multi_step_response(state)
+    else:
+        return await _generate_single_tool_response(state)
+
+
+async def _generate_single_tool_response(state: AgentState) -> AgentState:
+    """Generate response for single tool execution."""
+    tool_result = state.get("tool_result")
+    
+    if not tool_result:
+        final_response = "I'm not sure how to help with that request."
+    elif isinstance(tool_result, dict) and tool_result.get("error"):
+        final_response = f"I encountered an error: {tool_result['error']}"
+    else:
+        # Extract formatted content
+        if isinstance(tool_result, dict) and "result" in tool_result:
+            formatted_content = tool_result["result"]
+        else:
+            formatted_content = str(tool_result)
+        
+        final_response = formatted_content
+    
+    return {
+        **state,
+        "final_response": final_response,
+        "intent_type": state.get("intent_type", "tool_execution")
+    }
+
+
+async def _generate_multi_step_response(state: AgentState) -> AgentState:
+    """Generate response for multi-step workflow."""
+    step_results = state.get("step_results", {})
+    workflow_plan = state.get("workflow_plan", [])
+    
+    if not step_results:
+        final_response = "I'm not sure how to help with that request."
+    else:
+        # Check if any step failed
+        failed_steps = [step for step in workflow_plan 
+                       if step["output_key"] in step_results and 
+                       isinstance(step_results[step["output_key"]], dict) and 
+                       not step_results[step["output_key"]].get("success", True)]
+        
+        if failed_steps:
+            # Handle partial failure
+            final_response = "I completed some steps but encountered issues with others. "
+            for step in failed_steps:
+                error_msg = step_results[step["output_key"]].get("error", "Unknown error")
+                final_response += f"Step {step['step']} ({step['tool']}) failed: {error_msg}. "
+        else:
+            # All steps completed successfully
+            response_parts = []
+            
+            for step in workflow_plan:
+                step_result = step_results.get(step["output_key"])
+                
+                if step_result and not step_result.get("error"):
+                    # Extract formatted content
+                    formatted_content = step_result.get("result", str(step_result))
+                    
+                    # Format step result with proper content
+                    if step["tool"] == "prior_art_search_tool":
+                        response_parts.append(f"**Prior Art Search Results:**\n{formatted_content}")
+                    elif step["tool"] == "claim_drafting_tool":
+                        response_parts.append(f"**Draft Claims:**\n{formatted_content}")
+                    elif step["tool"] == "claim_analysis_tool":
+                        response_parts.append(f"**Claim Analysis:**\n{formatted_content}")
+                    elif step["tool"] == "web_search_tool":
+                        response_parts.append(f"**Web Search Results:**\n{formatted_content}")
+                    else:
+                        response_parts.append(f"**{step['tool']} Results:**\n{formatted_content}")
+            
+            if response_parts:
+                final_response = "\n\n".join(response_parts)
+            else:
+                final_response = "I completed the workflow but didn't get any results."
+    
+    return {
+        **state,
+        "final_response": final_response,
+        "intent_type": "multi_step_workflow"
+    }
+
+
+def _route_workflow(state: AgentState) -> str:
+    """Route workflow based on state."""
+    if state.get("intent_type") == "conversation":
+        return "response_generation"
+    elif state.get("workflow_plan") is not None:
+        return "tool_execution"
+    else:
+        return "tool_execution"
+
+
+def _route_multi_step(state: AgentState) -> str:
+    """Route multi-step workflow."""
+    current_step = state.get("current_step", 0)
+    total_steps = state.get("total_steps", 0)
+    
+    if current_step < total_steps:
+        return "tool_execution"  # Continue with next step
+    else:
+        return "response_generation"  # All steps done, generate response
+
+
+def create_agent_graph() -> StateGraph:
+    """
+    Create unified LangGraph workflow.
+    
+    This single graph handles both single-tool and multi-step workflows
+    with intelligent routing and context-aware execution.
+    """
+    logger.info("Creating unified LangGraph workflow")
+    
+    # Create the workflow
+    workflow = StateGraph(AgentState)
+    
+    # Add nodes
+    workflow.add_node("intent_detection", detect_intent_node)
+    workflow.add_node("workflow_planning", plan_workflow_node)
+    workflow.add_node("tool_execution", execute_tool_node)
+    workflow.add_node("response_generation", generate_response_node)
+    
+    # Add edges
+    workflow.add_edge("intent_detection", "workflow_planning")
+    workflow.add_conditional_edges(
+        "workflow_planning",
+        _route_workflow,
+        {
+            "tool_execution": "tool_execution",
+            "response_generation": "response_generation"
+        }
+    )
+    workflow.add_conditional_edges(
+        "tool_execution",
+        _route_multi_step,
+        {
+            "tool_execution": "tool_execution",
+            "response_generation": "response_generation"
+        }
+    )
+    workflow.add_edge("response_generation", END)
+    
+    # Compile the workflow
+    return workflow.compile()
+
+
+def get_agent_graph() -> StateGraph:
+    """Get the compiled agent graph with lazy initialization."""
+    if not hasattr(get_agent_graph, '_graph'):
+        get_agent_graph._graph = create_agent_graph()
+    return get_agent_graph._graph
