@@ -163,35 +163,35 @@ Examples:
 
 
 async def _simple_intent_detection(state: AgentState) -> AgentState:
-    """Fallback simple intent detection."""
+    """Fallback simple intent detection using basic heuristics."""
     user_input = state["user_input"]
-    user_input_lower = user_input.lower()
+    available_tools = state.get("available_tools", [])
     
-    # Simple detection without custom query extraction logic
-    if "prior art" in user_input_lower or "patent" in user_input_lower:
-        selected_tool = "prior_art_search_tool"
-        intent_type = "tool_execution"
-        tool_parameters = {"query": user_input}
-    elif "web search" in user_input_lower:
-        selected_tool = "web_search_tool"
-        intent_type = "tool_execution"
-        tool_parameters = {"query": user_input}
-    elif "search" in user_input_lower or "find" in user_input_lower:
-        selected_tool = "web_search_tool"
-        intent_type = "tool_execution"
-        tool_parameters = {"query": user_input}
-    elif "draft" in user_input_lower or "claim" in user_input_lower:
-        selected_tool = "claim_drafting_tool"
-        intent_type = "tool_execution"
-        tool_parameters = {"user_query": user_input}
-    elif "analyze" in user_input_lower or "analysis" in user_input_lower:
-        selected_tool = "claim_analysis_tool"
-        intent_type = "tool_execution"
-        tool_parameters = {"user_query": user_input}
-    else:
-        selected_tool = ""
-        intent_type = "conversation"
-        tool_parameters = {}
+    # Create a simple tool mapping based on available tools
+    tool_mapping = _create_tool_mapping(available_tools)
+    
+    # Use basic keyword matching as last resort
+    selected_tool = ""
+    intent_type = "conversation"
+    tool_parameters = {}
+    
+    # Check for multi-step indicators first
+    if _has_multi_step_indicators(user_input):
+        return {
+            **state,
+            "selected_tool": "",
+            "intent_type": "multi_step",
+            "tool_parameters": {},
+            "workflow_plan": []  # Will be planned later
+        }
+    
+    # Simple keyword-based tool selection
+    for tool_name, keywords in tool_mapping.items():
+        if any(keyword in user_input.lower() for keyword in keywords):
+            selected_tool = tool_name
+            intent_type = "tool_execution"
+            tool_parameters = _get_default_parameters(tool_name, user_input)
+            break
     
     return {
         **state,
@@ -200,6 +200,52 @@ async def _simple_intent_detection(state: AgentState) -> AgentState:
         "tool_parameters": tool_parameters,
         "workflow_plan": None
     }
+
+
+def _create_tool_mapping(available_tools: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+    """Create dynamic tool mapping based on available tools using configuration."""
+    from app.config.tool_mappings import create_dynamic_tool_mapping
+    
+    # Use configuration-based tool mapping
+    tool_mappings = create_dynamic_tool_mapping(available_tools)
+    
+    # Convert to simple keyword mapping for backward compatibility
+    tool_mapping = {}
+    for tool_name, mapping in tool_mappings.items():
+        # Combine keywords from name and description
+        all_keywords = mapping.keywords + mapping.description_keywords
+        tool_mapping[tool_name] = list(set(all_keywords))
+    
+    return tool_mapping
+
+
+def _has_multi_step_indicators(user_input: str) -> bool:
+    """Check if user input indicates multi-step workflow."""
+    multi_step_indicators = [
+        "then", "and then", "after", "followed by", "next",
+        "and", "also", "plus", "additionally", "furthermore"
+    ]
+    
+    # Check for multiple action words
+    action_words = ["search", "find", "draft", "analyze", "create", "generate"]
+    action_count = sum(1 for word in action_words if word in user_input.lower())
+    
+    return (
+        any(indicator in user_input.lower() for indicator in multi_step_indicators) or
+        action_count >= 2
+    )
+
+
+def _get_default_parameters(tool_name: str, user_input: str) -> Dict[str, Any]:
+    """Get default parameters for a tool based on its name."""
+    if "search" in tool_name.lower():
+        return {"query": user_input}
+    elif "draft" in tool_name.lower() or "claim" in tool_name.lower():
+        return {"user_query": user_input}
+    elif "analyze" in tool_name.lower():
+        return {"user_query": user_input}
+    else:
+        return {"user_query": user_input}
 
 
 def _parse_llm_response(response_text: str) -> tuple[str, str, str, dict]:
@@ -317,59 +363,12 @@ Examples:
 
 
 async def _simple_workflow_planning(state: AgentState) -> AgentState:
-    """Simple fallback workflow planning."""
-    user_input = state["user_input"].lower()
+    """Simple fallback workflow planning using dynamic tool detection."""
+    user_input = state["user_input"]
+    available_tools = state.get("available_tools", [])
     
-    workflow_plan = []
-    
-    # Simple heuristic for multi-step workflows
-    if "draft" in user_input and ("search" in user_input or "prior art" in user_input):
-        if "prior art" in user_input:
-            # Prior art search + claim drafting
-            workflow_plan = [
-                {
-                    "step": 1,
-                    "tool": "prior_art_search_tool",
-                    "params": {"query": user_input},
-                    "output_key": "prior_art_results"
-                },
-                {
-                    "step": 2,
-                    "tool": "claim_drafting_tool",
-                    "params": {
-                        "user_query": user_input,
-                        "prior_art_context": "{{prior_art_results}}"
-                    },
-                    "output_key": "draft_results"
-                }
-            ]
-        else:
-            # Web search + claim drafting
-            workflow_plan = [
-                {
-                    "step": 1,
-                    "tool": "web_search_tool",
-                    "params": {"query": user_input},
-                    "output_key": "web_search_results"
-                },
-                {
-                    "step": 2,
-                    "tool": "claim_drafting_tool",
-                    "params": {
-                        "user_query": user_input,
-                        "conversation_context": "{{web_search_results}}"
-                    },
-                    "output_key": "draft_results"
-                }
-            ]
-    else:
-        # Single step fallback
-        workflow_plan = [{
-            "step": 1,
-            "tool": state["selected_tool"],
-            "params": state["tool_parameters"],
-            "output_key": "tool_results"
-        }]
+    # Create dynamic workflow plan based on available tools and user input
+    workflow_plan = _create_dynamic_workflow_plan(user_input, available_tools, state)
     
     return {
         **state,
@@ -378,6 +377,179 @@ async def _simple_workflow_planning(state: AgentState) -> AgentState:
         "current_step": 0,
         "step_results": {}
     }
+
+
+def _create_dynamic_workflow_plan(user_input: str, available_tools: List[Dict[str, Any]], state: AgentState) -> List[Dict[str, Any]]:
+    """Create dynamic workflow plan based on available tools and user input using configuration."""
+    from app.config.tool_mappings import detect_multi_step_pattern, create_dynamic_tool_mapping
+    
+    user_input_lower = user_input.lower()
+    workflow_plan = []
+    
+    # Check for predefined multi-step patterns first
+    pattern = detect_multi_step_pattern(user_input, available_tools)
+    if pattern:
+        return _create_pattern_based_workflow(user_input, pattern, available_tools)
+    
+    # Extract available tool names and descriptions
+    tool_names = [tool.get("name", "") for tool in available_tools]
+    tool_descriptions = {tool.get("name", ""): tool.get("description", "") for tool in available_tools}
+    
+    # Detect workflow patterns dynamically
+    detected_tools = _detect_workflow_tools(user_input_lower, tool_names, tool_descriptions)
+    
+    if len(detected_tools) <= 1:
+        # Single tool workflow
+        if state.get("selected_tool"):
+            workflow_plan = [{
+                "step": 1,
+                "tool": state["selected_tool"],
+                "params": state["tool_parameters"],
+                "output_key": "tool_results"
+            }]
+        else:
+            # Use first detected tool
+            tool = detected_tools[0] if detected_tools else tool_names[0] if tool_names else ""
+            workflow_plan = [{
+                "step": 1,
+                "tool": tool,
+                "params": _get_default_parameters(tool, user_input),
+                "output_key": "tool_results"
+            }]
+    else:
+        # Multi-step workflow using configuration
+        tool_mappings = create_dynamic_tool_mapping(available_tools)
+        
+        for i, tool in enumerate(detected_tools, 1):
+            mapping = tool_mappings.get(tool, None)
+            if mapping:
+                params = _get_configured_parameters(mapping, user_input)
+            else:
+                params = _get_default_parameters(tool, user_input)
+            
+            # Add context from previous steps
+            if i > 1:
+                params = _add_context_to_parameters(params, tool, detected_tools[:i-1])
+            
+            workflow_plan.append({
+                "step": i,
+                "tool": tool,
+                "params": params,
+                "output_key": f"{tool}_results"
+            })
+    
+    return workflow_plan
+
+
+def _create_pattern_based_workflow(user_input: str, pattern: Dict[str, Any], available_tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Create workflow based on detected pattern."""
+    from app.config.tool_mappings import create_dynamic_tool_mapping
+    
+    workflow_plan = []
+    tool_mappings = create_dynamic_tool_mapping(available_tools)
+    
+    for i, tool_name in enumerate(pattern["tools"], 1):
+        # Find actual tool name from available tools
+        actual_tool = None
+        for tool in available_tools:
+            tool_name_lower = tool.get("name", "").lower()
+            if tool_name in tool_name_lower or tool_name_lower in tool_name:
+                actual_tool = tool.get("name", "")
+                break
+        
+        if not actual_tool:
+            continue
+        
+        mapping = tool_mappings.get(actual_tool, None)
+        if mapping:
+            params = _get_configured_parameters(mapping, user_input)
+        else:
+            params = _get_default_parameters(actual_tool, user_input)
+        
+        # Add context based on pattern
+        context_mapping = pattern.get("context_mapping", {})
+        if tool_name in context_mapping:
+            context_key = context_mapping[tool_name]
+            params[context_key] = f"{{{{{context_key}}}}}"
+        
+        workflow_plan.append({
+            "step": i,
+            "tool": actual_tool,
+            "params": params,
+            "output_key": f"{actual_tool}_results"
+        })
+    
+    return workflow_plan
+
+
+def _get_configured_parameters(mapping, user_input: str) -> Dict[str, Any]:
+    """Get parameters using tool mapping configuration."""
+    params = {}
+    
+    for key, value in mapping.default_parameters.items():
+        if isinstance(value, str) and "{user_input}" in value:
+            params[key] = value.replace("{user_input}", user_input)
+        else:
+            params[key] = value
+    
+    return params
+
+
+def _detect_workflow_tools(user_input: str, tool_names: List[str], tool_descriptions: Dict[str, str]) -> List[str]:
+    """Detect which tools should be used in the workflow."""
+    detected_tools = []
+    
+    # Create tool mapping for detection
+    tool_mapping = _create_tool_mapping([{"name": name, "description": tool_descriptions.get(name, "")} for name in tool_names])
+    
+    # Check for each tool
+    for tool_name in tool_names:
+        keywords = tool_mapping.get(tool_name, [])
+        if any(keyword in user_input for keyword in keywords):
+            detected_tools.append(tool_name)
+    
+    # If no tools detected, use common patterns
+    if not detected_tools:
+        if "search" in user_input or "find" in user_input:
+            # Look for search tools
+            search_tools = [name for name in tool_names if "search" in name.lower()]
+            if search_tools:
+                detected_tools.extend(search_tools[:1])  # Take first search tool
+        
+        if "draft" in user_input or "claim" in user_input:
+            # Look for drafting tools
+            draft_tools = [name for name in tool_names if "draft" in name.lower() or "claim" in name.lower()]
+            if draft_tools:
+                detected_tools.extend(draft_tools[:1])  # Take first draft tool
+    
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_tools = []
+    for tool in detected_tools:
+        if tool not in seen:
+            seen.add(tool)
+            unique_tools.append(tool)
+    
+    return unique_tools
+
+
+def _add_context_to_parameters(params: Dict[str, Any], current_tool: str, previous_tools: List[str]) -> Dict[str, Any]:
+    """Add context from previous tools to current tool parameters."""
+    if not previous_tools:
+        return params
+    
+    # Add context based on tool type
+    if "draft" in current_tool.lower() or "claim" in current_tool.lower():
+        # For drafting tools, add context from search results
+        search_tools = [tool for tool in previous_tools if "search" in tool.lower()]
+        if search_tools:
+            last_search_tool = search_tools[-1]
+            if "prior" in last_search_tool.lower() or "art" in last_search_tool.lower():
+                params["prior_art_context"] = f"{{{{{last_search_tool}_results}}}}"
+            else:
+                params["conversation_context"] = f"{{{{{last_search_tool}_results}}}}"
+    
+    return params
 
 
 def _parse_workflow_plan(response_text: str) -> List[Dict[str, Any]]:
