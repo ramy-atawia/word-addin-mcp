@@ -91,7 +91,7 @@ def _simple_intent_detection(user_input: str, available_tools: List[Dict]) -> tu
     # Clear tool workflow indicators
     tool_patterns = {
         "prior_art_search_tool": ["prior art", "search patents", "find patents"],
-        "claim_drafting_tool": ["draft claims", "write claims", "generate claims"],
+        "claim_drafting_tool": ["draft", "write claims", "generate claims"],
         "claim_analysis_tool": ["analyze claims", "review claims", "check claims"],
         "web_search_tool": ["web search", "search for", "find information"]
     }
