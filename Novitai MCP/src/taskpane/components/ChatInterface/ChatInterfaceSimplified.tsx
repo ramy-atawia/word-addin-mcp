@@ -57,13 +57,12 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   const [availableTools, setAvailableTools] = useState<MCPTool[]>([]);
   
   // Use custom hooks
-  const { messages, addMessage, initializeMessages } = useChatMessages({ 
+  const { addMessage, initializeMessages } = useChatMessages({ 
     externalMessages, 
     onMessage 
   });
   
-  const { isStreaming, streamingProgress, startStreamingChat } = useStreamingChat({
-    messages,
+  const { isStreaming, streamingProgress, startStreamingChat, messages } = useStreamingChat({
     onMessage,
     onLoadingChange
   });

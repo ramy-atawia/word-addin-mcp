@@ -5,12 +5,11 @@ import mcpToolService from '../services/mcpToolService';
 import { officeIntegrationService } from '../services/officeIntegrationService';
 
 interface UseStreamingChatProps {
-  messages: ChatMessage[];
   onMessage?: (message: ChatMessage) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
 
-export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseStreamingChatProps) => {
+export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingChatProps) => {
   // Use onLoadingChange to avoid unused parameter warning
   const handleLoadingChange = onLoadingChange || (() => {});
   const [isStreaming, setIsStreaming] = useState(false);
@@ -34,7 +33,8 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
   }, []);
 
   const updateStreamingMessage = useCallback((messageId: string, content: string, metadata: any) => {
-    // Always use internal state for streaming updates to avoid creating multiple bubbles
+    // Always use internal state for streaming updates to ensure we can update the same message
+    // This prevents multiple bubbles during streaming
     setInternalMessages(prev => 
       prev.map(msg => msg.id === messageId ? {
         ...msg,
@@ -96,8 +96,9 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
   }, [updateStreamingMessage]);
 
   // Memoize conversation history to avoid recalculation
+  // Use internalMessages for conversation history since that's what we're actually displaying
   const conversationHistory = useMemo(() => {
-    return messages
+    return internalMessages
       .filter(msg => !msg.metadata?.isStreaming && msg.type !== 'system' && msg.content.trim() !== '')
       .slice(-50)
       .map(msg => ({
@@ -105,12 +106,21 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
         content: msg.content,
         timestamp: msg.timestamp
       }));
-  }, [messages]);
+  }, [internalMessages]);
 
   const startStreamingChat = useCallback(async (userMessage: string) => {
     try {
       setIsStreaming(true);
       streamingResponseRef.current = '';
+
+      // Add user message to internal state first
+      const userMessageObj: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: userMessage,
+        timestamp: new Date()
+      };
+      setInternalMessages(prev => [...prev, userMessageObj]);
 
       // Constants for better maintainability
       const MAX_DOCUMENT_LENGTH = 10000;
@@ -147,11 +157,8 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
         metadata: { isStreaming: true, streamingProgress: 'intent_detection' }
       };
 
-      if (onMessage) {
-        onMessage(initialMessage);
-      } else if (setInternalMessages) {
-        setInternalMessages(prev => [...prev, initialMessage]);
-      }
+      // Always add to internal state for streaming updates
+      setInternalMessages(prev => [...prev, initialMessage]);
 
       // Start streaming
       await mcpToolService.chatWithAgentStreaming({
@@ -233,12 +240,13 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
       resetStreamingState();
       throw error;
     }
-  }, [messages, onMessage, handleStreamingEvent, resetStreamingState, conversationHistory]);
+  }, [onMessage, handleStreamingEvent, resetStreamingState, conversationHistory]);
 
   return {
     isStreaming,
     streamingProgress,
     startStreamingChat,
-    resetStreamingState
+    resetStreamingState,
+    messages: internalMessages
   };
 };
