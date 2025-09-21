@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { ChatMessage } from '../components/ChatInterface/MessageBubble';
-import { StreamingEvent, StreamingProgress } from '../services/types';
+import { StreamingEvent, StreamingProgress, MCPTool } from '../services/types';
 import mcpToolService from '../services/mcpToolService';
 import { officeIntegrationService } from '../services/officeIntegrationService';
 
@@ -21,7 +21,7 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
   });
   
   const streamingResponseRef = useRef('');
-  const setInternalMessages = onMessage ? undefined : useState<ChatMessage[]>([])[1];
+  const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
 
   const resetStreamingState = useCallback(() => {
     setIsStreaming(false);
@@ -34,7 +34,17 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
   }, []);
 
   const updateStreamingMessage = useCallback((messageId: string, content: string, metadata: any) => {
-    if (setInternalMessages) {
+    if (onMessage) {
+      // For external message handling - create new message
+      const updatedMessage: ChatMessage = {
+        id: messageId,
+        type: 'assistant',
+        content,
+        timestamp: new Date(),
+        metadata: { ...metadata, isStreaming: true }
+      };
+      onMessage(updatedMessage);
+    } else {
       // For internal message handling
       setInternalMessages(prev => 
         prev.map(msg => msg.id === messageId ? {
@@ -44,9 +54,7 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
         } : msg)
       );
     }
-    // Note: External message updates are handled by creating new messages
-    // This is a limitation of the current architecture
-  }, [setInternalMessages]);
+  }, [onMessage]);
 
   const handleStreamingEvent = useCallback((event: StreamingEvent, messageId: string) => {
     if (event.event_type === 'langgraph_chunk') {
@@ -107,20 +115,23 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
       setIsStreaming(true);
       streamingResponseRef.current = '';
 
+      // Constants for better maintainability
+      const MAX_DOCUMENT_LENGTH = 10000;
+
       // Get document content with error handling
       let documentContent = '';
       try {
         documentContent = await officeIntegrationService.getDocumentContent();
-        if (documentContent.length > 10000) {
-          documentContent = documentContent.substring(0, 10000) + '... [truncated]';
+        if (documentContent.length > MAX_DOCUMENT_LENGTH) {
+          documentContent = documentContent.substring(0, MAX_DOCUMENT_LENGTH) + '... [truncated]';
         }
       } catch (error) {
         console.warn('Failed to get document content:', error);
         documentContent = 'Document content unavailable';
       }
 
-      // Get available tools with error handling
-      let availableTools: any[] = [];
+      // Get available tools with error handling and proper typing
+      let availableTools: MCPTool[] = [];
       try {
         const toolsData = await mcpToolService.discoverTools();
         availableTools = Array.isArray(toolsData) ? toolsData : [];
@@ -208,7 +219,7 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
       resetStreamingState();
       throw error;
     }
-  }, [messages, onMessage, setInternalMessages, handleStreamingEvent, resetStreamingState]);
+  }, [messages, onMessage, handleStreamingEvent, resetStreamingState, conversationHistory]);
 
   return {
     isStreaming,

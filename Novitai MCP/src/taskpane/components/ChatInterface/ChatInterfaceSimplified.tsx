@@ -74,7 +74,7 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     initializeMessages();
     loadAvailableTools();
-  }, [initializeMessages]);
+  }, []); // Empty dependency array to run only once
 
   const loadAvailableTools = async () => {
     try {
@@ -91,24 +91,39 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   };
 
   const handleSendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || isStreaming) return;
+    // Input validation
+    const trimmedContent = content.trim();
+    if (!trimmedContent || isStreaming) return;
+    
+    // Additional validation
+    if (trimmedContent.length > 10000) {
+      setError('Message too long. Please keep it under 10,000 characters.');
+      return;
+    }
+    
+    // Basic XSS prevention
+    if (trimmedContent.includes('<script>') || trimmedContent.includes('javascript:')) {
+      setError('Invalid content detected. Please remove any script tags.');
+      return;
+    }
 
     // Add user message
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: content.trim(),
+      content: trimmedContent,
       timestamp: new Date()
     };
     addMessage(userMessage);
     setInputValue('');
+    setError(null); // Clear any previous errors
 
     try {
       if (onLoadingChange) {
         onLoadingChange(true);
       }
       
-      await startStreamingChat(content.trim());
+      await startStreamingChat(trimmedContent);
     } catch (error) {
       console.error('Error handling user message:', error);
       const errorMessage: ChatMessage = {
@@ -132,6 +147,17 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
 
   return (
     <div className={styles.container}>
+      {error && (
+        <div style={{ 
+          padding: '8px 16px', 
+          backgroundColor: '#fef2f2', 
+          color: '#dc2626', 
+          fontSize: '14px',
+          borderBottom: '1px solid #fecaca'
+        }}>
+          {error}
+        </div>
+      )}
       <div className={styles.messagesContainer}>
         <MessageList 
           messages={messages}
