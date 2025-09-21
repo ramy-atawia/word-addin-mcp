@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { ChatMessage } from '../components/ChatInterface/MessageBubble';
 import { StreamingEvent, StreamingProgress } from '../services/types';
 import mcpToolService from '../services/mcpToolService';
@@ -7,10 +7,11 @@ import { officeIntegrationService } from '../services/officeIntegrationService';
 interface UseStreamingChatProps {
   messages: ChatMessage[];
   onMessage?: (message: ChatMessage) => void;
+  onMessageUpdate?: (messageId: string, updates: Partial<ChatMessage>) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
 
-export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseStreamingChatProps) => {
+export const useStreamingChat = ({ messages, onMessage, onMessageUpdate, onLoadingChange }: UseStreamingChatProps) => {
   // Use onLoadingChange to avoid unused parameter warning
   const handleLoadingChange = onLoadingChange || (() => {});
   const [isStreaming, setIsStreaming] = useState(false);
@@ -34,14 +35,11 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
   }, []);
 
   const updateStreamingMessage = useCallback((messageId: string, content: string, metadata: any) => {
-    if (onMessage) {
-      // For external message handling
-      onMessage({
-        id: messageId,
-        type: 'assistant',
+    if (onMessageUpdate) {
+      // For external message handling - update existing message
+      onMessageUpdate(messageId, {
         content,
-        timestamp: new Date(),
-        metadata
+        metadata: { ...metadata, isStreaming: true }
       });
     } else if (setInternalMessages) {
       // For internal message handling
@@ -53,7 +51,7 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
         } : msg)
       );
     }
-  }, [onMessage, setInternalMessages]);
+  }, [onMessageUpdate, setInternalMessages]);
 
   const handleStreamingEvent = useCallback((event: StreamingEvent, messageId: string) => {
     if (event.event_type === 'langgraph_chunk') {
@@ -97,20 +95,22 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
     }
   }, [updateStreamingMessage]);
 
+  // Memoize conversation history to avoid recalculation
+  const conversationHistory = useMemo(() => {
+    return messages
+      .filter(msg => !msg.metadata?.isStreaming && msg.type !== 'system' && msg.content.trim() !== '')
+      .slice(-50)
+      .map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+        timestamp: msg.timestamp
+      }));
+  }, [messages]);
+
   const startStreamingChat = useCallback(async (userMessage: string) => {
     try {
       setIsStreaming(true);
       streamingResponseRef.current = '';
-      
-      // Get conversation history (filter out streaming messages)
-      const conversationHistory = messages
-        .filter(msg => !msg.metadata?.isStreaming && msg.type !== 'system' && msg.content.trim() !== '')
-        .slice(-50)
-        .map(msg => ({
-          role: msg.type === 'user' ? 'user' : 'assistant',
-          content: msg.content,
-          timestamp: msg.timestamp
-        }));
 
       // Get document content
       let documentContent = '';
