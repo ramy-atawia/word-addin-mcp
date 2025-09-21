@@ -200,11 +200,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       console.log('🚀 Calling intent detection API...');
       
       // Get conversation history from current messages (up to 50 messages to match backend limit)
-      const conversationHistory = messages.slice(-50).map(msg => ({
-        role: msg.type === 'user' ? 'user' : 'assistant',
-        content: msg.content,
-        timestamp: msg.timestamp
-      }));
+      // Exclude the current streaming message to avoid including incomplete responses
+      const conversationHistory = messages
+        .filter(msg => 
+          !msg.metadata?.isStreaming && // Exclude streaming messages
+          msg.type !== 'system' && // Exclude system messages
+          msg.content.trim() !== '' // Exclude empty messages
+        )
+        .slice(-50)
+        .map(msg => ({
+          role: msg.type === 'user' ? 'user' : 'assistant',
+          content: msg.content,
+          timestamp: msg.timestamp
+        }));
       
       // Get document content from Word using Office integration
       let documentContent = '';
@@ -224,6 +232,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       console.log('📚 Conversation history for context:', conversationHistory);
       console.log('📄 Document content for context:', documentContent.substring(0, 100) + '...');
+      console.log('🔍 Current user message being processed:', userMessage);
+      console.log('🔍 Total messages in UI:', messages.length);
+      console.log('🔍 Messages being sent as context:', conversationHistory.length);
       
       // Use streaming agent chat method
       console.log('🚀 Starting streaming agent chat...');
