@@ -168,7 +168,7 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
         callbacks: {
           onEvent: (event) => handleStreamingEvent(event, streamingMessageId),
           onComplete: (finalResponse) => {
-            const finalContent = streamingResponseRef.current || finalResponse?.response || 'Request completed successfully';
+            const finalContent = streamingResponseRef.current || finalResponse?.final_response || 'Request completed successfully';
             const finalMessage: ChatMessage = {
               id: streamingMessageId,
               type: 'assistant',
