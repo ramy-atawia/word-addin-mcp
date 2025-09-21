@@ -22,6 +22,7 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
   
   const streamingResponseRef = useRef('');
   const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
+  const [currentUserMessageId, setCurrentUserMessageId] = useState<string | null>(null);
   
   // During streaming, always use internal messages for real-time updates
   // When not streaming, use external messages if available (for persistence across tab switches)
@@ -35,6 +36,7 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       status: 'complete'
     });
     streamingResponseRef.current = '';
+    setCurrentUserMessageId(null); // Clear current user message ID
   }, []);
 
   const updateStreamingMessage = useCallback((messageId: string, content: string, metadata: any) => {
@@ -114,23 +116,32 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
   const conversationHistory = useMemo(() => {
     const sourceMessages = externalMessages.length > 0 ? externalMessages : internalMessages;
     return sourceMessages
-      .filter(msg => !msg.metadata?.isStreaming && msg.type !== 'system' && msg.content.trim() !== '')
+      .filter(msg => 
+        !msg.metadata?.isStreaming && 
+        msg.type !== 'system' && 
+        msg.content.trim() !== '' &&
+        msg.id !== currentUserMessageId // Exclude current user message from context
+      )
       .slice(-50)
       .map(msg => ({
         role: msg.type === 'user' ? 'user' : 'assistant',
         content: msg.content,
         timestamp: msg.timestamp
       }));
-  }, [externalMessages, internalMessages]);
+  }, [externalMessages, internalMessages, currentUserMessageId]);
 
   const startStreamingChat = useCallback(async (userMessage: string) => {
     try {
       setIsStreaming(true);
       streamingResponseRef.current = '';
 
-      // Add user message to internal state first
+      // Set current user message ID first (before conversation history calculation)
+      const userMessageId = Date.now().toString();
+      setCurrentUserMessageId(userMessageId);
+      
+      // Add user message to internal state
       const userMessageObj: ChatMessage = {
-        id: Date.now().toString(),
+        id: userMessageId,
         type: 'user',
         content: userMessage,
         timestamp: new Date()
