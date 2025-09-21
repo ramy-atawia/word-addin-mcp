@@ -65,9 +65,17 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
                                status === 'tool_execution' ? '⚙️ Planning workflow...' :
                                status === 'response_generation' ? '✍️ Generating response...' : '🤔 Thinking...';
             
-            updateStreamingMessage(messageId, `${progressText}\n\n${streamingResponseRef.current || 'Processing...'}`, {
-              streamingProgress: status
-            });
+            // Check if this node contains a final_response
+            if (nodeName === 'response_generation' && nodeData && typeof nodeData === 'object' && 'final_response' in nodeData) {
+              streamingResponseRef.current = (nodeData as any).final_response;
+              updateStreamingMessage(messageId, streamingResponseRef.current, {
+                streamingProgress: status
+              });
+            } else {
+              updateStreamingMessage(messageId, `${progressText}\n\n${streamingResponseRef.current || 'Processing...'}`, {
+                streamingProgress: status
+              });
+            }
           }
         }
       }
