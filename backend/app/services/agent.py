@@ -246,17 +246,24 @@ class AgentService:
                 
                 # Handle different chunk formats from LangGraph
                 if isinstance(chunk, tuple) and len(chunk) == 2:
-                    # Tuple format: (node_name, node_data)
-                    node_name, node_data = chunk
+                    # Tuple format: ('updates', {node_name: node_data})
+                    chunk_type, chunk_data = chunk
                     yield {
                         "event_type": "langgraph_chunk",
                         "data": {
-                            "node": node_name,
-                            "updates": {node_name: node_data} if node_data else {},
+                            "node": chunk_type,
+                            "updates": {chunk_type: chunk_data} if chunk_data else {},
                             "messages": []
                         },
                         "timestamp": time.time()
                     }
+                    
+                    # Check if this chunk contains final response
+                    if chunk_type == "updates" and isinstance(chunk_data, dict):
+                        for node_name, node_data in chunk_data.items():
+                            if isinstance(node_data, dict) and "final_response" in node_data:
+                                final_result = node_data
+                                logger.debug(f"Final result captured from {node_name}: {final_result.get('final_response', '')[:100]}...")
                 elif isinstance(chunk, dict):
                     # Dictionary format: LangGraph's standard format
                     yield {
@@ -264,6 +271,11 @@ class AgentService:
                         "data": chunk,
                         "timestamp": time.time()
                     }
+                    
+                    # Check if this is the final state with response
+                    if "final_response" in chunk:
+                        final_result = chunk
+                        logger.debug(f"Final result captured: {final_result}")
                 else:
                     # Other formats - wrap in generic structure
                     yield {
@@ -275,11 +287,6 @@ class AgentService:
                         },
                         "timestamp": time.time()
                     }
-                
-                # Check if this is the final state with response
-                if isinstance(chunk, dict) and "final_response" in chunk:
-                    final_result = chunk
-                    logger.debug(f"Final result captured: {final_result}")
             
             # Send completion event after streaming finishes
             execution_time = time.time() - start_time
