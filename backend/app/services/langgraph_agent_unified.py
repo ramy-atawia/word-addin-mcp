@@ -555,15 +555,17 @@ async def _generate_conversational_response(state: AgentState) -> str:
         # Create conversational prompt
         prompt = f"""You are a helpful AI assistant that can help with a wide range of tasks including patent research, document drafting, general questions, and more.
 
-User: {user_input}{conversation_context}
+Current user message: {user_input}{conversation_context}
 
-Please provide a helpful, engaging response. You can:
+Please provide a helpful, direct response to the user's current message. You can:
 - Answer general knowledge questions
 - Help with document drafting (letters, emails, reports, etc.)
 - Provide friendly greetings and conversation
 - Explain concepts and provide information
 - Help with writing and communication tasks
 - Assist with patent-related work when relevant
+
+IMPORTANT: Respond directly to the user's current message. Do not format your response as a conversation or include "User:" or "Assistant:" labels. Just provide a helpful response.
 
 Be helpful, professional, and engaging. Generate actual content when requested (like drafting documents) rather than just explaining what you can do.
 
