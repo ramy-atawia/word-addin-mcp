@@ -99,13 +99,13 @@ async def detect_intent_node(state: AgentState) -> AgentState:
             f"{msg.get('role', 'user')}: {msg.get('content', '')}"
             for msg in recent_history
         ])
-        conversation_context = f"\n\nConversation History (last {len(recent_history)} messages):\n{history_text}"
+        conversation_context = f"{history_text}"
     
     # Prepare document content context
     document_context = ""
     if document_content:
         doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
-        document_context = f"\n\nCurrent Document Content:\n'''\n{doc_preview}\n'''"
+        document_context = f"{doc_preview}"
     
     # LLM prompt for intent detection
     prompt = f"""
@@ -114,7 +114,16 @@ You are an AI assistant that analyzes user queries and determines the appropriat
 Available tools:
 {tools_text}
 
-User query: "{user_input}"{conversation_context}{document_context}
+## CURRENT USER MESSAGE:
+"{user_input}"
+
+## CONVERSATION HISTORY (for context only):
+{conversation_context if conversation_context else "No previous conversation."}
+
+## DOCUMENT CONTENT (for context only):
+{document_context if document_context else "No document content."}
+
+CRITICAL: Analyze ONLY the CURRENT USER MESSAGE above. The conversation history and document content are provided for context only and should NOT influence your workflow decision unless the current message explicitly references them.
 
 Analyze the user's intent and determine if this requires:
 1. SINGLE_TOOL: One tool execution (e.g., "search for AI patents", "draft 5 claims for blockchain")
@@ -122,9 +131,11 @@ Analyze the user's intent and determine if this requires:
 3. CONVERSATION: General conversation (e.g., "hello how are you", "draft a letter", "write an email")
 
 IMPORTANT RULES:
+- PRIORITIZE the current user message over conversation history
+- Simple greetings like "hi", "hello", "hey" should ALWAYS be CONVERSATION
 - Only use SINGLE_TOOL for PATENT-RELATED tasks (search, prior art, claim drafting, claim analysis)
 - Use CONVERSATION for general requests like "draft a letter", "write an email", "compose a message"
-- Extract the actual search terms from the user query for patent-related searches
+- Extract the actual search terms from the CURRENT user query for patent-related searches
 - For patent claim drafting, use "draft X claims for [topic]" format
 - "prior art search" or "prior art" should ALWAYS use prior_art_search_tool
 - "draft claims" or "draft X claims" should use claim_drafting_tool
@@ -132,7 +143,7 @@ IMPORTANT RULES:
 - "draft a letter", "write an email", "compose a message" should ALWAYS use CONVERSATION
 - Only use claim_drafting_tool for PATENT CLAIM drafting, not general document drafting
 
-IMPORTANT: Extract the actual search terms from the user query. For example:
+IMPORTANT: Extract the actual search terms from the CURRENT user query only. For example:
 - "web search ramy atawia then prior art search" → extract "ramy atawia" for web search
 - "search for blockchain technology" → extract "blockchain technology"
 - "prior art search AI patents" → extract "AI patents"
@@ -154,6 +165,8 @@ Examples:
 - "write an email" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: write email, PARAMETERS: {{}}
 - "compose a message" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: compose message, PARAMETERS: {{}}
 - "hello how are you" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: greeting, PARAMETERS: {{}}
+- "hi" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: greeting, PARAMETERS: {{}}
+- "hey" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: greeting, PARAMETERS: {{}}
 """
     
     # Get LLM response
@@ -550,7 +563,7 @@ async def _generate_conversational_response(state: AgentState) -> str:
                 f"{msg.get('role', 'user')}: {msg.get('content', '')}"
                 for msg in recent_history
             ])
-            conversation_context = f"\n\nPrevious conversation:\n{history_text}"
+            conversation_context = f"{history_text}"
         
         # Create conversational prompt
         prompt = f"""You are a helpful AI assistant that can help with a wide range of tasks including patent research, document drafting, general questions, and more.
@@ -558,7 +571,7 @@ async def _generate_conversational_response(state: AgentState) -> str:
 ## CURRENT USER MESSAGE:
 {user_input}
 
-## PREVIOUS CONVERSATION HISTORY (chronological order, oldest to newest):
+## CONVERSATION HISTORY (chronological order, oldest to newest):
 {conversation_context if conversation_context else "No previous conversation."}
 
 ## INSTRUCTIONS:
@@ -577,7 +590,12 @@ You can help with:
 - Help with writing and communication tasks
 - Assist with patent-related work when relevant
 
-IMPORTANT: Respond directly to the current user message. Do not format your response as a conversation or include "User:" or "Assistant:" labels. Just provide a helpful response.
+IMPORTANT: 
+- Respond directly to the current user message
+- Do not format your response as a conversation or include "User:" or "Assistant:" labels
+- For simple greetings like "hi", "hello", "hey", respond with a friendly greeting and ask how you can help
+- Do not reference previous conversation topics unless the current message explicitly asks about them
+- Just provide a helpful response
 
 Be helpful, professional, and engaging. Generate actual content when requested (like drafting documents) rather than just explaining what you can do.
 
