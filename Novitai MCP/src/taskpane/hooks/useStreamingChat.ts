@@ -148,9 +148,11 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       };
       setInternalMessages(prev => [...prev, userMessageObj]);
 
-      // Calculate conversation history excluding current user message
+      // Calculate conversation history from the updated messages (including current user message)
+      // then exclude the current user message to send only previous conversation to backend
       const sourceMessages = externalMessages.length > 0 ? externalMessages : internalMessages;
-      const currentConversationHistory = sourceMessages
+      const updatedMessages = [...sourceMessages, userMessageObj]; // Include current user message
+      const currentConversationHistory = updatedMessages
         .filter(msg => 
           !msg.metadata?.isStreaming && 
           msg.type !== 'system' && 
