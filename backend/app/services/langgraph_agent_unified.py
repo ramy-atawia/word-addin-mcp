@@ -127,19 +127,9 @@ def _extract_tool_params(user_input: str, tool_name: str) -> Dict[str, Any]:
         return {"query": query or user_input}
     
     elif tool_name == "claim_drafting_tool":
-        # Extract claim count and topic
-        num_claims = 1
-        if "claims" in user_input:
-            # Try to extract number
-            words = user_input.split()
-            for i, word in enumerate(words):
-                if word.isdigit() and i < len(words) - 1 and "claim" in words[i + 1]:
-                    num_claims = int(word)
-                    break
-        
+        # Extract user query - the tool doesn't use num_claims parameter
         return {
-            "user_query": user_input,
-            "num_claims": num_claims
+            "user_query": user_input
         }
     
     elif tool_name == "web_search_tool":
