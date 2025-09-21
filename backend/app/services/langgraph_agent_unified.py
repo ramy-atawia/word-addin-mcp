@@ -542,7 +542,7 @@ async def _generate_conversational_response(state: AgentState) -> str:
         if not llm_client:
             return "Hello! I'm here to help you with patent research, claim drafting, and document analysis. What would you like to work on today?"
         
-        # Prepare conversation context as a single chronological conversation
+        # Prepare conversation context
         conversation_context = ""
         if conversation_history:
             recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
@@ -550,16 +550,26 @@ async def _generate_conversational_response(state: AgentState) -> str:
                 f"{msg.get('role', 'user')}: {msg.get('content', '')}"
                 for msg in recent_history
             ])
-            conversation_context = f"\n\nConversation so far:\n{history_text}\nuser: {user_input}"
-        else:
-            conversation_context = f"\n\nConversation:\nuser: {user_input}"
+            conversation_context = f"\n\nPrevious conversation:\n{history_text}"
         
         # Create conversational prompt
         prompt = f"""You are a helpful AI assistant that can help with a wide range of tasks including patent research, document drafting, general questions, and more.
 
-{conversation_context}
+## CURRENT USER MESSAGE:
+{user_input}
 
-Please provide a helpful, direct response to the user's current message. You can:
+## PREVIOUS CONVERSATION HISTORY (chronological order, oldest to newest):
+{conversation_context if conversation_context else "No previous conversation."}
+
+## INSTRUCTIONS:
+Please respond to the CURRENT USER MESSAGE above. Consider the relevance of the previous conversation history when crafting your response:
+
+- If the current message is a continuation of a previous topic, acknowledge the context
+- If the current message is completely new, respond to it directly without forcing connections to old topics
+- If the current message is a greeting or general question, respond naturally without over-referencing old conversations
+- Focus primarily on the current message while using previous context only when genuinely relevant
+
+You can help with:
 - Answer general knowledge questions
 - Help with document drafting (letters, emails, reports, etc.)
 - Provide friendly greetings and conversation
@@ -567,7 +577,7 @@ Please provide a helpful, direct response to the user's current message. You can
 - Help with writing and communication tasks
 - Assist with patent-related work when relevant
 
-IMPORTANT: Respond directly to the user's current message. Do not format your response as a conversation or include "User:" or "Assistant:" labels. Just provide a helpful response.
+IMPORTANT: Respond directly to the current user message. Do not format your response as a conversation or include "User:" or "Assistant:" labels. Just provide a helpful response.
 
 Be helpful, professional, and engaging. Generate actual content when requested (like drafting documents) rather than just explaining what you can do.
 
