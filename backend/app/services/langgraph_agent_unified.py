@@ -52,18 +52,14 @@ async def detect_intent_node(state: AgentState) -> AgentState:
     user_input = state["user_input"]
     available_tools = state.get("available_tools", [])
     
-    # Simple pattern-based intent detection first
-    intent_type, workflow_plan = _simple_intent_detection(user_input, available_tools)
-    
-    # If we have tools and it's unclear, use LLM
-    if intent_type == "unclear" and available_tools:
-        try:
-            intent_type, workflow_plan = await _llm_intent_detection(state)
-        except Exception as e:
-            logger.warning(f"LLM intent detection failed: {e}")
-            # Default to conversation for safety
-            intent_type = "conversation"
-            workflow_plan = []
+    # Use LLM intent detection for all cases
+    try:
+        intent_type, workflow_plan = await _llm_intent_detection(state)
+    except Exception as e:
+        logger.warning(f"LLM intent detection failed: {e}")
+        # Default to conversation for safety
+        intent_type = "conversation"
+        workflow_plan = []
     
     return {
         **state,
@@ -74,75 +70,8 @@ async def detect_intent_node(state: AgentState) -> AgentState:
     }
 
 
-def _simple_intent_detection(user_input: str, available_tools: List[Dict]) -> tuple[str, List[Dict]]:
-    """Simple pattern-based intent detection."""
-    user_lower = user_input.lower().strip()
-    
-    # Clear conversation indicators
-    conversation_patterns = [
-        "hello", "hi", "hey", "how are you", "what's up",
-        "draft a letter", "write an email", "compose a message",
-        "draft a report", "write a document", "help me write"
-    ]
-    
-    if any(pattern in user_lower for pattern in conversation_patterns):
-        return "conversation", []
-    
-    # Clear tool workflow indicators
-    tool_patterns = {
-        "prior_art_search_tool": ["prior art", "search patents", "find patents"],
-        "claim_drafting_tool": ["draft", "write claims", "generate claims"],
-        "claim_analysis_tool": ["analyze claims", "review claims", "check claims"],
-        "web_search_tool": ["web search", "search for", "find information"]
-    }
-    
-    tool_names = [tool.get("name", "") for tool in available_tools]
-    
-    for tool_name in tool_names:
-        if tool_name in tool_patterns:
-            patterns = tool_patterns[tool_name]
-            if any(pattern in user_lower for pattern in patterns):
-                # Create simple single-step workflow
-                workflow = [{
-                    "step": 1,
-                    "tool": tool_name,
-                    "params": _extract_tool_params(user_input, tool_name),
-                    "output_key": f"{tool_name}_result"
-                }]
-                return "tool_workflow", workflow
-    
-    # Default to unclear for LLM analysis
-    return "unclear", []
 
 
-def _extract_tool_params(user_input: str, tool_name: str) -> Dict[str, Any]:
-    """Extract basic parameters for tools."""
-    if tool_name == "prior_art_search_tool":
-        # Extract search query
-        query = user_input
-        for prefix in ["prior art search", "search for", "find"]:
-            if prefix in user_input.lower():
-                query = user_input.lower().replace(prefix, "").strip()
-                break
-        return {"query": query or user_input}
-    
-    elif tool_name == "claim_drafting_tool":
-        # Extract user query - the tool doesn't use num_claims parameter
-        return {
-            "user_query": user_input
-        }
-    
-    elif tool_name == "web_search_tool":
-        # Extract search query
-        query = user_input
-        for prefix in ["web search", "search for", "find"]:
-            if prefix in user_input.lower():
-                query = user_input.lower().replace(prefix, "").strip()
-                break
-        return {"query": query or user_input}
-    
-    # Default: pass user input
-    return {"query": user_input}
 
 
 async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
