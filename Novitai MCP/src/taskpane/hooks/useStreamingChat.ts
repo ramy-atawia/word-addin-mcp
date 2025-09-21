@@ -109,9 +109,11 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
   }, [updateStreamingMessage]);
 
   // Memoize conversation history to avoid recalculation
-  // Use the messages that are actually being displayed
+  // Use external messages if available (for persistence), otherwise use internal messages
+  // But exclude the current streaming message to avoid context confusion
   const conversationHistory = useMemo(() => {
-    return messages
+    const sourceMessages = externalMessages.length > 0 ? externalMessages : internalMessages;
+    return sourceMessages
       .filter(msg => !msg.metadata?.isStreaming && msg.type !== 'system' && msg.content.trim() !== '')
       .slice(-50)
       .map(msg => ({
@@ -119,7 +121,7 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
         content: msg.content,
         timestamp: msg.timestamp
       }));
-  }, [messages]);
+  }, [externalMessages, internalMessages]);
 
   const startStreamingChat = useCallback(async (userMessage: string) => {
     try {
@@ -172,6 +174,15 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
 
       // Always add to internal state for streaming updates
       setInternalMessages(prev => [...prev, initialMessage]);
+
+      // Debug: Log what we're sending
+      console.log('🔍 Streaming Debug:', {
+        userMessage,
+        conversationHistoryLength: conversationHistory.length,
+        conversationHistory: conversationHistory.map(msg => ({ role: msg.role, content: msg.content.substring(0, 50) + '...' })),
+        documentContentLength: documentContent.length,
+        availableToolsCount: availableTools.length
+      });
 
       // Start streaming
       await mcpToolService.chatWithAgentStreaming({
