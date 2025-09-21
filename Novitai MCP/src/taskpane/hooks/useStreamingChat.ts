@@ -148,6 +148,22 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       };
       setInternalMessages(prev => [...prev, userMessageObj]);
 
+      // Calculate conversation history excluding current user message
+      const sourceMessages = externalMessages.length > 0 ? externalMessages : internalMessages;
+      const currentConversationHistory = sourceMessages
+        .filter(msg => 
+          !msg.metadata?.isStreaming && 
+          msg.type !== 'system' && 
+          msg.content.trim() !== '' &&
+          msg.id !== userMessageId // Exclude current user message
+        )
+        .slice(-50)
+        .map(msg => ({
+          role: msg.type === 'user' ? 'user' : 'assistant',
+          content: msg.content,
+          timestamp: msg.timestamp
+        }));
+
       // Constants for better maintainability
       const MAX_DOCUMENT_LENGTH = 10000;
 
@@ -189,8 +205,8 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       // Debug: Log what we're sending
       console.log('🔍 Streaming Debug:', {
         userMessage,
-        conversationHistoryLength: conversationHistory.length,
-        conversationHistory: conversationHistory.map(msg => ({ role: msg.role, content: msg.content.substring(0, 50) + '...' })),
+        conversationHistoryLength: currentConversationHistory.length,
+        conversationHistory: currentConversationHistory.map(msg => ({ role: msg.role, content: msg.content.substring(0, 50) + '...' })),
         documentContentLength: documentContent.length,
         availableToolsCount: availableTools.length
       });
@@ -200,7 +216,7 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
         message: userMessage,
         context: {
           document_content: documentContent,
-          chat_history: JSON.stringify(conversationHistory),
+          chat_history: JSON.stringify(currentConversationHistory),
           available_tools: availableTools.map(t => t.name).join(', ')
         },
         sessionId: `session-${Date.now()}`,
