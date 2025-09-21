@@ -73,6 +73,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     status: 'complete'
   });
   
+  // Use ref to track accumulated response for real-time updates
+  const streamingResponseRef = useRef('');
+  
   const messages = externalMessages.length > 0 ? externalMessages : internalMessages;
   const loading = externalLoading || internalLoading || isStreaming;
   
@@ -234,6 +237,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         totalSteps: 0,
         status: 'intent_detection'
       });
+      streamingResponseRef.current = ''; // Reset ref
 
       // Create a temporary streaming message that will be updated in real-time
       const streamingMessageId = (Date.now() + 1).toString();
@@ -294,30 +298,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                       currentStep: prev.currentStep + 1
                     }));
                     
-                    // Update the streaming message content
+                    // Update the streaming message content - DON'T call onMessage here
                     const progressText = status === 'intent_detection' ? '🔍 Detecting intent...' :
                                       status === 'tool_execution' ? '⚙️ Planning workflow...' :
                                       status === 'response_generation' ? '✍️ Generating response...' : '🤔 Thinking...';
                     
-                    const updatedMessage: ChatMessage = {
-                      id: streamingMessageId,
-                      type: 'assistant',
-                      content: `${progressText}\n\n${streamingResponse || 'Processing...'}`,
-                      timestamp: new Date(),
-                      metadata: {
-                        isStreaming: true,
-                        streamingProgress: status,
-                        currentStep: streamingProgress.currentStep + 1
-                      }
-                    };
-                    
-                    if (onMessage) {
-                      onMessage(updatedMessage);
-                    } else {
-                      setInternalMessages(prev => 
-                        prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
-                      );
-                    }
+                    // Update internal messages directly without calling onMessage
+                    setInternalMessages(prev => 
+                      prev.map(msg => msg.id === streamingMessageId ? {
+                        ...msg,
+                        content: `${progressText}\n\n${streamingResponseRef.current || 'Processing...'}`,
+                        metadata: {
+                          ...msg.metadata,
+                          streamingProgress: status,
+                          currentStep: streamingProgress.currentStep + 1
+                        }
+                      } : msg)
+                    );
                   }
                 } catch (error) {
                   console.warn('Failed to process node updates:', error);
@@ -328,27 +325,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
                 for (const message of data.messages) {
                   if (message && message.content) {
-                    setStreamingResponse(prev => prev + message.content);
+                    streamingResponseRef.current += message.content;
+                    setStreamingResponse(streamingResponseRef.current);
                     
-                    // Update the streaming message with accumulated content
-                    const updatedMessage: ChatMessage = {
-                      id: streamingMessageId,
-                      type: 'assistant',
-                      content: message.content,
-                      timestamp: new Date(),
-                      metadata: {
-                        isStreaming: true,
-                        streamingProgress: 'response_generation'
-                      }
-                    };
-                    
-                    if (onMessage) {
-                      onMessage(updatedMessage);
-                    } else {
-                      setInternalMessages(prev => 
-                        prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
-                      );
-                    }
+                    // Update internal messages directly without calling onMessage
+                    setInternalMessages(prev => 
+                      prev.map(msg => msg.id === streamingMessageId ? {
+                        ...msg,
+                        content: streamingResponseRef.current,
+                        metadata: {
+                          ...msg.metadata,
+                          streamingProgress: 'response_generation'
+                        }
+                      } : msg)
+                    );
                   }
                 }
               }
@@ -369,27 +359,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             if (event.event_type === 'llm_token') {
               const content = event.data.content;
               if (content) {
-                setStreamingResponse(prev => prev + content);
+                streamingResponseRef.current += content;
+                setStreamingResponse(streamingResponseRef.current);
                 
-                // Update the streaming message with accumulated content
-                const updatedMessage: ChatMessage = {
-                  id: streamingMessageId,
-                  type: 'assistant',
-                  content: streamingResponse + content,
-                  timestamp: new Date(),
-                  metadata: {
-                    isStreaming: true,
-                    streamingProgress: 'response_generation'
-                  }
-                };
-                
-                if (onMessage) {
-                  onMessage(updatedMessage);
-                } else {
-                  setInternalMessages(prev => 
-                    prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
-                  );
-                }
+                // Update internal messages directly without calling onMessage
+                setInternalMessages(prev => 
+                  prev.map(msg => msg.id === streamingMessageId ? {
+                    ...msg,
+                    content: streamingResponseRef.current,
+                    metadata: {
+                      ...msg.metadata,
+                      streamingProgress: 'response_generation'
+                    }
+                  } : msg)
+                );
               }
             }
             
@@ -401,11 +384,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           onComplete: (finalResponse: any) => {
             console.log('✅ Streaming completed:', finalResponse);
             
+            // Use the ref value for the final response
+            const finalContent = streamingResponseRef.current || finalResponse?.response || 'Request completed successfully';
+            
             // Finalize the message
             const finalMessage: ChatMessage = {
               id: streamingMessageId,
               type: 'assistant',
-              content: streamingResponse || finalResponse?.response || 'Request completed successfully',
+              content: finalContent,
               timestamp: new Date(),
               metadata: {
                 agentResponse: true,
@@ -432,6 +418,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               totalSteps: 0,
               status: 'complete'
             });
+            streamingResponseRef.current = ''; // Reset ref
           },
           onError: (error: string) => {
             console.error('❌ Streaming error:', error);
@@ -465,6 +452,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               totalSteps: 0,
               status: 'complete'
             });
+            streamingResponseRef.current = ''; // Reset ref
           }
         }
       });

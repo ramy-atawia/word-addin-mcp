@@ -144,7 +144,7 @@ module.exports = async (env, options) => {
         options: env.WEBPACK_BUILD || options.https !== undefined ? options.https : await getHttpsOptions(),
       },
       port: 3000, // Fixed port for consistency
-      host: 'localhost',
+      host: '0.0.0.0',
       allowedHosts: 'all',
     },
   };
