@@ -159,7 +159,7 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
           msg.content.trim() !== '' &&
           msg.id !== userMessageId // Exclude current user message
         )
-        .slice(-50)
+        .slice(-5) // Limit to last 5 messages to prevent context confusion
         .map(msg => ({
           role: msg.type === 'user' ? 'user' : 'assistant',
           content: msg.content,
