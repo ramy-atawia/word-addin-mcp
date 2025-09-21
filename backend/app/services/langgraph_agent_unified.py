@@ -542,7 +542,7 @@ async def _generate_conversational_response(state: AgentState) -> str:
         if not llm_client:
             return "Hello! I'm here to help you with patent research, claim drafting, and document analysis. What would you like to work on today?"
         
-        # Prepare conversation context
+        # Prepare conversation context as a single chronological conversation
         conversation_context = ""
         if conversation_history:
             recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
@@ -550,12 +550,14 @@ async def _generate_conversational_response(state: AgentState) -> str:
                 f"{msg.get('role', 'user')}: {msg.get('content', '')}"
                 for msg in recent_history
             ])
-            conversation_context = f"\n\nPrevious conversation:\n{history_text}"
+            conversation_context = f"\n\nConversation so far:\n{history_text}\nuser: {user_input}"
+        else:
+            conversation_context = f"\n\nConversation:\nuser: {user_input}"
         
         # Create conversational prompt
         prompt = f"""You are a helpful AI assistant that can help with a wide range of tasks including patent research, document drafting, general questions, and more.
 
-Current user message: {user_input}{conversation_context}
+{conversation_context}
 
 Please provide a helpful, direct response to the user's current message. You can:
 - Answer general knowledge questions
