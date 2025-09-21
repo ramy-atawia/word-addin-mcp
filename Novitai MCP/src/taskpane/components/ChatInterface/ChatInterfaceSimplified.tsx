@@ -63,6 +63,7 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   });
   
   const { isStreaming, streamingProgress, startStreamingChat, messages } = useStreamingChat({
+    messages: externalMessages,
     onMessage,
     onLoadingChange
   });

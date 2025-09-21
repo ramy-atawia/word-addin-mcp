@@ -5,11 +5,12 @@ import mcpToolService from '../services/mcpToolService';
 import { officeIntegrationService } from '../services/officeIntegrationService';
 
 interface UseStreamingChatProps {
+  messages?: ChatMessage[];
   onMessage?: (message: ChatMessage) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
 
-export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingChatProps) => {
+export const useStreamingChat = ({ messages: externalMessages = [], onMessage, onLoadingChange }: UseStreamingChatProps) => {
   // Use onLoadingChange to avoid unused parameter warning
   const handleLoadingChange = onLoadingChange || (() => {});
   const [isStreaming, setIsStreaming] = useState(false);
@@ -21,6 +22,10 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
   
   const streamingResponseRef = useRef('');
   const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
+  
+  // Always use external messages when provided (for persistence across tab switches)
+  // Only use internal messages when no external messages are provided (standalone usage)
+  const messages = externalMessages.length > 0 ? externalMessages : internalMessages;
 
   const resetStreamingState = useCallback(() => {
     setIsStreaming(false);
@@ -33,16 +38,28 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
   }, []);
 
   const updateStreamingMessage = useCallback((messageId: string, content: string, metadata: any) => {
-    // Always use internal state for streaming updates to ensure we can update the same message
-    // This prevents multiple bubbles during streaming
-    setInternalMessages(prev => 
-      prev.map(msg => msg.id === messageId ? {
-        ...msg,
+    if (externalMessages.length > 0) {
+      // When using external messages, we need to call onMessage to update the parent
+      // This ensures the parent's chatMessages state is updated
+      const updatedMessage: ChatMessage = {
+        id: messageId,
+        type: 'assistant',
         content,
-        metadata: { ...msg.metadata, ...metadata }
-      } : msg)
-    );
-  }, []);
+        timestamp: new Date(),
+        metadata: { ...metadata, isStreaming: true }
+      };
+      onMessage?.(updatedMessage);
+    } else {
+      // When using internal messages, update internal state
+      setInternalMessages(prev => 
+        prev.map(msg => msg.id === messageId ? {
+          ...msg,
+          content,
+          metadata: { ...msg.metadata, ...metadata }
+        } : msg)
+      );
+    }
+  }, [externalMessages.length, onMessage]);
 
   const handleStreamingEvent = useCallback((event: StreamingEvent, messageId: string) => {
     if (event.event_type === 'langgraph_chunk') {
@@ -104,9 +121,9 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
   }, [updateStreamingMessage]);
 
   // Memoize conversation history to avoid recalculation
-  // Use internalMessages for conversation history since that's what we're actually displaying
+  // Use the messages that are actually being displayed
   const conversationHistory = useMemo(() => {
-    return internalMessages
+    return messages
       .filter(msg => !msg.metadata?.isStreaming && msg.type !== 'system' && msg.content.trim() !== '')
       .slice(-50)
       .map(msg => ({
@@ -114,7 +131,7 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
         content: msg.content,
         timestamp: msg.timestamp
       }));
-  }, [internalMessages]);
+  }, [messages]);
 
   const startStreamingChat = useCallback(async (userMessage: string) => {
     try {
@@ -182,23 +199,8 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
           onComplete: (finalResponse) => {
             const finalContent = streamingResponseRef.current || finalResponse?.final_response || 'Request completed successfully';
             
-            // Update the existing streaming message with final content
-            setInternalMessages(prev => 
-              prev.map(msg => msg.id === streamingMessageId ? {
-                ...msg,
-                content: finalContent,
-                metadata: {
-                  ...msg.metadata,
-                  agentResponse: true,
-                  toolUsed: finalResponse?.tool_name,
-                  intentType: finalResponse?.intent_type,
-                  isStreaming: false
-                }
-              } : msg)
-            );
-            
-            // If external message handler is provided, send the final message
-            if (onMessage) {
+            if (externalMessages.length > 0) {
+              // When using external messages, send final message to parent
               const finalMessage: ChatMessage = {
                 id: streamingMessageId,
                 type: 'assistant',
@@ -211,23 +213,29 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
                   isStreaming: false
                 }
               };
-              onMessage(finalMessage);
+              onMessage?.(finalMessage);
+            } else {
+              // When using internal messages, update internal state
+              setInternalMessages(prev => 
+                prev.map(msg => msg.id === streamingMessageId ? {
+                  ...msg,
+                  content: finalContent,
+                  metadata: {
+                    ...msg.metadata,
+                    agentResponse: true,
+                    toolUsed: finalResponse?.tool_name,
+                    intentType: finalResponse?.intent_type,
+                    isStreaming: false
+                  }
+                } : msg)
+              );
             }
             
             resetStreamingState();
           },
           onError: (error) => {
-            // Update the existing streaming message with error content
-            setInternalMessages(prev => 
-              prev.map(msg => msg.id === streamingMessageId ? {
-                ...msg,
-                content: `❌ Error: ${error}`,
-                metadata: { ...msg.metadata, error: 'true', isStreaming: false }
-              } : msg)
-            );
-            
-            // If external message handler is provided, send the error message
-            if (onMessage) {
+            if (externalMessages.length > 0) {
+              // When using external messages, send error message to parent
               const errorMessage: ChatMessage = {
                 id: streamingMessageId,
                 type: 'assistant',
@@ -235,7 +243,16 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
                 timestamp: new Date(),
                 metadata: { error: 'true', isStreaming: false }
               };
-              onMessage(errorMessage);
+              onMessage?.(errorMessage);
+            } else {
+              // When using internal messages, update internal state
+              setInternalMessages(prev => 
+                prev.map(msg => msg.id === streamingMessageId ? {
+                  ...msg,
+                  content: `❌ Error: ${error}`,
+                  metadata: { ...msg.metadata, error: 'true', isStreaming: false }
+                } : msg)
+              );
             }
             
             resetStreamingState();
@@ -255,6 +272,6 @@ export const useStreamingChat = ({ onMessage, onLoadingChange }: UseStreamingCha
     streamingProgress,
     startStreamingChat,
     resetStreamingState,
-    messages: internalMessages
+    messages
   };
 };
