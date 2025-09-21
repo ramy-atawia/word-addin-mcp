@@ -280,9 +280,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               // Handle node updates (workflow progress) - with proper type checking
               if (data.updates && typeof data.updates === 'object') {
                 try {
-                  // Check if updates contains nested node data
-                  if (data.updates.workflow_planning || data.updates.response_generation || data.updates.intent_detection) {
-                    // Direct node updates
+                  // Check if updates contains nested node data (LangGraph tuple format)
+                  if (data.updates.updates && typeof data.updates.updates === 'object') {
+                    // LangGraph tuple format: {updates: {node_name: node_data}}
+                    for (const [nodeName, nodeData] of Object.entries(data.updates.updates)) {
+                      if (nodeName === 'workflow_planning' || nodeName === 'response_generation' || nodeName === 'intent_detection') {
+                        console.log(`🔄 Node update: ${nodeName}`, nodeData);
+                        
+                        // Update progress based on node
+                        let status: StreamingProgress['status'] = 'intent_detection';
+                        if (nodeName === 'intent_detection') {
+                          status = 'intent_detection';
+                        } else if (nodeName === 'workflow_planning') {
+                          status = 'tool_execution';
+                        } else if (nodeName === 'response_generation') {
+                          status = 'response_generation';
+                        }
+                        
+                        setStreamingProgress(prev => ({
+                          ...prev,
+                          status,
+                          currentStep: prev.currentStep + 1
+                        }));
+                        
+                        // Update the streaming message content - DON'T call onMessage here
+                        const progressText = status === 'intent_detection' ? '🔍 Detecting intent...' :
+                                          status === 'tool_execution' ? '⚙️ Planning workflow...' :
+                                          status === 'response_generation' ? '✍️ Generating response...' : '🤔 Thinking...';
+                        
+                        // Update internal messages directly without calling onMessage
+                        setInternalMessages(prev => 
+                          prev.map(msg => msg.id === streamingMessageId ? {
+                            ...msg,
+                            content: `${progressText}\n\n${streamingResponseRef.current || 'Processing...'}`,
+                            metadata: {
+                              ...msg.metadata,
+                              streamingProgress: status,
+                              currentStep: streamingProgress.currentStep + 1
+                            }
+                          } : msg)
+                        );
+                      }
+                    }
+                  } else if (data.updates.workflow_planning || data.updates.response_generation || data.updates.intent_detection) {
+                    // Direct node updates (alternative format)
                     for (const [nodeName, nodeData] of Object.entries(data.updates)) {
                       if (nodeName === 'workflow_planning' || nodeName === 'response_generation' || nodeName === 'intent_detection') {
                         console.log(`🔄 Node update: ${nodeName}`, nodeData);
