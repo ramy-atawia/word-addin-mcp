@@ -12,10 +12,14 @@ export const useChatMessages = ({ externalMessages = [], onMessage }: UseChatMes
   const messages = externalMessages.length > 0 ? externalMessages : internalMessages;
   
   const addMessage = useCallback((message: ChatMessage) => {
-    if (onMessage) {
-      onMessage(message);
-    } else {
-      setInternalMessages(prev => [...prev, message]);
+    try {
+      if (onMessage) {
+        onMessage(message);
+      } else {
+        setInternalMessages(prev => [...prev, message]);
+      }
+    } catch (error) {
+      console.error('Failed to add message:', error);
     }
   }, [onMessage]);
   

@@ -7,11 +7,10 @@ import { officeIntegrationService } from '../services/officeIntegrationService';
 interface UseStreamingChatProps {
   messages: ChatMessage[];
   onMessage?: (message: ChatMessage) => void;
-  onMessageUpdate?: (messageId: string, updates: Partial<ChatMessage>) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
 
-export const useStreamingChat = ({ messages, onMessage, onMessageUpdate, onLoadingChange }: UseStreamingChatProps) => {
+export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseStreamingChatProps) => {
   // Use onLoadingChange to avoid unused parameter warning
   const handleLoadingChange = onLoadingChange || (() => {});
   const [isStreaming, setIsStreaming] = useState(false);
@@ -35,13 +34,7 @@ export const useStreamingChat = ({ messages, onMessage, onMessageUpdate, onLoadi
   }, []);
 
   const updateStreamingMessage = useCallback((messageId: string, content: string, metadata: any) => {
-    if (onMessageUpdate) {
-      // For external message handling - update existing message
-      onMessageUpdate(messageId, {
-        content,
-        metadata: { ...metadata, isStreaming: true }
-      });
-    } else if (setInternalMessages) {
+    if (setInternalMessages) {
       // For internal message handling
       setInternalMessages(prev => 
         prev.map(msg => msg.id === messageId ? {
@@ -51,7 +44,9 @@ export const useStreamingChat = ({ messages, onMessage, onMessageUpdate, onLoadi
         } : msg)
       );
     }
-  }, [onMessageUpdate, setInternalMessages]);
+    // Note: External message updates are handled by creating new messages
+    // This is a limitation of the current architecture
+  }, [setInternalMessages]);
 
   const handleStreamingEvent = useCallback((event: StreamingEvent, messageId: string) => {
     if (event.event_type === 'langgraph_chunk') {
@@ -112,7 +107,7 @@ export const useStreamingChat = ({ messages, onMessage, onMessageUpdate, onLoadi
       setIsStreaming(true);
       streamingResponseRef.current = '';
 
-      // Get document content
+      // Get document content with error handling
       let documentContent = '';
       try {
         documentContent = await officeIntegrationService.getDocumentContent();
@@ -124,8 +119,15 @@ export const useStreamingChat = ({ messages, onMessage, onMessageUpdate, onLoadi
         documentContent = 'Document content unavailable';
       }
 
-      // Get available tools
-      const availableTools = await mcpToolService.discoverTools();
+      // Get available tools with error handling
+      let availableTools: any[] = [];
+      try {
+        const toolsData = await mcpToolService.discoverTools();
+        availableTools = Array.isArray(toolsData) ? toolsData : [];
+      } catch (error) {
+        console.warn('Failed to get available tools:', error);
+        availableTools = [];
+      }
 
       // Create streaming message
       const streamingMessageId = (Date.now() + 1).toString();

@@ -65,20 +65,6 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   const { isStreaming, streamingProgress, startStreamingChat } = useStreamingChat({
     messages,
     onMessage,
-    onMessageUpdate: (messageId, updates) => {
-      // For external message handling, we need to create a new message
-      // This is a limitation of the current architecture
-      if (onMessage) {
-        const updatedMessage: ChatMessage = {
-          id: messageId,
-          type: 'assistant',
-          content: updates.content || '',
-          timestamp: new Date(),
-          metadata: updates.metadata || {}
-        };
-        onMessage(updatedMessage);
-      }
-    },
     onLoadingChange
   });
   
