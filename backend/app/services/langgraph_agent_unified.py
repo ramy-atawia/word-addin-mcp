@@ -126,14 +126,13 @@ Available tools:
 CRITICAL: Analyze ONLY the CURRENT USER MESSAGE above. The conversation history and document content are provided for context only and should NOT influence your workflow decision unless the current message explicitly references them.
 
 Analyze the user's intent and determine if this requires:
-1. SINGLE_TOOL: One tool execution (e.g., "search for AI patents", "draft 5 claims for blockchain")
-2. MULTI_STEP: Multiple sequential tool executions (e.g., "search for AI patents then draft 5 claims")
-3. CONVERSATION: General conversation (e.g., "hello how are you", "draft a letter", "write an email")
+1. MULTI_STEP: Tool execution(s) - can be single step or multiple steps (e.g., "search for AI patents", "draft 5 claims", "search then draft")
+2. CONVERSATION: General conversation (e.g., "hello how are you", "draft a letter", "write an email")
 
 IMPORTANT RULES:
 - PRIORITIZE the current user message over conversation history
 - Simple greetings like "hi", "hello", "hey" should ALWAYS be CONVERSATION
-- Only use SINGLE_TOOL for PATENT-RELATED tasks (search, prior art, claim drafting, claim analysis)
+- Use MULTI_STEP for PATENT-RELATED tasks (search, prior art, claim drafting, claim analysis)
 - Use CONVERSATION for general requests like "draft a letter", "write an email", "compose a message"
 - Extract the actual search terms from the CURRENT user query for patent-related searches
 - For patent claim drafting, use "draft X claims for [topic]" format
@@ -149,18 +148,18 @@ IMPORTANT: Extract the actual search terms from the CURRENT user query only. For
 - "prior art search AI patents" → extract "AI patents"
 
 Respond in this exact format:
-WORKFLOW_TYPE: [SINGLE_TOOL, MULTI_STEP, or CONVERSATION]
-TOOL: [tool_name for single tool, or first tool for multi-step, or empty for conversation]
+WORKFLOW_TYPE: [MULTI_STEP or CONVERSATION]
+TOOL: [first tool for multi-step, or empty for conversation]
 INTENT: [brief description of intent]
 PARAMETERS: [JSON object with tool parameters]
 
 Examples:
 - "web search ramy atawia then prior art search" → WORKFLOW_TYPE: MULTI_STEP, TOOL: web_search_tool, INTENT: web search then prior art, PARAMETERS: {{"query": "ramy atawia"}}
-- "prior art search" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "prior art search"}}
-- "find prior art for AI patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
-- "search for blockchain patents" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "blockchain patents"}}
-- "draft 5 claims for blockchain" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}
-- "draft claims for AI system" → WORKFLOW_TYPE: SINGLE_TOOL, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft claims for AI system"}}
+- "prior art search" → WORKFLOW_TYPE: MULTI_STEP, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "prior art search"}}
+- "find prior art for AI patents" → WORKFLOW_TYPE: MULTI_STEP, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "AI patents"}}
+- "search for blockchain patents" → WORKFLOW_TYPE: MULTI_STEP, TOOL: prior_art_search_tool, INTENT: search prior art, PARAMETERS: {{"query": "blockchain patents"}}
+- "draft 5 claims for blockchain" → WORKFLOW_TYPE: MULTI_STEP, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}
+- "draft claims for AI system" → WORKFLOW_TYPE: MULTI_STEP, TOOL: claim_drafting_tool, INTENT: draft claims, PARAMETERS: {{"user_query": "draft claims for AI system"}}
 - "draft a letter" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: draft letter, PARAMETERS: {{}}
 - "write an email" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: write email, PARAMETERS: {{}}
 - "compose a message" → WORKFLOW_TYPE: CONVERSATION, TOOL: , INTENT: compose message, PARAMETERS: {{}}
@@ -188,22 +187,21 @@ Examples:
     workflow_type, selected_tool, intent_type, tool_parameters = _parse_llm_response(response_text)
     
     # Validate parsed response
-    if workflow_type not in ["SINGLE_TOOL", "MULTI_STEP", "CONVERSATION"]:
+    if workflow_type not in ["MULTI_STEP", "CONVERSATION"]:
         raise RuntimeError(f"Invalid workflow type from LLM: {workflow_type}")
     
-    if workflow_type in ["SINGLE_TOOL", "MULTI_STEP"] and not selected_tool:
+    if workflow_type == "MULTI_STEP" and not selected_tool:
         raise RuntimeError(f"Tool required for {workflow_type} but none provided by LLM")
     
     logger.debug(f"LLM detected workflow: {workflow_type}, tool: {selected_tool}")
     
     # Set intent_type based on workflow_type for consistency
-    if workflow_type == "MULTI_STEP":
-        final_intent_type = "multi_step"
-    elif workflow_type == "CONVERSATION":
+    if workflow_type == "CONVERSATION":
         # Use LLM-generated intent type directly
         final_intent_type = intent_type
     else:
-        final_intent_type = "single_tool"
+        # Everything else (SINGLE_TOOL, MULTI_STEP) is treated as multi_step
+        final_intent_type = "multi_step"
     
     return {
         **state,
@@ -270,7 +268,7 @@ async def plan_workflow_node(state: AgentState) -> AgentState:
         return state
     
     # If it's a conversation (any non-tool intent), don't create a workflow plan
-    if state.get("intent_type") not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
+    if state.get("intent_type") not in ["multi_step", "multi_step_workflow", "tool_execution"]:
         return {
             **state,
             "workflow_plan": [],
@@ -279,24 +277,8 @@ async def plan_workflow_node(state: AgentState) -> AgentState:
             "step_results": {}
         }
     
-    # If we already have a selected tool from intent detection AND it's not multi-step, create simple plan
-    if state.get("selected_tool") and state.get("intent_type") not in ["multi_step", "multi_step_workflow"]:
-        return {
-            **state,
-            "workflow_plan": [{
-                "step": 1,
-                "tool": state["selected_tool"],
-                "params": state["tool_parameters"],
-                "output_key": f"{state['selected_tool']}_results"
-            }],
-            "total_steps": 1,
-            "current_step": 0,
-            "step_results": {}
-        }
-    
-    # Only proceed with LLM workflow planning if it's a multi-step workflow
-    if state.get("intent_type") not in ["multi_step", "multi_step_workflow"]:
-        raise RuntimeError(f"Invalid intent type for workflow planning: {state.get('intent_type')}")
+    # All tool requests (single or multi-step) go through LLM workflow planning
+    # This ensures consistent handling and proper planning for all tool workflows
     
     user_input = state["user_input"]
     conversation_history = state.get("conversation_history", [])
@@ -334,14 +316,15 @@ async def plan_workflow_node(state: AgentState) -> AgentState:
     
     # LLM prompt for workflow planning
     prompt = f"""
-You are an AI assistant that creates execution plans for multi-step workflows.
+You are an AI assistant that creates execution plans for tool workflows.
 
 Available tools:
 {tools_text}
 
 User query: "{user_input}"{conversation_context}{document_context}
 
-Create a step-by-step execution plan. Each step should specify:
+Create a step-by-step execution plan. This can be a single step or multiple steps depending on the request.
+Each step should specify:
 - step: step number (1, 2, 3, etc.)
 - tool: tool name to execute
 - params: parameters for the tool
@@ -354,6 +337,8 @@ Respond with a JSON array of steps:
 ]
 
 Examples:
+- "search for AI patents" → [{{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "AI patents"}}, "output_key": "search_results"}}]
+- "draft 5 claims for blockchain" → [{{"step": 1, "tool": "claim_drafting_tool", "params": {{"user_query": "draft 5 claims for blockchain", "num_claims": 5}}, "output_key": "draft_results"}}]
 - "web search ramy atawia then prior art search" → [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "ramy atawia"}}, "output_key": "web_search_results"}}, {{"step": 2, "tool": "prior_art_search_tool", "params": {{"query": "prior art search"}}, "output_key": "prior_art_results"}}]
 - "search for AI patents then draft 5 claims" → [{{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "AI patents"}}, "output_key": "prior_art_results"}}, {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft 5 claims", "prior_art_context": "{{prior_art_results}}"}}, "output_key": "draft_results"}}]
 """
@@ -626,7 +611,7 @@ async def _generate_multi_step_response(state: AgentState) -> AgentState:
     intent_type = state.get("intent_type", "tool_execution")
     
     # Handle conversation intents (any non-tool intent)
-    if intent_type not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
+    if intent_type not in ["multi_step", "multi_step_workflow", "tool_execution"]:
         logger.debug("Generating conversational response")
         final_response = await _generate_conversational_response(state)
         return {
@@ -676,10 +661,11 @@ async def _generate_multi_step_response(state: AgentState) -> AgentState:
                 final_response = "I completed the workflow but didn't get any results."
     
     # Determine intent type based on workflow length, but preserve non-tool intents
-    if intent_type not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
+    if intent_type not in ["multi_step", "multi_step_workflow", "tool_execution"]:
         workflow_intent = intent_type
     else:
-        workflow_intent = "multi_step_workflow" if len(workflow_plan) > 1 else "single_tool_workflow"
+        # All tool workflows are now multi_step_workflow (single or multiple steps)
+        workflow_intent = "multi_step_workflow"
     
     return {
         **state,
@@ -691,7 +677,7 @@ async def _generate_multi_step_response(state: AgentState) -> AgentState:
 def _route_workflow(state: AgentState) -> str:
     """Route workflow based on state."""
     # Route non-tool intents directly to response generation
-    if state.get("intent_type") not in ["single_tool", "multi_step", "multi_step_workflow", "tool_execution"]:
+    if state.get("intent_type") not in ["multi_step", "multi_step_workflow", "tool_execution"]:
         return "response_generation"
     elif state.get("workflow_plan") is not None and len(state.get("workflow_plan", [])) > 0:
         return "tool_execution"
