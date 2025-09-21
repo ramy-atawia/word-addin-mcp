@@ -95,6 +95,15 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
           }
         }
       }
+    } else if (event.event_type === 'llm_response') {
+      // Handle direct LLM response events
+      const data = event.data;
+      if (data?.content) {
+        streamingResponseRef.current = data.content;
+        updateStreamingMessage(messageId, streamingResponseRef.current, {
+          streamingProgress: 'response_generation'
+        });
+      }
     }
   }, [updateStreamingMessage]);
 
