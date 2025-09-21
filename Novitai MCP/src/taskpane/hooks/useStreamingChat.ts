@@ -34,27 +34,15 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
   }, []);
 
   const updateStreamingMessage = useCallback((messageId: string, content: string, metadata: any) => {
-    if (onMessage) {
-      // For external message handling - create new message
-      const updatedMessage: ChatMessage = {
-        id: messageId,
-        type: 'assistant',
+    // Always use internal state for streaming updates to avoid creating multiple bubbles
+    setInternalMessages(prev => 
+      prev.map(msg => msg.id === messageId ? {
+        ...msg,
         content,
-        timestamp: new Date(),
-        metadata: { ...metadata, isStreaming: true }
-      };
-      onMessage(updatedMessage);
-    } else {
-      // For internal message handling
-      setInternalMessages(prev => 
-        prev.map(msg => msg.id === messageId ? {
-          ...msg,
-          content,
-          metadata: { ...msg.metadata, ...metadata }
-        } : msg)
-      );
-    }
-  }, [onMessage]);
+        metadata: { ...msg.metadata, ...metadata }
+      } : msg)
+    );
+  }, []);
 
   const handleStreamingEvent = useCallback((event: StreamingEvent, messageId: string) => {
     if (event.event_type === 'langgraph_chunk') {
@@ -178,44 +166,61 @@ export const useStreamingChat = ({ messages, onMessage, onLoadingChange }: UseSt
           onEvent: (event) => handleStreamingEvent(event, streamingMessageId),
           onComplete: (finalResponse) => {
             const finalContent = streamingResponseRef.current || finalResponse?.final_response || 'Request completed successfully';
-            const finalMessage: ChatMessage = {
-              id: streamingMessageId,
-              type: 'assistant',
-              content: finalContent,
-              timestamp: new Date(),
-              metadata: {
-                agentResponse: true,
-                toolUsed: finalResponse?.tool_name,
-                intentType: finalResponse?.intent_type,
-                isStreaming: false
-              }
-            };
             
+            // Update the existing streaming message with final content
+            setInternalMessages(prev => 
+              prev.map(msg => msg.id === streamingMessageId ? {
+                ...msg,
+                content: finalContent,
+                metadata: {
+                  ...msg.metadata,
+                  agentResponse: true,
+                  toolUsed: finalResponse?.tool_name,
+                  intentType: finalResponse?.intent_type,
+                  isStreaming: false
+                }
+              } : msg)
+            );
+            
+            // If external message handler is provided, send the final message
             if (onMessage) {
+              const finalMessage: ChatMessage = {
+                id: streamingMessageId,
+                type: 'assistant',
+                content: finalContent,
+                timestamp: new Date(),
+                metadata: {
+                  agentResponse: true,
+                  toolUsed: finalResponse?.tool_name,
+                  intentType: finalResponse?.intent_type,
+                  isStreaming: false
+                }
+              };
               onMessage(finalMessage);
-            } else if (setInternalMessages) {
-              setInternalMessages(prev => 
-                prev.map(msg => msg.id === streamingMessageId ? finalMessage : msg)
-              );
             }
             
             resetStreamingState();
           },
           onError: (error) => {
-            const errorMessage: ChatMessage = {
-              id: streamingMessageId,
-              type: 'assistant',
-              content: `❌ Error: ${error}`,
-              timestamp: new Date(),
-              metadata: { error: 'true', isStreaming: false }
-            };
+            // Update the existing streaming message with error content
+            setInternalMessages(prev => 
+              prev.map(msg => msg.id === streamingMessageId ? {
+                ...msg,
+                content: `❌ Error: ${error}`,
+                metadata: { ...msg.metadata, error: 'true', isStreaming: false }
+              } : msg)
+            );
             
+            // If external message handler is provided, send the error message
             if (onMessage) {
+              const errorMessage: ChatMessage = {
+                id: streamingMessageId,
+                type: 'assistant',
+                content: `❌ Error: ${error}`,
+                timestamp: new Date(),
+                metadata: { error: 'true', isStreaming: false }
+              };
               onMessage(errorMessage);
-            } else if (setInternalMessages) {
-              setInternalMessages(prev => 
-                prev.map(msg => msg.id === streamingMessageId ? errorMessage : msg)
-              );
             }
             
             resetStreamingState();
