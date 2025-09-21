@@ -58,6 +58,83 @@ class LLMClient:
             self.llm_available = False
             logger.warning("Azure OpenAI not configured - LLM features disabled")
     
+    def generate_text_stream(self, prompt: str, max_tokens: int = 1000, 
+                           temperature: float = 0.7, system_message: Optional[str] = None, 
+                           max_retries: int = 3):
+        """
+        Generate text using the LLM with streaming.
+        
+        Args:
+            prompt: User prompt
+            max_tokens: Maximum tokens to generate
+            temperature: Creativity level (0.0 to 2.0)
+            system_message: Optional system message
+            
+        Yields:
+            Dictionary containing streaming text chunks and metadata
+        """
+        try:
+            if not self.llm_available:
+                yield self._create_error_result("LLM not available")
+                return
+            
+            # Prepare messages
+            messages = []
+            if system_message:
+                messages.append({"role": "system", "content": system_message})
+            messages.append({"role": "user", "content": prompt})
+            
+            # Make streaming API call with retry logic
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    response = self.client.chat.completions.create(
+                        model=self.azure_deployment,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        stream=True  # Enable streaming
+                    )
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    last_error = e
+                    if attempt < max_retries - 1:
+                        logger.warning(f"LLM streaming API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                        import time
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                    else:
+                        yield self._create_error_result(f"LLM streaming failed after {max_retries} attempts: {str(e)}")
+                        return
+            
+            # Stream the response
+            full_content = ""
+            for chunk in response:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content:
+                        full_content += delta.content
+                        yield {
+                            "success": True,
+                            "text": delta.content,
+                            "full_text": full_content,
+                            "is_streaming": True,
+                            "timestamp": datetime.now().isoformat()
+                        }
+            
+            # Send final completion event
+            yield {
+                "success": True,
+                "text": "",
+                "full_text": full_content,
+                "is_streaming": False,
+                "is_complete": True,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"LLM streaming error: {str(e)}")
+            yield self._create_error_result(f"LLM streaming error: {str(e)}")
+
     def generate_text(self, prompt: str, max_tokens: int = 1000, 
                      temperature: float = 0.7, system_message: Optional[str] = None, 
                      max_retries: int = 3) -> Dict[str, Any]:

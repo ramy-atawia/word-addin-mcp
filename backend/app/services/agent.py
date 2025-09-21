@@ -275,17 +275,60 @@ class AgentService:
                         },
                         "timestamp": time.time()
                     }
+                
+                # Check if this is the final state with response
+                if isinstance(chunk, dict) and "final_response" in chunk:
+                    final_result = chunk
+                    logger.debug(f"Final result captured: {final_result}")
             
             # Send completion event after streaming finishes
             execution_time = time.time() - start_time
             logger.debug(f"LangGraph streaming completed in {execution_time:.2f}s")
+            
+            # If we have a final result, use it; otherwise generate a fallback response
+            if final_result and final_result.get("final_response"):
+                response_text = final_result["final_response"]
+                logger.debug(f"Using final result response: {response_text[:100]}...")
+            else:
+                # Generate a fallback response using LLM
+                logger.debug("No final result found, generating fallback response")
+                try:
+                    llm_client = self._get_llm_client()
+                    if llm_client and llm_client.llm_available:
+                        fallback_response = llm_client.generate_text(
+                            prompt=f"User asked: {user_message}\n\nPlease provide a helpful response.",
+                            max_tokens=500,
+                            temperature=0.7,
+                            system_message="You are a helpful AI assistant. Provide a brief, helpful response to the user's request."
+                        )
+                        if fallback_response.get("success"):
+                            response_text = fallback_response.get("text", "I'm here to help! How can I assist you?")
+                        else:
+                            response_text = "I'm here to help! How can I assist you?"
+                    else:
+                        response_text = "I'm here to help! How can I assist you?"
+                except Exception as e:
+                    logger.warning(f"Failed to generate fallback response: {e}")
+                    response_text = "I'm here to help! How can I assist you?"
+            
+            # Send the final response as a streaming event
+            yield {
+                "event_type": "llm_response",
+                "data": {
+                    "content": response_text,
+                    "is_streaming": False,
+                    "is_complete": True
+                },
+                "timestamp": time.time()
+            }
             
             yield {
                 "event_type": "workflow_complete",
                 "data": {
                     "message": "Workflow completed successfully",
                     "success": True,
-                    "execution_time": execution_time
+                    "execution_time": execution_time,
+                    "final_response": response_text
                 },
                 "timestamp": time.time()
             }

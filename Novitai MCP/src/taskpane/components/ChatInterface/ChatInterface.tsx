@@ -385,26 +385,47 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               console.log(`🔄 Node event: ${nodeName}`, event.data);
             }
             
-            // Handle LLM token events
-            if (event.event_type === 'llm_token') {
-              const content = event.data.content;
-              if (content) {
-                streamingResponseRef.current += content;
-                setStreamingResponse(streamingResponseRef.current);
-                
-                // Update internal messages directly without calling onMessage
-                setInternalMessages(prev => 
-                  prev.map(msg => msg.id === streamingMessageId ? {
-                    ...msg,
-                    content: streamingResponseRef.current,
-                    metadata: {
-                      ...msg.metadata,
-                      streamingProgress: 'response_generation'
+                  // Handle LLM token events
+                  if (event.event_type === 'llm_token') {
+                    const content = event.data.content;
+                    if (content) {
+                      streamingResponseRef.current += content;
+                      setStreamingResponse(streamingResponseRef.current);
+                      
+                      // Update internal messages directly without calling onMessage
+                      setInternalMessages(prev => 
+                        prev.map(msg => msg.id === streamingMessageId ? {
+                          ...msg,
+                          content: streamingResponseRef.current,
+                          metadata: {
+                            ...msg.metadata,
+                            streamingProgress: 'response_generation'
+                          }
+                        } : msg)
+                      );
                     }
-                  } : msg)
-                );
-              }
-            }
+                  }
+                  
+                  // Handle LLM response events (fallback for non-streaming LLM)
+                  if (event.event_type === 'llm_response') {
+                    const content = event.data.content;
+                    if (content) {
+                      streamingResponseRef.current = content; // Replace with full response
+                      setStreamingResponse(streamingResponseRef.current);
+                      
+                      // Update internal messages directly without calling onMessage
+                      setInternalMessages(prev => 
+                        prev.map(msg => msg.id === streamingMessageId ? {
+                          ...msg,
+                          content: streamingResponseRef.current,
+                          metadata: {
+                            ...msg.metadata,
+                            streamingProgress: 'response_generation'
+                          }
+                        } : msg)
+                      );
+                    }
+                  }
             
             // Handle raw chunk events
             if (event.event_type === 'raw_chunk') {
