@@ -272,58 +272,62 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             if (event.event_type === 'langgraph_chunk') {
               const data = event.data;
               
-              // Handle node updates (workflow progress)
-              if (data.updates) {
-                for (const [nodeName, nodeData] of Object.entries(data.updates as Record<string, any>)) {
-                  console.log(`🔄 Node update: ${nodeName}`, nodeData);
-                  
-                  // Update progress based on node
-                  let status: StreamingProgress['status'] = 'intent_detection';
-                  if (nodeName === 'intent_detection') {
-                    status = 'intent_detection';
-                  } else if (nodeName === 'workflow_planning') {
-                    status = 'tool_execution';
-                  } else if (nodeName === 'response_generation') {
-                    status = 'response_generation';
-                  }
-                  
-                  setStreamingProgress(prev => ({
-                    ...prev,
-                    status,
-                    currentStep: prev.currentStep + 1
-                  }));
-                  
-                  // Update the streaming message content
-                  const progressText = status === 'intent_detection' ? '🔍 Detecting intent...' :
-                                    status === 'tool_execution' ? '⚙️ Planning workflow...' :
-                                    status === 'response_generation' ? '✍️ Generating response...' : '🤔 Thinking...';
-                  
-                  const updatedMessage: ChatMessage = {
-                    id: streamingMessageId,
-                    type: 'assistant',
-                    content: `${progressText}\n\n${streamingResponse || 'Processing...'}`,
-                    timestamp: new Date(),
-                    metadata: {
-                      isStreaming: true,
-                      streamingProgress: status,
-                      currentStep: streamingProgress.currentStep + 1
+              // Handle node updates (workflow progress) - with proper type checking
+              if (data.updates && typeof data.updates === 'object') {
+                try {
+                  for (const [nodeName, nodeData] of Object.entries(data.updates)) {
+                    console.log(`🔄 Node update: ${nodeName}`, nodeData);
+                    
+                    // Update progress based on node
+                    let status: StreamingProgress['status'] = 'intent_detection';
+                    if (nodeName === 'intent_detection') {
+                      status = 'intent_detection';
+                    } else if (nodeName === 'workflow_planning') {
+                      status = 'tool_execution';
+                    } else if (nodeName === 'response_generation') {
+                      status = 'response_generation';
                     }
-                  };
-                  
-                  if (onMessage) {
-                    onMessage(updatedMessage);
-                  } else {
-                    setInternalMessages(prev => 
-                      prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
-                    );
+                    
+                    setStreamingProgress(prev => ({
+                      ...prev,
+                      status,
+                      currentStep: prev.currentStep + 1
+                    }));
+                    
+                    // Update the streaming message content
+                    const progressText = status === 'intent_detection' ? '🔍 Detecting intent...' :
+                                      status === 'tool_execution' ? '⚙️ Planning workflow...' :
+                                      status === 'response_generation' ? '✍️ Generating response...' : '🤔 Thinking...';
+                    
+                    const updatedMessage: ChatMessage = {
+                      id: streamingMessageId,
+                      type: 'assistant',
+                      content: `${progressText}\n\n${streamingResponse || 'Processing...'}`,
+                      timestamp: new Date(),
+                      metadata: {
+                        isStreaming: true,
+                        streamingProgress: status,
+                        currentStep: streamingProgress.currentStep + 1
+                      }
+                    };
+                    
+                    if (onMessage) {
+                      onMessage(updatedMessage);
+                    } else {
+                      setInternalMessages(prev => 
+                        prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
+                      );
+                    }
                   }
+                } catch (error) {
+                  console.warn('Failed to process node updates:', error);
                 }
               }
               
-              // Handle LLM token streaming
-              if (data.messages && data.messages.length > 0) {
+              // Handle LLM token streaming - with proper array checking
+              if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
                 for (const message of data.messages) {
-                  if (message.content) {
+                  if (message && message.content) {
                     setStreamingResponse(prev => prev + message.content);
                     
                     // Update the streaming message with accumulated content
@@ -348,6 +352,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   }
                 }
               }
+              
+              // Handle raw chunk data for debugging
+              if (data.raw_chunk) {
+                console.log('Raw LangGraph chunk received:', data.raw_chunk);
+              }
+            }
+            
+            // Handle specific node events
+            if (event.event_type.startsWith('node_')) {
+              const nodeName = event.event_type.replace('node_', '');
+              console.log(`🔄 Node event: ${nodeName}`, event.data);
+            }
+            
+            // Handle LLM token events
+            if (event.event_type === 'llm_token') {
+              const content = event.data.content;
+              if (content) {
+                setStreamingResponse(prev => prev + content);
+                
+                // Update the streaming message with accumulated content
+                const updatedMessage: ChatMessage = {
+                  id: streamingMessageId,
+                  type: 'assistant',
+                  content: streamingResponse + content,
+                  timestamp: new Date(),
+                  metadata: {
+                    isStreaming: true,
+                    streamingProgress: 'response_generation'
+                  }
+                };
+                
+                if (onMessage) {
+                  onMessage(updatedMessage);
+                } else {
+                  setInternalMessages(prev => 
+                    prev.map(msg => msg.id === streamingMessageId ? updatedMessage : msg)
+                  );
+                }
+              }
+            }
+            
+            // Handle raw chunk events
+            if (event.event_type === 'raw_chunk') {
+              console.log('Raw chunk event:', event.data);
             }
           },
           onComplete: (finalResponse: any) => {

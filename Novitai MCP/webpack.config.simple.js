@@ -75,7 +75,7 @@ module.exports = {
     hot: true,
     open: false,
     // Remove HTTPS for now to get it working
-    https: false,
+    // https: false, // Commented out as it's not supported in webpack dev server
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',

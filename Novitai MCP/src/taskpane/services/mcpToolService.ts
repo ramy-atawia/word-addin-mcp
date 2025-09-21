@@ -267,25 +267,29 @@ class MCPToolService {
                   if (streamingEvent.event_type === 'langgraph_chunk') {
                     const chunk = streamingEvent.data;
                     
-                    // Process LangGraph updates
-                    if (chunk.updates) {
-                      for (const [nodeName, nodeData] of Object.entries(chunk.updates)) {
-                        params.callbacks.onEvent({
-                          event_type: `node_${nodeName}`,
-                          data: {
-                            node: nodeName,
-                            message: `Completed ${nodeName}`,
-                            state: nodeData
-                          },
-                          timestamp: streamingEvent.timestamp
-                        });
+                    // Process LangGraph updates - handle both old and new formats
+                    if (chunk.updates && typeof chunk.updates === 'object') {
+                      try {
+                        for (const [nodeName, nodeData] of Object.entries(chunk.updates)) {
+                          params.callbacks.onEvent({
+                            event_type: `node_${nodeName}`,
+                            data: {
+                              node: nodeName,
+                              message: `Completed ${nodeName}`,
+                              state: nodeData
+                            },
+                            timestamp: streamingEvent.timestamp
+                          });
+                        }
+                      } catch (error) {
+                        console.warn('Failed to process LangGraph updates:', error);
                       }
                     }
                     
                     // Process LangGraph messages (LLM tokens)
-                    if (chunk.messages) {
+                    if (chunk.messages && Array.isArray(chunk.messages)) {
                       for (const message of chunk.messages) {
-                        if (message.content) {
+                        if (message && message.content) {
                           params.callbacks.onEvent({
                             event_type: 'llm_token',
                             data: {
@@ -296,6 +300,19 @@ class MCPToolService {
                           });
                         }
                       }
+                    }
+                    
+                    // Handle raw chunk data if present
+                    if (chunk.raw_chunk) {
+                      console.log('Raw LangGraph chunk:', chunk.raw_chunk);
+                      params.callbacks.onEvent({
+                        event_type: 'raw_chunk',
+                        data: {
+                          content: JSON.stringify(chunk.raw_chunk),
+                          is_streaming: true
+                        },
+                        timestamp: streamingEvent.timestamp
+                      });
                     }
                   }
                 }

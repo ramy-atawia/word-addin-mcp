@@ -206,7 +206,7 @@ class AgentService:
         """
         Process user message with LangGraph native streaming.
         
-        Uses LangGraph's built-in .astream() method - no custom streaming needed!
+        Uses LangGraph's built-in .astream() method with proper chunk handling.
         """
         start_time = time.time()
         logger.debug(f"Streaming LangGraph processing message: '{user_message[:50]}...'")
@@ -234,31 +234,61 @@ class AgentService:
                 "step_results": {}
             }
             
-            # Use LangGraph's built-in streaming - that's it!
+            # Track final result for completion event
+            final_result = None
+            
+            # Use LangGraph's built-in streaming
             async for chunk in langgraph_agent.astream(
                 initial_state, 
-                stream_mode=["updates", "messages"]  # LangGraph handles everything
+                stream_mode=["updates", "messages"]
             ):
-                # LangGraph returns chunks as tuples: (node_name, node_data)
-                # Convert to proper format for streaming
+                logger.debug(f"Received LangGraph chunk: {type(chunk)} - {chunk}")
+                
+                # Handle different chunk formats from LangGraph
                 if isinstance(chunk, tuple) and len(chunk) == 2:
+                    # Tuple format: (node_name, node_data)
                     node_name, node_data = chunk
                     yield {
                         "event_type": "langgraph_chunk",
                         "data": {
                             "node": node_name,
-                            "updates": node_data,
-                            "messages": []  # Will be populated by LangGraph
+                            "updates": {node_name: node_data} if node_data else {},
+                            "messages": []
                         },
                         "timestamp": time.time()
                     }
-                else:
-                    # Handle other chunk formats
+                elif isinstance(chunk, dict):
+                    # Dictionary format: LangGraph's standard format
                     yield {
                         "event_type": "langgraph_chunk",
                         "data": chunk,
                         "timestamp": time.time()
                     }
+                else:
+                    # Other formats - wrap in generic structure
+                    yield {
+                        "event_type": "langgraph_chunk",
+                        "data": {
+                            "raw_chunk": chunk,
+                            "updates": {},
+                            "messages": []
+                        },
+                        "timestamp": time.time()
+                    }
+            
+            # Send completion event after streaming finishes
+            execution_time = time.time() - start_time
+            logger.debug(f"LangGraph streaming completed in {execution_time:.2f}s")
+            
+            yield {
+                "event_type": "workflow_complete",
+                "data": {
+                    "message": "Workflow completed successfully",
+                    "success": True,
+                    "execution_time": execution_time
+                },
+                "timestamp": time.time()
+            }
             
         except Exception as e:
             execution_time = time.time() - start_time
