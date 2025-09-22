@@ -81,7 +81,7 @@ async def detect_intent_node(state: AgentState) -> AgentState:
             "step_results": {},
             "workflow_errors": []  # Initialize error tracking
         }
-        
+    
     except Exception as e:
         logger.error("Intent detection failed", error=str(e))
         # Fallback to conversation mode on intent detection failure
@@ -94,7 +94,7 @@ async def detect_intent_node(state: AgentState) -> AgentState:
             "workflow_errors": [f"Intent detection failed: {str(e)}"]
         }
     
-
+    
 async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     """Use LLM for intent detection and workflow planning."""
     user_input = state["user_input"]
@@ -129,6 +129,9 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
                 history_parts.append(f"Assistant: {content}")
         history_context = "\n".join(history_parts)
     
+    # Extract recent tool results for workflow context
+    recent_tool_results = _extract_recent_tool_results(conversation_history)
+    
     doc_context = ""
     if document_content:
         doc_preview = document_content[:2000] + "..." if len(document_content) > 2000 else document_content
@@ -148,6 +151,9 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
         "Recent conversation:",
         history_context if history_context else "No previous conversation",
         doc_context,
+        "",
+        "## RECENT TOOL RESULTS (if any):",
+        recent_tool_results if recent_tool_results else "No recent tool results available",
         "",
         "## COMPREHENSIVE ANALYSIS INSTRUCTIONS:",
         "",
@@ -184,13 +190,21 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
         "- **CONVERSATION**: Simple greetings, general questions, basic assistance, templates",
         "- **TOOL_WORKFLOW**: Any request requiring research, analysis, content generation, or multi-step processes",
         "",
+        "**CONTINUATION PATTERN DETECTION:**",
+        "If the user is asking to draft/analyze/create something AND there are recent tool results available:",
+        "- This should be TOOL_WORKFLOW to use the available context",
+        "- Examples: 'draft patent' after web search, 'analyze claims' after research, 'create report' after data gathering",
+        "- Use the recent tool results as context for the workflow",
+        "",
         "### STEP 5: WORKFLOW PLANNING",
         "When creating TOOL_WORKFLOW plans:",
+        "- If recent tool results are available, use them as context instead of re-researching",
         "- Start with research tools (web_search, prior_art_search) to gather information",
         "- Use analysis tools (claim_analysis) to process and understand the information",
         "- Use generation tools (claim_drafting) to create new content",
         "- Chain tools so each step builds on previous results using {previous_step_key} syntax",
         "- Plan for comprehensive coverage of the topic",
+        "- When recent tool results exist, include them in the first step's parameters as conversation_context",
         "",
         "CRITICAL: Analyze ONLY the current user message, not the conversation history.",
         "",
@@ -226,6 +240,10 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
         "TYPE: TOOL_WORKFLOW",
         "PLAN: [{\"step\": 1, \"tool\": \"web_search_tool\", \"params\": {\"query\": \"test\"}, \"output_key\": \"search_results\"}]",
         "",
+        "**Continuation Pattern (draft after research):**",
+        "TYPE: TOOL_WORKFLOW",
+        "PLAN: [{\"step\": 1, \"tool\": \"claim_drafting_tool\", \"params\": {\"user_query\": \"draft 1 system patent\", \"conversation_context\": \"[recent tool results from conversation history]\"}, \"output_key\": \"draft_claims\"}]",
+        "",
         "**Conversation Request:**",
         "TYPE: CONVERSATION",
         "PLAN: ",
@@ -235,6 +253,9 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
         "- \"research X and create Y\" → TOOL_WORKFLOW (research + generation workflow)",
         "- \"analyze X\" → TOOL_WORKFLOW (analysis workflow)",
         "- \"search for X\" → TOOL_WORKFLOW (search workflow)",
+        "- \"draft X\" + recent tool results → TOOL_WORKFLOW (continuation pattern)",
+        "- \"analyze X\" + recent tool results → TOOL_WORKFLOW (continuation pattern)",
+        "- \"create X\" + recent tool results → TOOL_WORKFLOW (continuation pattern)",
         "- \"hi\", \"hello\", \"help\" → CONVERSATION",
         "- \"explain X\" → CONVERSATION (unless it needs research)"
     ]
@@ -399,6 +420,28 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
         }
 
 
+def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> str:
+    """Extract recent tool results from conversation history for context."""
+    if not conversation_history:
+        return ""
+    
+    # Look for recent assistant messages that contain tool results
+    recent_tool_results = []
+    for msg in conversation_history[-5:]:  # Check last 5 messages
+        if msg.get('role') == 'assistant':
+            content = msg.get('content', '')
+            # Check if this looks like a tool result (contains research, analysis, etc.)
+            if any(keyword in content.lower() for keyword in ['research', 'analysis', 'search results', 'findings', 'data', 'information']):
+                # Truncate long content
+                if len(content) > 1000:
+                    content = content[:1000] + "... [truncated]"
+                recent_tool_results.append(content)
+    
+    if recent_tool_results:
+        return "\n\n".join(recent_tool_results)
+    return ""
+
+
 def _validate_tool_result(result: Any, tool_name: str) -> bool:
     """Validate that tool result contains meaningful data."""
     if not result:
@@ -489,7 +532,7 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any])
             
             if substitutions_made:
                 logger.info(f"Made substitutions for {key}", substitutions=substitutions_made)
-            else:
+        else:
                 logger.warning(f"No substitutions made for {key} despite placeholders", 
                              value=value, available_keys=list(step_results.keys()))
     
