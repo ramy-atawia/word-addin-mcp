@@ -348,38 +348,97 @@ For document drafting requests (like invention disclosures, reports, proposals),
 
 
 async def _generate_workflow_response(state: AgentState) -> str:
-    """Generate response from workflow results."""
+    """Generate response from workflow results using LLM synthesis."""
     step_results = state.get("step_results", {})
     workflow_plan = state.get("workflow_plan", [])
+    user_input = state.get("user_input", "")
+    conversation_history = state.get("conversation_history", [])
+    document_content = state.get("document_content", "")
     
     if not step_results:
         raise RuntimeError("No workflow results to generate response from")
     
-    response_parts = []
+    from app.services.agent import AgentService
+    agent_service = AgentService()
     
+    llm_client = agent_service._get_llm_client()
+    if not llm_client:
+        raise RuntimeError("LLM client is required for response synthesis but not available")
+    
+    # Collect tool outputs
+    tool_outputs = []
     for step in workflow_plan:
         output_key = step["output_key"]
         if output_key in step_results:
             result = step_results[output_key]
-            
             if isinstance(result, dict) and result.get("success", True):
-                # Extract formatted content
                 content = result.get("result", str(result))
-                
-                # Clean tool name formatting
                 tool_name = step["tool"].replace("_tool", "").replace("_", " ").title()
-                response_parts.append(f"**{tool_name}:**\n{content}")
+                tool_outputs.append(f"**{tool_name}:**\n{content}")
             else:
                 # Handle failed steps
                 error_key = f"step_{step['step']-1}_error"
                 if error_key in step_results:
                     error_msg = step_results[error_key]
-                    response_parts.append(f"Step {step['step']} ({step['tool']}) failed: {error_msg}")
+                    tool_outputs.append(f"**{step['tool']} (Failed):** {error_msg}")
     
-    if not response_parts:
+    if not tool_outputs:
         raise RuntimeError("No valid results from workflow execution")
     
-    return "\n\n".join(response_parts)
+    # Build context
+    history_context = ""
+    if conversation_history:
+        recent = conversation_history[-3:]
+        history_parts = []
+        for msg in recent:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role == 'user':
+                history_parts.append(f"User: {content}")
+            elif role == 'assistant':
+                history_parts.append(f"Assistant: {content}")
+        history_context = "\n".join(history_parts)
+    
+    doc_context = ""
+    if document_content:
+        doc_preview = document_content[:1000] + "..." if len(document_content) > 1000 else document_content
+        doc_context = f"\n\nDocument context:\n{doc_preview}"
+    
+    # Create synthesis prompt
+    prompt = f"""You are an AI assistant that synthesizes tool outputs into a coherent response.
+
+## USER REQUEST:
+"{user_input}"
+
+## TOOL OUTPUTS:
+{chr(10).join(tool_outputs)}
+
+## CONTEXT:
+Recent conversation:
+{history_context if history_context else "No previous conversation"}
+{doc_context}
+
+## INSTRUCTIONS:
+Synthesize the tool outputs above into a coherent, helpful response that addresses the user's request. Use the tool outputs as your primary source of information, but present them in a natural, integrated way that flows well.
+
+- Don't just repeat the tool outputs verbatim
+- Create a cohesive narrative that addresses the user's request
+- Use the tool outputs to provide comprehensive, useful information
+- Maintain a helpful, professional tone
+- If multiple tools were used, show how their outputs relate to each other
+
+Provide a well-structured response that the user will find valuable and easy to understand."""
+    
+    response = llm_client.generate_text(
+        prompt=prompt,
+        max_tokens=2000,
+        temperature=0.3
+    )
+    
+    if not response.get("success"):
+        raise RuntimeError(f"LLM response synthesis failed: {response.get('error', 'Unknown error')}")
+    
+    return response.get("text", "")
 
 
 def _route_after_intent(state: AgentState) -> str:
