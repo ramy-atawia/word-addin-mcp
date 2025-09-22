@@ -597,25 +597,25 @@ def create_agent_graph(dependencies: AgentGraphDependencies):
         state_with_deps = {**initial_state, "dependencies": dependencies}
         return await compiled_graph.ainvoke(state_with_deps)
     
-    # Create a wrapper for streaming that also injects dependencies
-    async def execute_with_dependencies_streaming(initial_state):
-        state_with_deps = {**initial_state, "dependencies": dependencies}
-        return compiled_graph.astream(state_with_deps, stream_mode=["updates", "messages"])
-    
     # Return both the function and the compiled graph for different use cases
     class AgentGraphWrapper:
-        def __init__(self, execute_func, stream_func, compiled_graph):
+        def __init__(self, execute_func, compiled_graph, dependencies):
             self.execute = execute_func
-            self.stream = stream_func
             self.compiled_graph = compiled_graph
+            self.dependencies = dependencies
         
         async def __call__(self, initial_state):
             return await self.execute(initial_state)
         
         def astream(self, initial_state, stream_mode=None):
-            return self.stream(initial_state)
+            # Inject dependencies and use the compiled graph directly
+            state_with_deps = {**initial_state, "dependencies": self.dependencies}
+            return self.compiled_graph.astream(
+                state_with_deps, 
+                stream_mode=stream_mode or ["updates", "messages"]
+            )
     
-    return AgentGraphWrapper(execute_with_dependencies, execute_with_dependencies_streaming, compiled_graph)
+    return AgentGraphWrapper(execute_with_dependencies, compiled_graph, dependencies)
 
 
 # Remove the global graph instance pattern
