@@ -420,7 +420,7 @@ async def _generate_workflow_response(state: AgentState) -> str:
                 content = result.get("result", str(result))
                 tool_name = step["tool"].replace("_tool", "").replace("_", " ").title()
                 tool_outputs.append(f"**{tool_name}:**\n{content}")
-    else:
+            else:
                 # Handle failed steps
                 error_key = f"step_{step['step']-1}_error"
                 if error_key in step_results:
