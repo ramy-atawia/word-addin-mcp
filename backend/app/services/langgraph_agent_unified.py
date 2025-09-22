@@ -106,24 +106,17 @@ Analyze the user's request and determine:
 For CONVERSATION: Simple responses, greetings, general writing help, explanations
 For TOOL_WORKFLOW: Patent searches, claim drafting, technical analysis, data processing
 
-IMPORTANT: Respond with EXACTLY this format:
-TYPE: CONVERSATION
-PLAN: 
+Response format:
+TYPE: [CONVERSATION or TOOL_WORKFLOW]
+PLAN: [For TOOL_WORKFLOW, provide JSON array of steps. For CONVERSATION, leave empty]
 
-OR
+Example TOOL_WORKFLOW plan:
+[
+  {{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "extracted search terms"}}, "output_key": "search_results"}},
+  {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "context": "{{search_results}}"}}, "output_key": "draft_results"}}
+]
 
-TYPE: TOOL_WORKFLOW
-PLAN: [{{"step": 1, "tool": "tool_name", "params": {{"param": "value"}}, "output_key": "result_key"}}]
-
-For TOOL_WORKFLOW, the PLAN must be valid JSON. For CONVERSATION, leave PLAN empty.
-
-Example for search request:
-TYPE: TOOL_WORKFLOW
-PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "search terms"}}, "output_key": "search_results"}}]
-
-Example for claim drafting:
-TYPE: TOOL_WORKFLOW
-PLAN: [{{"step": 1, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims for topic"}}, "output_key": "draft_results"}}]"""
+Extract actual parameters from the user request. Use {{previous_step_key}} syntax to reference earlier results."""
     
     response = llm_client.generate_text(
         prompt=prompt,
@@ -138,7 +131,7 @@ PLAN: [{{"step": 1, "tool": "claim_drafting_tool", "params": {{"user_query": "dr
 
 
 def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
-    """Parse LLM intent detection response."""
+    """Parse LLM intent detection response with robust JSON handling."""
     lines = response_text.strip().split('\n')
     intent_type = "conversation"
     workflow_plan = []
@@ -153,36 +146,38 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
                 intent_type = "conversation"
         elif line.startswith("PLAN:") and intent_type == "tool_workflow":
             plan_text = line.split(":", 1)[1].strip()
-            if plan_text and plan_text.lower() not in ["empty", "[]", ""]:
+            if plan_text and plan_text.lower() not in ["empty", "[]", "", "null"]:
                 try:
+                    # Try to extract JSON from anywhere in the response if line parsing fails
                     workflow_plan = json.loads(plan_text)
-                except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse workflow plan from LLM: {e}")
-                    logger.warning(f"LLM response: {response_text}")
-                    # Fallback: create a simple workflow plan based on common patterns
-                    if "search" in response_text.lower():
-                        workflow_plan = [{
-                            "step": 1,
-                            "tool": "web_search_tool",
-                            "params": {"query": "search query"},
-                            "output_key": "search_results"
-                        }]
-                    elif "draft" in response_text.lower() or "claim" in response_text.lower():
-                        workflow_plan = [{
-                            "step": 1,
-                            "tool": "claim_drafting_tool",
-                            "params": {"user_query": "draft claims"},
-                            "output_key": "draft_results"
-                        }]
+                except json.JSONDecodeError:
+                    # Try to find JSON array in the entire response
+                    json_match = _extract_json_from_text(response_text)
+                    if json_match:
+                        workflow_plan = json_match
                     else:
-                        workflow_plan = [{
-                            "step": 1,
-                            "tool": "web_search_tool",
-                            "params": {"query": "search query"},
-                            "output_key": "search_results"
-                        }]
+                        logger.warning(f"Could not parse workflow plan, defaulting to conversation. Plan text: {plan_text}")
+                        intent_type = "conversation"
+                        workflow_plan = []
     
     return intent_type, workflow_plan
+
+
+def _extract_json_from_text(text: str) -> List[Dict]:
+    """Extract JSON array from text using pattern matching."""
+    import re
+    
+    # Look for JSON array patterns
+    json_pattern = r'\[\s*\{.*?\}\s*\]'
+    matches = re.findall(json_pattern, text, re.DOTALL)
+    
+    for match in matches:
+        try:
+            return json.loads(match)
+        except json.JSONDecodeError:
+            continue
+    
+    return []
 
 
 async def execute_workflow_node(state: AgentState) -> AgentState:
