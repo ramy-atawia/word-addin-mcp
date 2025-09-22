@@ -116,8 +116,11 @@ Determine:
 1. Is this a CONVERSATION (general chat, writing assistance, questions) or TOOL_WORKFLOW (needs specific tools)?
 2. If TOOL_WORKFLOW, create a step-by-step execution plan using available tools.
 
-For CONVERSATION: Simple responses, greetings, general writing help, explanations
-For TOOL_WORKFLOW: Patent searches, claim drafting, technical analysis, data processing
+For CONVERSATION: Simple responses, greetings, general writing help, explanations, 
+                 invention disclosure guidance, patent document templates
+For TOOL_WORKFLOW: Patent searches, claim drafting, technical analysis, data processing,
+                  invention disclosure drafting, patent document preparation, 
+                  multi-step patent workflows
 
 CRITICAL: Analyze ONLY the current user message, not the conversation history.
 
@@ -147,7 +150,12 @@ TYPE: TOOL_WORKFLOW
 PLAN: [{{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "AI patents"}}, "output_key": "search_results"}}]
 
 TYPE: TOOL_WORKFLOW
-PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "blockchain"}}, "output_key": "web_results"}}, {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "context": "{{web_results}}"}}, "output_key": "draft_results"}}]"""
+PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "blockchain"}}, "output_key": "web_results"}}, {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "context": "{{web_results}}"}}, "output_key": "draft_results"}}]
+
+For invention disclosure requests:
+- "draft an invention disclosure" → CONVERSATION (provide guidance and templates)
+- "draft invention disclosure for AI system with research" → TOOL_WORKFLOW (use tools to research and draft)
+- "help me write the technical description section" → CONVERSATION (provide specific guidance)"""
     
     response = llm_client.generate_text(
         prompt=prompt,
@@ -311,7 +319,7 @@ async def _generate_conversation_response(state: AgentState) -> str:
         doc_preview = document_content[:1000] + "..." if len(document_content) > 1000 else document_content
         doc_context = f"\n\nDocument context available:\n{doc_preview}"
     
-    prompt = f"""You are a helpful AI assistant. Respond naturally to the user's message.
+    prompt = f"""You are a helpful AI assistant specializing in patent and intellectual property matters. Respond naturally to the user's message.
 
 ## CURRENT MESSAGE (PRIORITY):
 "{user_input}"
@@ -324,7 +332,12 @@ Recent conversation:
 ## RESPONSE INSTRUCTIONS:
 Focus on the current message above. Use conversation history only for context, not as part of the current request.
 
-Provide a helpful, natural response. Be concise but complete. Use context appropriately but prioritize the current message."""
+For invention disclosure and patent-related requests, provide structured guidance including:
+- Key sections needed (technical description, claims, background, etc.)
+- Template suggestions and best practices
+- Offer to help with specific sections using available tools
+
+For general requests, provide helpful, natural responses. Be concise but complete. Use context appropriately but prioritize the current message."""
     
     response = llm_client.generate_text(
         prompt=prompt,
