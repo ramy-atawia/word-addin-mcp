@@ -64,9 +64,9 @@ async def detect_intent_node(state: AgentState) -> AgentState:
         **state,
         "intent_type": intent_type,
         "workflow_plan": workflow_plan,
-            "current_step": 0,
-            "step_results": {}
-        }
+        "current_step": 0,
+        "step_results": {}
+    }
     
 
 async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
@@ -78,7 +78,9 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     
     # Use injected dependency instead of importing AgentService
     dependencies = state.get("dependencies")
-    if not dependencies or not dependencies.llm_client:
+    if not dependencies:
+        raise RuntimeError("Dependencies not injected into state")
+    if not hasattr(dependencies, 'llm_client') or not dependencies.llm_client:
         raise RuntimeError("LLM client is required for intent detection but not available")
     
     llm_client = dependencies.llm_client
@@ -251,7 +253,7 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
                     if not isinstance(workflow_plan, list):
                         raise RuntimeError("Workflow plan must be a JSON array")
                 except json.JSONDecodeError as e:
-                    raise RuntimeError(f"Invalid JSON in workflow plan: {e}")
+                    raise RuntimeError(f"Invalid JSON in workflow plan: {e}. Plan text: '{plan_text[:100]}...'")
             # For conversation, plan should be empty
     
     return intent_type, workflow_plan
@@ -271,7 +273,9 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
     try:
         # Use injected dependency instead of importing AgentService
         dependencies = state.get("dependencies")
-        if not dependencies or not dependencies.mcp_orchestrator:
+        if not dependencies:
+            raise RuntimeError("Dependencies not injected into state")
+        if not hasattr(dependencies, 'mcp_orchestrator') or not dependencies.mcp_orchestrator:
             raise RuntimeError("MCP orchestrator is required for tool execution but not available")
         
         orchestrator = dependencies.mcp_orchestrator
@@ -313,14 +317,17 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any])
     """Add context from previous steps to parameters."""
     enhanced_params = params.copy()
     
-    # Simple context injection using {key} syntax
+    # Context injection using {key} syntax - handles multiple placeholders per value
     for key, value in enhanced_params.items():
         if isinstance(value, str) and "{" in value and "}" in value:
+            # Process all placeholders in this value
+            processed_value = value
             for result_key, result_value in step_results.items():
                 placeholder = f"{{{result_key}}}"
-                if placeholder in value:
+                if placeholder in processed_value:
                     context_text = str(result_value.get("result", result_value))
-                    enhanced_params[key] = value.replace(placeholder, context_text)
+                    processed_value = processed_value.replace(placeholder, context_text)
+            enhanced_params[key] = processed_value
     
     return enhanced_params
 
@@ -350,7 +357,9 @@ async def _generate_conversation_response(state: AgentState) -> str:
     
     # Use injected dependency instead of importing AgentService
     dependencies = state.get("dependencies")
-    if not dependencies or not dependencies.llm_client:
+    if not dependencies:
+        raise RuntimeError("Dependencies not injected into state")
+    if not hasattr(dependencies, 'llm_client') or not dependencies.llm_client:
         raise RuntimeError("LLM client is required for conversation but not available")
         
     llm_client = dependencies.llm_client
@@ -415,7 +424,9 @@ async def _generate_workflow_response(state: AgentState) -> str:
     
     # Use injected dependency instead of importing AgentService
     dependencies = state.get("dependencies")
-    if not dependencies or not dependencies.llm_client:
+    if not dependencies:
+        raise RuntimeError("Dependencies not injected into state")
+    if not hasattr(dependencies, 'llm_client') or not dependencies.llm_client:
         raise RuntimeError("LLM client is required for response synthesis but not available")
     
     llm_client = dependencies.llm_client
