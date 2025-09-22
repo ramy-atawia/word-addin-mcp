@@ -125,14 +125,14 @@ class WebSearchTool(BaseInternalTool):
                     
                     return result_text
                 else:
-                    # Fallback to placeholder if no results
+                    # No results found
                     logger.warning(f"No Google search results for query: {query}")
                     execution_time = time.time() - start_time
                     return f"# Web Search Results for: {query}\n\nNo search results found."
                     
             except ImportError:
-                logger.error("WebSearchService not available, using placeholder")
-                # Fallback to placeholder
+                logger.error("WebSearchService not available")
+                raise RuntimeError("WebSearchService not available")
                 results = [
                     f"Search result for '{query}' - WebSearchService not configured",
                     "Please configure Google Search API credentials"

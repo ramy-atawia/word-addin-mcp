@@ -13,7 +13,7 @@ from app.services.langgraph_agent_unified import (
     execute_workflow_node,
     generate_response_node,
     create_agent_graph,
-    AgentGraphDependencies
+    get_agent_graph
 )
 
 
@@ -211,26 +211,17 @@ class TestUnifiedLangGraph:
     
     def test_create_agent_graph(self):
         """Test agent graph creation."""
-        # Create mock dependencies
-        mock_llm_client = Mock()
-        mock_mcp_orchestrator = Mock()
-        dependencies = AgentGraphDependencies(mock_llm_client, mock_mcp_orchestrator)
-        
-        graph = create_agent_graph(dependencies)
+        graph = create_agent_graph()
         assert graph is not None
-        assert callable(graph)  # Should return a function
+        # Graph should have the expected nodes
+        assert hasattr(graph, 'nodes')
     
-    def test_create_agent_graph_with_dependencies(self):
-        """Test agent graph creation with dependencies."""
-        # Create mock dependencies
-        mock_llm_client = Mock()
-        mock_mcp_orchestrator = Mock()
-        dependencies = AgentGraphDependencies(mock_llm_client, mock_mcp_orchestrator)
-        
-        # Create agent graph
-        agent_graph = create_agent_graph(dependencies)
-        assert agent_graph is not None
-        assert callable(agent_graph)  # Should return a function
+    def test_get_agent_graph(self):
+        """Test agent graph lazy initialization."""
+        graph1 = get_agent_graph()
+        graph2 = get_agent_graph()
+        # Should return the same instance (lazy initialization)
+        assert graph1 is graph2
 
 
 class TestUnifiedLangGraphIntegration:
@@ -501,7 +492,7 @@ PARAMETERS: {"query": "5G technology"}"""
             
             # Execute tools (first succeeds, second fails)
             current_state = plan_result
-            current_state = await execute_workflow_node(current_state)  # Web search - succeeds
+                current_state = await execute_workflow_node(current_state)  # Web search - succeeds
             current_state = await execute_workflow_node(current_state)  # Prior art - fails
             
             # Generate response

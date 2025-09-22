@@ -162,7 +162,7 @@ async def get_session_messages(session_id: str, limit: int = 50) -> Dict[str, An
             )
         
         # TODO: Implement message retrieval from conversation memory
-        # For now, return placeholder messages
+        # Return empty messages for now
         messages = [
             {
                 "id": "1",

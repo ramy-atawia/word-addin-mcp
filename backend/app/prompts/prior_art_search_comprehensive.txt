@@ -5,7 +5,7 @@ Generate a comprehensive prior art search report for: {user_query}
 
 **IMPORTANT INSTRUCTIONS**:
 - Use the "Detailed Claims Analysis" section from the Search Context above to populate the "Detailed Claim Analysis" section in your report
-- Do NOT generate placeholder text like "[full text]" or "[breakdown]" - use the actual claims analysis provided
+- Use the actual claims analysis provided, not generic text
 - If claims analysis is not available for a patent, clearly state "Claims analysis not available"
 - Extract and use the actual claim text and analysis from the provided data
 

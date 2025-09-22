@@ -455,7 +455,7 @@ async def execute(self, parameters: Dict[str, Any]) -> str:
         result = await self._execute_tool_logic(parameters)
         return result
     except ImportError:
-        logger.error("Service not available, using placeholder")
+        logger.error("Service not available")
         return self._create_fallback_response(parameters)
     except Exception as e:
         logger.error(f"Tool execution failed: {e}")

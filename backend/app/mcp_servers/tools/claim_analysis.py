@@ -150,7 +150,8 @@ class ClaimAnalysisTool(BaseInternalTool):
                     return analysis_result["analysis_report"]
                     
             except ImportError:
-                logger.error("ClaimAnalysisService not available, using placeholder")
+                logger.error("ClaimAnalysisService not available")
+                raise RuntimeError("ClaimAnalysisService not available")
                 execution_time = time.time() - start_time
                 self.update_usage_stats(execution_time)
                 

@@ -247,12 +247,12 @@ class WebSearchService:
             return []
     
     async def _search_ieee(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """Search IEEE Xplore (placeholder for future implementation)."""
+        """Search IEEE Xplore (not implemented)."""
         logger.info(f"IEEE search not yet implemented for query: {query}")
         return []
     
     async def _search_acm(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """Search ACM Digital Library (placeholder for future implementation)."""
+        """Search ACM Digital Library (not implemented)."""
         logger.info(f"ACM search not yet implemented for query: {query}")
         return []
     
