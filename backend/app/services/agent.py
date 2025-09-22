@@ -86,9 +86,12 @@ class AgentService:
             try:
                 from .mcp.orchestrator import get_initialized_mcp_orchestrator
                 self.mcp_orchestrator = get_initialized_mcp_orchestrator()
+                logger.debug("MCP orchestrator initialized")
             except RuntimeError as e:
+                logger.error(f"MCP orchestrator initialization failed: {e}")
                 raise RuntimeError("AgentService requires initialized MCP Orchestrator")
             except Exception as e:
+                logger.error(f"Failed to initialize MCP orchestrator: {e}")
                 raise RuntimeError(f"Failed to initialize MCP orchestrator: {str(e)}")
         return self.mcp_orchestrator
     
@@ -96,11 +99,26 @@ class AgentService:
         """Get unified LangGraph agent with lazy initialization."""
         if self.unified_langgraph_agent is None:
             try:
-                from .langgraph_agent_unified import get_agent_graph
-                self.unified_langgraph_agent = get_agent_graph()
-                logger.debug("Unified LangGraph agent initialized")
+                from .langgraph_agent_unified import create_agent_graph, AgentGraphDependencies
+                
+                # Get dependencies
+                llm_client = self._get_llm_client()
+                mcp_orchestrator = self._get_mcp_orchestrator()
+                
+                if not llm_client or not mcp_orchestrator:
+                    raise RuntimeError("Required dependencies not available for LangGraph agent")
+                
+                # Create dependencies object
+                dependencies = AgentGraphDependencies(llm_client, mcp_orchestrator)
+                
+                # Create agent graph with dependencies
+                self.unified_langgraph_agent = create_agent_graph(dependencies)
+                logger.debug("Unified LangGraph agent initialized with dependencies")
             except ImportError as e:
                 logger.error(f"Failed to import unified LangGraph agent: {e}")
+                self.unified_langgraph_agent = None
+            except Exception as e:
+                logger.error(f"Failed to initialize unified LangGraph agent: {e}")
                 self.unified_langgraph_agent = None
         return self.unified_langgraph_agent
     
@@ -144,8 +162,8 @@ class AgentService:
                 "step_results": {}
             }
             
-            # Run unified LangGraph workflow
-            result = await langgraph_agent.ainvoke(initial_state)
+            # Run unified LangGraph workflow (langgraph_agent is already a function with dependencies injected)
+            result = await langgraph_agent(initial_state)
             
             # Convert to existing response format
             execution_time = time.time() - start_time
