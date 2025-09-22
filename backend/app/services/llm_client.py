@@ -62,7 +62,7 @@ class LLMClient:
             logger.warning("Azure OpenAI not configured - LLM features disabled")
     
     def generate_text_stream(self, prompt: str, max_tokens: int = 1000, 
-                           temperature: float = 0.7, system_message: Optional[str] = None, 
+                           temperature: float = None, system_message: Optional[str] = None, 
                            max_retries: int = 3):
         """
         Generate text using the LLM with streaming.
@@ -98,8 +98,8 @@ class LLMClient:
                         "max_completion_tokens": max_tokens,
                         "stream": True
                     }
-                    # Only add temperature if it's not 0.0 (which is not supported)
-                    if temperature != 0.0:
+                    # Only add temperature if it's explicitly provided and not 0.0
+                    if temperature is not None and temperature != 0.0:
                         api_params["temperature"] = temperature
                     
                     response = self.client.chat.completions.create(**api_params)
@@ -144,7 +144,7 @@ class LLMClient:
             yield self._create_error_result(f"LLM streaming error: {str(e)}")
 
     def generate_text(self, prompt: str, max_tokens: int = 1000, 
-                     temperature: float = 0.7, system_message: Optional[str] = None, 
+                     temperature: float = None, system_message: Optional[str] = None, 
                      max_retries: int = 3) -> Dict[str, Any]:
         """
         Generate text using the LLM.
@@ -178,8 +178,8 @@ class LLMClient:
                         "messages": messages,
                         "max_completion_tokens": max_tokens
                     }
-                    # Only add temperature if it's not 0.0 (which is not supported)
-                    if temperature != 0.0:
+                    # Only add temperature if it's explicitly provided and not 0.0
+                    if temperature is not None and temperature != 0.0:
                         api_params["temperature"] = temperature
                     
                     response = self.client.chat.completions.create(**api_params)
