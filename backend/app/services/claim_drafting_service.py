@@ -89,8 +89,7 @@ class ClaimDraftingService:
             response_data = self.llm_client.generate_text(
                 prompt=formatted_user_prompt,
                 system_message=system_prompt,
-                max_tokens=4000,
-                temperature=0.3
+                max_tokens=4000
             )
             
             # Return raw response as markdown

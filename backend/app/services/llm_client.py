@@ -62,7 +62,7 @@ class LLMClient:
             logger.warning("Azure OpenAI not configured - LLM features disabled")
     
     def generate_text_stream(self, prompt: str, max_tokens: int = 1000, 
-                           temperature: float = None, system_message: Optional[str] = None, 
+                           system_message: Optional[str] = None, 
                            max_retries: int = 3):
         """
         Generate text using the LLM with streaming.
@@ -70,7 +70,6 @@ class LLMClient:
         Args:
             prompt: User prompt
             max_tokens: Maximum tokens to generate
-            temperature: Creativity level (0.0 to 2.0)
             system_message: Optional system message
             
         Yields:
@@ -91,16 +90,13 @@ class LLMClient:
             last_error = None
             for attempt in range(max_retries):
                 try:
-                    # GPT-5-nano only supports temperature=1 (default)
+                    # GPT-5-nano only supports default temperature
                     api_params = {
                         "model": self.azure_deployment,
                         "messages": messages,
                         "max_completion_tokens": max_tokens,
                         "stream": True
                     }
-                    # Only add temperature if it's explicitly provided and not 0.0
-                    if temperature is not None and temperature != 0.0:
-                        api_params["temperature"] = temperature
                     
                     response = self.client.chat.completions.create(**api_params)
                     break  # Success, exit retry loop
@@ -144,7 +140,7 @@ class LLMClient:
             yield self._create_error_result(f"LLM streaming error: {str(e)}")
 
     def generate_text(self, prompt: str, max_tokens: int = 1000, 
-                     temperature: float = None, system_message: Optional[str] = None, 
+                     system_message: Optional[str] = None, 
                      max_retries: int = 3) -> Dict[str, Any]:
         """
         Generate text using the LLM.
@@ -152,7 +148,6 @@ class LLMClient:
         Args:
             prompt: User prompt
             max_tokens: Maximum tokens to generate
-            temperature: Creativity level (0.0 to 2.0)
             system_message: Optional system message
             
         Returns:
@@ -172,15 +167,12 @@ class LLMClient:
             last_error = None
             for attempt in range(max_retries):
                 try:
-                    # GPT-5-nano only supports temperature=1 (default)
+                    # GPT-5-nano only supports default temperature
                     api_params = {
                         "model": self.azure_openai_deployment,
                         "messages": messages,
                         "max_completion_tokens": max_tokens
                     }
-                    # Only add temperature if it's explicitly provided and not 0.0
-                    if temperature is not None and temperature != 0.0:
-                        api_params["temperature"] = temperature
                     
                     response = self.client.chat.completions.create(**api_params)
                     break  # Success, exit retry loop
@@ -254,7 +246,6 @@ class LLMClient:
             result = self.generate_text(
                 prompt=prompt,
                 max_tokens=500,
-                temperature=0.3,
                 system_message="You are an expert at summarizing text. Provide clear, accurate summaries."
             )
             
@@ -302,7 +293,6 @@ class LLMClient:
             result = self.generate_text(
                 prompt=prompt,
                 max_tokens=200,
-                temperature=0.3,
                 system_message="You are an expert at keyword extraction. Return only the keywords, separated by commas."
             )
             
@@ -358,7 +348,6 @@ class LLMClient:
             result = self.generate_text(
                 prompt=prompt,
                 max_tokens=200,
-                temperature=0.3,
                 system_message="You are an expert at sentiment analysis. Provide structured, accurate analysis."
             )
             
@@ -409,7 +398,6 @@ class LLMClient:
             result = self.generate_text(
                 prompt=prompt,
                 max_tokens=200,
-                temperature=0.3,
                 system_message="You are an expert at readability analysis. Provide structured, accurate analysis."
             )
             
@@ -481,7 +469,6 @@ class LLMClient:
             result = self.generate_text(
                 prompt=prompt,
                 max_tokens=400,
-                temperature=0.3,
                 system_message="You are an expert at text comparison. Provide structured, accurate analysis."
             )
             
@@ -524,7 +511,6 @@ class LLMClient:
             result = self.generate_text(
                 prompt=prompt,
                 max_tokens=len(text) * 2,  # Allow for longer translations
-                temperature=0.3,
                 system_message=f"You are an expert translator. Provide accurate translation to {target_language}."
             )
             

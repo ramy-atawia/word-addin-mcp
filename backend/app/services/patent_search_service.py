@@ -124,8 +124,7 @@ class PatentSearchService:
             response = self.llm_client.generate_text(
                 prompt=prompt,
                 system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
-                max_tokens=2500,
-                temperature=0.3
+                max_tokens=2500
             )
             
             logger.info(f"LLM response: {response}")
@@ -357,8 +356,7 @@ Format as concise markdown.
                 # Reduced token usage for faster processing
                 response = self.llm_client.generate_text(
                     prompt=claims_prompt,
-                    max_tokens=300,  # Further reduced from 600 to 300 for faster processing
-                    temperature=0.3
+                    max_tokens=300  # Further reduced from 600 to 300 for faster processing
                 )
                 
                 if response.get("success"):
@@ -547,8 +545,7 @@ Format as concise markdown.
             response = self.llm_client.generate_text(
                 prompt=user_prompt,
                 system_message=system_prompt,
-                max_tokens=4000,  # Increased back to 4000 with 300s timeout
-                temperature=0.3
+                max_tokens=4000  # Increased back to 4000 with 300s timeout
             )
             
             if response.get("success"):

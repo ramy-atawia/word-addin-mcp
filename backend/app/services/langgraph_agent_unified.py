@@ -200,8 +200,7 @@ PLAN:
     
     response = llm_client.generate_text(
         prompt=prompt,
-        max_tokens=1500,
-        temperature=0.1
+        max_tokens=1500
     )
     
     if not response.get("success"):
@@ -379,8 +378,7 @@ For document drafting requests (like invention disclosures, reports, proposals),
     
     response = llm_client.generate_text(
         prompt=prompt,
-        max_tokens=800,
-        temperature=0.7
+        max_tokens=800
     )
     
     if not response.get("success"):
@@ -504,8 +502,7 @@ Create a response that the user will find immediately valuable and actionable.""
     
     response = llm_client.generate_text(
         prompt=prompt,
-        max_tokens=2000,
-        temperature=0.3
+        max_tokens=2000
     )
     
     if not response.get("success"):

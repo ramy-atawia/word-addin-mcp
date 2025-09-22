@@ -305,7 +305,6 @@ class AgentService:
                         fallback_response = llm_client.generate_text(
                             prompt=f"User asked: {user_message}\n\nPlease provide a helpful response.",
                             max_tokens=500,
-                            temperature=0.7,
                             system_message="You are a helpful AI assistant. Provide a brief, helpful response to the user's request."
                         )
                         if fallback_response.get("success"):
@@ -613,7 +612,6 @@ Choose the most appropriate tool or provide a conversational response."""
             raw_llm_response = llm_client.generate_text(
                 prompt=user_prompt,
                 max_tokens=2000,
-                temperature=0.0,
                 system_message=system_prompt
             )
 
@@ -741,7 +739,6 @@ Provide a well-formatted markdown response that directly answers the user's ques
             result = llm_client.generate_text(
                 prompt=user_prompt,
                 max_tokens=16000,
-                temperature=0.3,
                 system_message=system_prompt
             )
             

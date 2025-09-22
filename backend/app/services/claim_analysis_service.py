@@ -130,8 +130,7 @@ Focus on creating a comprehensive analysis framework for patent claim evaluation
             
             response_data = self.llm_client.generate_text(
                 prompt=prompt,
-                max_tokens=800,
-                temperature=0.3
+                max_tokens=800
             )
             response = response_data.get("text", "")
             
@@ -181,8 +180,7 @@ Focus on creating a comprehensive analysis framework for patent claim evaluation
             response_data = self.llm_client.generate_text(
                 prompt=user_prompt,
                 system_message=system_prompt,
-                max_tokens=4000,
-                temperature=0.3
+                max_tokens=4000
             )
             
             # Parse response
