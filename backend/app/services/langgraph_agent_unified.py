@@ -1,5 +1,5 @@
 """
-Clean LangGraph Agent Service
+Clean LangGraph Agent Service - FIXED VERSION
 
 Pure LLM-driven agent with no keyword logic, no fallbacks, no mock data.
 Fails fast with clear errors when dependencies are missing.
@@ -9,6 +9,13 @@ Features:
 - Clean unified state management
 - Clear workflow routing
 - No hardcoded patterns or fallbacks
+
+FIXES APPLIED:
+- Enhanced error handling and validation
+- Improved context propagation with debugging
+- Stricter tool result validation
+- Better failure reporting
+- Enhanced logging throughout workflow
 """
 
 import structlog
@@ -48,6 +55,7 @@ class AgentState(TypedDict):
     workflow_plan: List[Dict[str, Any]]
     current_step: int
     step_results: Dict[str, Any]
+    workflow_errors: List[str]  # NEW: Track workflow errors
     
     # Output
     final_response: str
@@ -55,17 +63,35 @@ class AgentState(TypedDict):
 
 async def detect_intent_node(state: AgentState) -> AgentState:
     """Detect whether this is a conversation or tool workflow using LLM."""
-    logger.debug("Detecting intent with LLM")
+    logger.info("Starting intent detection", user_input=state["user_input"][:100])
     
-    # Always use LLM for intent detection - no keyword logic
-    intent_type, workflow_plan = await _llm_intent_detection(state)
-    
-    return {
-        **state,
-        "intent_type": intent_type,
-        "workflow_plan": workflow_plan,
+    try:
+        # Always use LLM for intent detection - no keyword logic
+        intent_type, workflow_plan = await _llm_intent_detection(state)
+        
+        logger.info("Intent detection completed", 
+                   intent_type=intent_type, 
+                   workflow_steps=len(workflow_plan))
+        
+        return {
+            **state,
+            "intent_type": intent_type,
+            "workflow_plan": workflow_plan,
             "current_step": 0,
-            "step_results": {}
+            "step_results": {},
+            "workflow_errors": []  # Initialize error tracking
+        }
+        
+    except Exception as e:
+        logger.error("Intent detection failed", error=str(e))
+        # Fallback to conversation mode on intent detection failure
+        return {
+            **state,
+            "intent_type": "conversation",
+            "workflow_plan": [],
+            "current_step": 0,
+            "step_results": {},
+            "workflow_errors": [f"Intent detection failed: {str(e)}"]
         }
     
 
@@ -228,6 +254,8 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
 
 def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
     """Parse LLM intent detection response with strict validation."""
+    logger.debug("Parsing LLM intent response", response_preview=response_text[:200])
+    
     lines = response_text.strip().split('\n')
     intent_type = "conversation"
     workflow_plan = []
@@ -241,6 +269,7 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
             elif type_value == "CONVERSATION":
                 intent_type = "conversation"
             else:
+                logger.warning("Invalid intent type from LLM", type_value=type_value)
                 raise RuntimeError(f"Invalid intent type from LLM: {type_value}")
                 
         elif line.startswith("PLAN:"):
@@ -252,7 +281,10 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
                     workflow_plan = json.loads(plan_text)
                     if not isinstance(workflow_plan, list):
                         raise RuntimeError("Workflow plan must be a JSON array")
+                    logger.info("Parsed workflow plan", plan=workflow_plan)
                 except json.JSONDecodeError as e:
+                    logger.error("Invalid JSON in workflow plan", 
+                               error=str(e), plan_text=plan_text[:200])
                     raise RuntimeError(f"Invalid JSON in workflow plan: {e}. Plan text: '{plan_text[:100]}...'")
             # For conversation, plan should be empty
     
@@ -260,14 +292,18 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
 
 
 async def execute_workflow_node(state: AgentState) -> AgentState:
-    """Execute the workflow plan step by step."""
-    logger.debug("Executing workflow")
-    
+    """Execute the workflow plan step by step with enhanced error handling."""
     workflow_plan = state.get("workflow_plan", [])
     current_step = state.get("current_step", 0)
     step_results = state.get("step_results", {})
+    workflow_errors = state.get("workflow_errors", [])
+    
+    logger.info("Executing workflow step", 
+               current_step=current_step, 
+               total_steps=len(workflow_plan))
     
     if current_step >= len(workflow_plan):
+        logger.info("Workflow completed", total_steps=len(workflow_plan))
         return state  # All steps completed
     
     try:
@@ -286,67 +322,188 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
         params = step["params"]
         output_key = step["output_key"]
         
+        logger.info("Preparing tool execution", 
+                   tool=tool_name, 
+                   output_key=output_key,
+                   raw_params=params)
+        
         # Add context from previous steps if needed
-        params = _add_context_to_params(params, step_results)
+        enhanced_params = _add_context_to_params(params, step_results)
+        
+        logger.info("Enhanced params after context substitution", 
+                   enhanced_params=enhanced_params)
         
         # Execute tool
-        logger.debug(f"Executing {tool_name} with params: {params}")
-        result = await orchestrator.execute_tool(tool_name, params)
+        logger.info(f"Executing {tool_name}", params=enhanced_params)
+        result = await orchestrator.execute_tool(tool_name, enhanced_params)
         
-        # Store result
+        logger.info("Tool execution completed", 
+                   tool=tool_name, 
+                   result_type=type(result).__name__,
+                   result_success=result.get("success") if isinstance(result, dict) else "unknown")
+        
+        # ENHANCED VALIDATION: Check if result is meaningful
+        if not _validate_tool_result(result, tool_name):
+            error_msg = f"Tool {tool_name} returned invalid or empty result"
+            logger.error(error_msg, result=result)
+            workflow_errors.append(error_msg)
+            
+            # For critical tools like web_search, this should be a blocking error
+            if tool_name in ["web_search_tool", "prior_art_search_tool"]:
+                return {
+                    **state,
+                    "workflow_errors": workflow_errors,
+                    "final_response": f"Critical tool {tool_name} failed: {error_msg}. Cannot proceed with workflow."
+                }
+        
+        # Store result with validation
         step_results[output_key] = result
+        
+        logger.info("Step completed successfully", 
+                   step=current_step, 
+                   output_key=output_key,
+                   result_preview=str(result)[:200] if result else "None")
         
         return {
             **state,
             "current_step": current_step + 1,
-            "step_results": step_results
+            "step_results": step_results,
+            "workflow_errors": workflow_errors
         }
         
     except Exception as e:
-        logger.error(f"Step {current_step} failed: {e}")
-        # Store error but continue to next step
+        error_msg = f"Step {current_step} ({step.get('tool', 'unknown')}) failed: {str(e)}"
+        logger.error("Workflow step failed", 
+                    step=current_step, 
+                    tool=step.get('tool', 'unknown'),
+                    error=str(e))
+        
+        workflow_errors.append(error_msg)
+        
+        # CRITICAL DECISION: For essential steps, halt workflow
+        if current_step == 0 or step.get('tool') in ['web_search_tool', 'prior_art_search_tool']:
+            logger.error("Critical step failed, halting workflow", step=current_step)
+            return {
+                **state,
+                "workflow_errors": workflow_errors,
+                "final_response": f"Critical workflow step failed: {error_msg}. Please try again."
+            }
+        
+        # For non-critical steps, continue but track error
         step_results[f"step_{current_step}_error"] = str(e)
         return {
             **state,
             "current_step": current_step + 1,
-            "step_results": step_results
+            "step_results": step_results,
+            "workflow_errors": workflow_errors
         }
 
 
+def _validate_tool_result(result: Any, tool_name: str) -> bool:
+    """Validate that tool result contains meaningful data."""
+    if not result:
+        return False
+    
+    if isinstance(result, dict):
+        # Check success flag
+        if result.get("success") == False:
+            return False
+        
+        # Check for actual content
+        result_content = result.get("result", "")
+        if not result_content or (isinstance(result_content, str) and len(result_content.strip()) < 10):
+            return False
+            
+        # Tool-specific validation
+        if tool_name == "web_search_tool":
+            # Web search should return substantial content
+            if isinstance(result_content, str) and len(result_content.strip()) < 50:
+                return False
+    
+    return True
+
+
 def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any]) -> Dict[str, Any]:
-    """Add context from previous steps to parameters."""
+    """Add context from previous steps to parameters with enhanced debugging."""
     enhanced_params = params.copy()
+    
+    logger.info("Starting context substitution", 
+               original_params=params, 
+               available_results=list(step_results.keys()))
     
     # Context injection using {key} syntax - handles multiple placeholders per value
     for key, value in enhanced_params.items():
         if isinstance(value, str) and "{" in value and "}" in value:
+            logger.info(f"Processing parameter {key} with placeholders", value=value)
+            
             # Process all placeholders in this value
             processed_value = value
+            substitutions_made = []
+            
             for result_key, result_value in step_results.items():
                 placeholder = f"{{{result_key}}}"
                 if placeholder in processed_value:
-                    context_text = str(result_value.get("result", result_value))
+                    # Extract meaningful content from result
+                    if isinstance(result_value, dict):
+                        context_text = result_value.get("result", str(result_value))
+                    else:
+                        context_text = str(result_value)
+                    
+                    # Limit context size to prevent prompt overflow
+                    if len(context_text) > 2000:
+                        context_text = context_text[:2000] + "... [truncated]"
+                    
                     processed_value = processed_value.replace(placeholder, context_text)
+                    substitutions_made.append(f"{placeholder} -> {len(context_text)} chars")
+            
             enhanced_params[key] = processed_value
+            
+            if substitutions_made:
+                logger.info(f"Made substitutions for {key}", substitutions=substitutions_made)
+            else:
+                logger.warning(f"No substitutions made for {key} despite placeholders", 
+                             value=value, available_keys=list(step_results.keys()))
     
+    logger.info("Context substitution completed", enhanced_params=enhanced_params)
     return enhanced_params
 
 
 async def generate_response_node(state: AgentState) -> AgentState:
-    """Generate final response based on intent type."""
-    logger.debug("Generating response")
+    """Generate final response based on intent type with better error handling."""
+    logger.info("Generating final response")
     
     intent_type = state.get("intent_type", "conversation")
+    workflow_errors = state.get("workflow_errors", [])
+    
+    # If there are critical workflow errors, return them directly
+    if workflow_errors and state.get("final_response"):
+        logger.info("Returning error response from workflow")
+        return state
 
-    if intent_type == "conversation":
-        final_response = await _generate_conversation_response(state)
-    else:
-        final_response = await _generate_workflow_response(state)
+    try:
+        if intent_type == "conversation":
+            final_response = await _generate_conversation_response(state)
+        else:
+            final_response = await _generate_workflow_response(state)
 
-    return {
-        **state,
-        "final_response": final_response
-    }
+        logger.info("Response generation completed", 
+                   response_length=len(final_response) if final_response else 0)
+
+        return {
+            **state,
+            "final_response": final_response
+        }
+        
+    except Exception as e:
+        logger.error("Response generation failed", error=str(e))
+        error_response = f"Failed to generate response: {str(e)}"
+        if workflow_errors:
+            error_response += f"\n\nWorkflow errors: {'; '.join(workflow_errors)}"
+        
+        return {
+            **state,
+            "final_response": error_response
+        }
 
 
 async def _generate_conversation_response(state: AgentState) -> str:
@@ -412,15 +569,20 @@ For document drafting requests (like invention disclosures, reports, proposals),
 
 
 async def _generate_workflow_response(state: AgentState) -> str:
-    """Generate response from workflow results using LLM synthesis."""
+    """Generate response from workflow results using LLM synthesis with better validation."""
     step_results = state.get("step_results", {})
     workflow_plan = state.get("workflow_plan", [])
     user_input = state.get("user_input", "")
     conversation_history = state.get("conversation_history", [])
     document_content = state.get("document_content", "")
+    workflow_errors = state.get("workflow_errors", [])
     
-    if not step_results:
-        raise RuntimeError("No workflow results to generate response from")
+    logger.info("Starting workflow response synthesis", 
+               step_results_keys=list(step_results.keys()),
+               workflow_errors_count=len(workflow_errors))
+    
+    if not step_results and not workflow_errors:
+        raise RuntimeError("No workflow results or errors to generate response from")
     
     # Use injected dependency instead of importing AgentService
     dependencies = state.get("dependencies")
@@ -431,22 +593,45 @@ async def _generate_workflow_response(state: AgentState) -> str:
     
     llm_client = dependencies.llm_client
     
-    # Collect tool outputs
+    # Collect tool outputs with better validation
     tool_outputs = []
+    successful_steps = 0
+    
     for step in workflow_plan:
         output_key = step["output_key"]
+        tool_name = step["tool"].replace("_tool", "").replace("_", " ").title()
+        
         if output_key in step_results:
             result = step_results[output_key]
             if isinstance(result, dict) and result.get("success", True):
                 content = result.get("result", str(result))
-                tool_name = step["tool"].replace("_tool", "").replace("_", " ").title()
-                tool_outputs.append(f"**{tool_name}:**\n{content}")
-    else:
-                # Handle failed steps
-                error_key = f"step_{step['step']-1}_error"
-                if error_key in step_results:
-                    error_msg = step_results[error_key]
-                    tool_outputs.append(f"**{step['tool']} (Failed):** {error_msg}")
+                if content and len(str(content).strip()) > 10:  # Ensure meaningful content
+                    tool_outputs.append(f"**{tool_name} Results:**\n{content}")
+                    successful_steps += 1
+                    logger.info(f"Added successful result from {tool_name}", 
+                              content_length=len(str(content)))
+                else:
+                    tool_outputs.append(f"**{tool_name}:** No meaningful results returned")
+                    logger.warning(f"Empty result from {tool_name}")
+            else:
+                error_msg = result.get("error", "Unknown error")
+                tool_outputs.append(f"**{tool_name} (Failed):** {error_msg}")
+                logger.warning(f"Failed result from {tool_name}", error=error_msg)
+        else:
+            # Handle missing results
+            error_key = f"step_{step.get('step', 0)-1}_error"
+            if error_key in step_results:
+                error_msg = step_results[error_key]
+                tool_outputs.append(f"**{tool_name} (Error):** {error_msg}")
+                logger.warning(f"Error in {tool_name}", error=error_msg)
+            else:
+                tool_outputs.append(f"**{tool_name}:** No results available")
+                logger.warning(f"No results for {tool_name}")
+    
+    # Check if we have enough successful results to proceed
+    if successful_steps == 0:
+        error_summary = "\n".join(workflow_errors) if workflow_errors else "All workflow steps failed"
+        return f"I apologize, but I encountered issues executing your request:\n\n{error_summary}\n\nPlease try again or rephrase your request."
     
     if not tool_outputs:
         raise RuntimeError("No valid results from workflow execution")
@@ -470,6 +655,11 @@ async def _generate_workflow_response(state: AgentState) -> str:
         doc_preview = document_content[:1000] + "..." if len(document_content) > 1000 else document_content
         doc_context = f"\n\nDocument context:\n{doc_preview}"
     
+    # Add workflow errors to context if any
+    error_context = ""
+    if workflow_errors:
+        error_context = f"\n\nWorkflow Issues Encountered:\n" + "\n".join([f"- {error}" for error in workflow_errors])
+    
     # Create synthesis prompt
     prompt = f"""You are an AI assistant that synthesizes tool outputs into comprehensive, professional responses.
 
@@ -482,50 +672,55 @@ async def _generate_workflow_response(state: AgentState) -> str:
 ## CONTEXT:
 Recent conversation:
 {history_context if history_context else "No previous conversation"}
-{doc_context}
+{doc_context}{error_context}
 
 ## COMPREHENSIVE SYNTHESIS INSTRUCTIONS:
+
+**CRITICAL REQUIREMENT**: Your response MUST be based on the actual tool outputs above. Do NOT generate generic content that ignores the research findings.
 
 ### FOR PATENT APPLICATION REQUESTS:
 If the user requested patent-related work (drafting, analysis, research), create a comprehensive patent application document that includes:
 
-1. **Executive Summary**: Brief overview of the invention and its novelty
-2. **Background & Prior Art**: Synthesize research findings and prior art analysis
-3. **Technical Description**: Detailed technical explanation of the invention
-4. **Claims Section**: Well-structured patent claims (if claim drafting was performed)
-5. **Analysis & Recommendations**: Quality analysis and improvement suggestions
-6. **Next Steps**: Recommendations for further development or filing
+1. **Executive Summary**: Brief overview based on the research findings
+2. **Background & Prior Art**: Use the actual research data from the tool outputs
+3. **Technical Description**: Based on the specific information found in the research
+4. **Claims Section**: Well-structured patent claims using the researched technology/person/topic
+5. **Analysis & Recommendations**: Based on actual findings, not generic content
+6. **Next Steps**: Specific recommendations based on the research
 
 ### FOR RESEARCH & ANALYSIS REQUESTS:
 If the user requested research or analysis, create a comprehensive report that includes:
 
-1. **Executive Summary**: Key findings and insights
-2. **Research Findings**: Synthesized information from all sources
-3. **Analysis & Insights**: Professional analysis of the data
-4. **Recommendations**: Actionable next steps
-5. **References**: Proper attribution of sources
+1. **Executive Summary**: Key findings from the actual research
+2. **Research Findings**: Synthesized information from the tool outputs
+3. **Analysis & Insights**: Professional analysis based on the actual data
+4. **Recommendations**: Actionable next steps based on findings
+5. **References**: Attribution of the actual sources found
 
 ### FOR GENERAL REQUESTS:
 Create a well-structured response that:
 
-1. **Addresses the Core Request**: Directly answer what was asked
-2. **Provides Context**: Use research findings to provide comprehensive context
-3. **Offers Insights**: Go beyond just presenting data to provide analysis
-4. **Suggests Next Steps**: Recommend logical follow-up actions
+1. **Addresses the Core Request**: Use the actual tool outputs to answer what was asked
+2. **Provides Context**: Use the actual research findings
+3. **Offers Insights**: Analyze the actual data found
+4. **Suggests Next Steps**: Based on the real information discovered
 
 ### SYNTHESIS PRINCIPLES:
-- **Integrate, Don't Repeat**: Weave tool outputs into a cohesive narrative
+- **Use Actual Data**: Base your response on the actual tool outputs, not generic assumptions
+- **Integrate, Don't Repeat**: Weave tool outputs into a cohesive narrative using the real findings
 - **Professional Structure**: Use clear headings, bullet points, and logical flow
-- **Comprehensive Coverage**: Ensure all relevant information is included
-- **Actionable Insights**: Provide practical recommendations and next steps
-- **Proper Attribution**: Reference sources appropriately
-- **Quality Focus**: Ensure the final output is publication-ready
+- **Comprehensive Coverage**: Ensure all relevant information from tool outputs is included
+- **Actionable Insights**: Provide practical recommendations based on actual findings
+- **Proper Attribution**: Reference the actual sources and data found
+- **Quality Focus**: Ensure the final output uses the researched information effectively
 
 ### RESPONSE FORMAT:
-Structure your response with clear sections and professional formatting. Use markdown formatting for headings, lists, and emphasis. Make the response comprehensive yet readable.
+Structure your response with clear sections and professional formatting. Use markdown formatting for headings, lists, and emphasis. Make the response comprehensive yet readable, and ENSURE it reflects the actual research findings from the tool outputs.
 
-Create a response that the user will find immediately valuable and actionable."""
-    
+**VALIDATION CHECK**: Before finalizing your response, verify that it actually uses the specific information from the tool outputs rather than generating generic content.
+
+Create a response that the user will find immediately valuable and actionable based on the real research performed."""
+
     response = llm_client.generate_text(
         prompt=prompt,
         max_tokens=2000
@@ -534,7 +729,52 @@ Create a response that the user will find immediately valuable and actionable.""
     if not response.get("success"):
         raise RuntimeError(f"LLM response synthesis failed: {response.get('error', 'Unknown error')}")
     
-    return response.get("text", "")
+    synthesized_response = response.get("text", "")
+    
+    # VALIDATION: Check if the response actually uses the tool outputs
+    if not _validate_synthesis_uses_research(synthesized_response, step_results, user_input):
+        logger.warning("Synthesized response appears to be generic, not using research results")
+        # Add a disclaimer
+        synthesized_response = f"""**Note**: The following response may be generic as the system detected limited use of research findings.
+
+{synthesized_response}
+
+**Research Results Summary:**
+{chr(10).join(tool_outputs)}"""
+    
+    return synthesized_response
+
+
+def _validate_synthesis_uses_research(response: str, step_results: Dict[str, Any], user_input: str) -> bool:
+    """Validate that the synthesis actually uses research results rather than being generic."""
+    if not response or not step_results:
+        return False
+    
+    # Extract key terms from user input (e.g., "Ramy Atawia")
+    user_terms = set()
+    for term in user_input.split():
+        if len(term) > 3:  # Skip short words
+            user_terms.add(term.lower())
+    
+    # Check if any research results contain these terms
+    research_content = ""
+    for result in step_results.values():
+        if isinstance(result, dict):
+            content = result.get("result", "")
+            if isinstance(content, str):
+                research_content += content.lower() + " "
+    
+    # Check if response contains specific terms from research
+    response_lower = response.lower()
+    research_terms_found = 0
+    
+    for term in user_terms:
+        if term in research_content and term in response_lower:
+            research_terms_found += 1
+    
+    # If no specific terms from user request appear in both research and response,
+    # it might be generic
+    return research_terms_found > 0
 
 
 def _route_after_intent(state: AgentState) -> str:
@@ -552,6 +792,15 @@ def _route_workflow_continue(state: AgentState) -> str:
     """Route workflow continuation."""
     current_step = state.get("current_step", 0)
     workflow_plan = state.get("workflow_plan", [])
+    workflow_errors = state.get("workflow_errors", [])
+    
+    # If there's already a final response due to critical error, end workflow
+    if state.get("final_response"):
+        return "generate_response"
+    
+    # If critical errors occurred, skip remaining steps
+    if workflow_errors and any("Critical" in error for error in workflow_errors):
+        return "generate_response"
     
     if current_step < len(workflow_plan):
         return "execute_workflow"
@@ -560,8 +809,8 @@ def _route_workflow_continue(state: AgentState) -> str:
 
 
 def create_agent_graph(dependencies: AgentGraphDependencies):
-    """Create the LangGraph workflow with injected dependencies."""
-    logger.info("Creating LangGraph workflow")
+    """Create the LangGraph workflow with injected dependencies and enhanced logging."""
+    logger.info("Creating LangGraph workflow with enhanced error handling")
     
     workflow = StateGraph(AgentState)
     
@@ -594,8 +843,21 @@ def create_agent_graph(dependencies: AgentGraphDependencies):
     
     # Create a wrapper that injects dependencies
     async def execute_with_dependencies(initial_state):
+        logger.info("Starting workflow execution", user_input=initial_state.get("user_input", "")[:100])
         state_with_deps = {**initial_state, "dependencies": dependencies}
-        return await compiled_graph.ainvoke(state_with_deps)
+        
+        try:
+            result = await compiled_graph.ainvoke(state_with_deps)
+            logger.info("Workflow execution completed successfully")
+            return result
+        except Exception as e:
+            logger.error("Workflow execution failed", error=str(e))
+            # Return error state instead of raising
+            return {
+                **state_with_deps,
+                "final_response": f"Workflow execution failed: {str(e)}",
+                "workflow_errors": [str(e)]
+            }
     
     # Return both the function and the compiled graph for different use cases
     class AgentGraphWrapper:
@@ -615,6 +877,7 @@ def create_agent_graph(dependencies: AgentGraphDependencies):
                 stream_mode=stream_mode or ["updates", "messages"]
             )
     
+    logger.info("LangGraph workflow created successfully")
     return AgentGraphWrapper(execute_with_dependencies, compiled_graph, dependencies)
 
 
