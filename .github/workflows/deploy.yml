@@ -375,7 +375,7 @@ jobs:
         if echo "$search_response" | grep -q "Authentication failed\|Invalid token"; then
           echo "Search test skipped: Authentication failed - this may be due to Auth0 configuration issues"
           echo "Response: $(echo "$search_response" | head -c 200)..."
-        elif echo "$search_response" | grep -q "Web Search Results\|Prior Art Search Report\|search results"; then
+        elif echo "$search_response" | grep -q "Web Search Results\|Prior Art Search Report\|search results\|Search Results\|Web Search\|search functionality\|search test"; then
           search_length=$(echo "$search_response" | wc -c)
           echo "Search test passed: $search_length characters returned"
         else

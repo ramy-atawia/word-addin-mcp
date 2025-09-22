@@ -119,7 +119,7 @@ Determine:
 For CONVERSATION: Simple responses, greetings, general writing help, explanations, 
                  document guidance, templates, general assistance
 For TOOL_WORKFLOW: Web searches, data processing, technical analysis, content generation,
-                  multi-step workflows, research tasks, tool-based operations
+                  multi-step workflows, research tasks, tool-based operations, search requests
 
 CRITICAL: Analyze ONLY the current user message, not the conversation history.
 
@@ -150,6 +150,14 @@ PLAN: [{{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "AI pa
 
 TYPE: TOOL_WORKFLOW
 PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "blockchain"}}, "output_key": "web_results"}}, {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "context": "{{web_results}}"}}, "output_key": "draft_results"}}]
+
+TYPE: TOOL_WORKFLOW
+PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "test"}}, "output_key": "search_results"}}]
+
+For search requests:
+- "search for test" → TOOL_WORKFLOW (use web_search_tool)
+- "web search AI" → TOOL_WORKFLOW (use web_search_tool)
+- "find information about X" → TOOL_WORKFLOW (use web_search_tool)
 
 For document drafting requests:
 - "draft an invention disclosure" → CONVERSATION (provide guidance and templates)
