@@ -96,107 +96,112 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
         doc_preview = document_content[:2000] + "..." if len(document_content) > 2000 else document_content
         doc_context = f"\n\nDocument content available:\n{doc_preview}"
     
-    prompt = f"""You are an AI assistant that analyzes user requests and creates comprehensive execution plans using available tools.
-
-## CURRENT USER MESSAGE (PRIORITY):
-"{user_input}"
-
-## CONTEXT (for reference only):
-Available tools:
-{tool_list}
-
-Recent conversation:
-{history_context if history_context else "No previous conversation"}
-{doc_context}
-
-## COMPREHENSIVE ANALYSIS INSTRUCTIONS:
-
-### STEP 1: UNDERSTAND THE REQUEST
-Analyze the user's request to understand:
-- What is the ultimate goal? (e.g., patent application, research report, technical analysis)
-- What information is needed to achieve this goal?
-- What tools can provide this information?
-- How should the tools be chained together for maximum effectiveness?
-
-### STEP 2: TOOL CAPABILITIES UNDERSTANDING
-Available tools and their purposes:
-- **web_search_tool**: General web research, current information, technical details
-- **prior_art_search_tool**: Patent landscape analysis, existing patents, prior art research
-- **claim_drafting_tool**: Draft patent claims based on invention description
-- **claim_analysis_tool**: Analyze and improve existing patent claims
-
-### STEP 3: WORKFLOW DESIGN PRINCIPLES
-For complex requests (especially patent-related), think in terms of comprehensive workflows:
-
-**Patent Application Workflow:**
-1. **Research Phase**: Use web_search_tool and prior_art_search_tool to gather comprehensive information
-2. **Analysis Phase**: Use claim_analysis_tool to analyze existing patents and identify gaps
-3. **Drafting Phase**: Use claim_drafting_tool to create new claims based on research
-4. **Final Synthesis**: LLM will synthesize all outputs into a complete patent application
-
-**Research & Analysis Workflow:**
-1. **Broad Research**: web_search_tool for general information
-2. **Specialized Research**: prior_art_search_tool for domain-specific patents
-3. **Content Generation**: claim_drafting_tool for structured output
-4. **Quality Analysis**: claim_analysis_tool for validation and improvement
-
-### STEP 4: DECISION CRITERIA
-- **CONVERSATION**: Simple greetings, general questions, basic assistance, templates
-- **TOOL_WORKFLOW**: Any request requiring research, analysis, content generation, or multi-step processes
-
-### STEP 5: WORKFLOW PLANNING
-When creating TOOL_WORKFLOW plans:
-- Start with research tools (web_search, prior_art_search) to gather information
-- Use analysis tools (claim_analysis) to process and understand the information
-- Use generation tools (claim_drafting) to create new content
-- Chain tools so each step builds on previous results using {previous_step_key} syntax
-- Plan for comprehensive coverage of the topic
-
-CRITICAL: Analyze ONLY the current user message, not the conversation history.
-
-You MUST respond in this EXACT format with no additional text:
-
-TYPE: CONVERSATION
-PLAN: 
-
-OR
-
-TYPE: TOOL_WORKFLOW  
-PLAN: [{"step": 1, "tool": "tool_name", "params": {"key": "value"}, "output_key": "result_key"}]
-
-CRITICAL: 
-- PLAN must be valid JSON array or empty
-- Use double quotes in JSON
-- No trailing commas
-- No comments in JSON
-- Extract actual parameters from user request
-- Use {{previous_step_key}} syntax to reference earlier results
-
-## COMPREHENSIVE EXAMPLES:
-
-**Patent Application Request:**
-TYPE: TOOL_WORKFLOW
-PLAN: [{"step": 1, "tool": "web_search_tool", "params": {"query": "5G network optimization techniques"}, "output_key": "web_research"}, {"step": 2, "tool": "prior_art_search_tool", "params": {"query": "5G network optimization patents"}, "output_key": "prior_art"}, {"step": 3, "tool": "claim_drafting_tool", "params": {"user_query": "draft patent claims for 5G optimization", "conversation_context": "{web_research}", "document_reference": "{prior_art}"}, "output_key": "draft_claims"}, {"step": 4, "tool": "claim_analysis_tool", "params": {"claims": "{draft_claims}", "analysis_type": "comprehensive"}, "output_key": "analysis"}]
-
-**Research & Analysis Request:**
-TYPE: TOOL_WORKFLOW
-PLAN: [{"step": 1, "tool": "web_search_tool", "params": {"query": "AI trends 2024"}, "output_key": "web_data"}, {"step": 2, "tool": "prior_art_search_tool", "params": {"query": "artificial intelligence patents"}, "output_key": "patent_data"}, {"step": 3, "tool": "claim_drafting_tool", "params": {"user_query": "draft comprehensive report", "conversation_context": "{web_data}", "document_reference": "{patent_data}"}, "output_key": "final_report"}]
-
-**Simple Search Request:**
-TYPE: TOOL_WORKFLOW
-PLAN: [{"step": 1, "tool": "web_search_tool", "params": {"query": "test"}, "output_key": "search_results"}]
-
-**Conversation Request:**
-TYPE: CONVERSATION
-PLAN: 
-
-## PATTERN RECOGNITION:
-- "draft a patent on X" → TOOL_WORKFLOW (comprehensive patent workflow)
-- "research X and create Y" → TOOL_WORKFLOW (research + generation workflow)
-- "analyze X" → TOOL_WORKFLOW (analysis workflow)
-- "search for X" → TOOL_WORKFLOW (search workflow)
-- "hi", "hello", "help" → CONVERSATION
-- "explain X" → CONVERSATION (unless it needs research)"""
+    # Build prompt without f-string to avoid syntax issues
+    prompt_parts = [
+        "You are an AI assistant that analyzes user requests and creates comprehensive execution plans using available tools.",
+        "",
+        "## CURRENT USER MESSAGE (PRIORITY):",
+        user_input,
+        "",
+        "## CONTEXT (for reference only):",
+        "Available tools:",
+        tool_list,
+        "",
+        "Recent conversation:",
+        history_context if history_context else "No previous conversation",
+        doc_context,
+        "",
+        "## COMPREHENSIVE ANALYSIS INSTRUCTIONS:",
+        "",
+        "### STEP 1: UNDERSTAND THE REQUEST",
+        "Analyze the user's request to understand:",
+        "- What is the ultimate goal? (e.g., patent application, research report, technical analysis)",
+        "- What information is needed to achieve this goal?",
+        "- What tools can provide this information?",
+        "- How should the tools be chained together for maximum effectiveness?",
+        "",
+        "### STEP 2: TOOL CAPABILITIES UNDERSTANDING",
+        "Available tools and their purposes:",
+        "- **web_search_tool**: General web research, current information, technical details",
+        "- **prior_art_search_tool**: Patent landscape analysis, existing patents, prior art research",
+        "- **claim_drafting_tool**: Draft patent claims based on invention description",
+        "- **claim_analysis_tool**: Analyze and improve existing patent claims",
+        "",
+        "### STEP 3: WORKFLOW DESIGN PRINCIPLES",
+        "For complex requests (especially patent-related), think in terms of comprehensive workflows:",
+        "",
+        "**Patent Application Workflow:**",
+        "1. **Research Phase**: Use web_search_tool and prior_art_search_tool to gather comprehensive information",
+        "2. **Analysis Phase**: Use claim_analysis_tool to analyze existing patents and identify gaps",
+        "3. **Drafting Phase**: Use claim_drafting_tool to create new claims based on research",
+        "4. **Final Synthesis**: LLM will synthesize all outputs into a complete patent application",
+        "",
+        "**Research & Analysis Workflow:**",
+        "1. **Broad Research**: web_search_tool for general information",
+        "2. **Specialized Research**: prior_art_search_tool for domain-specific patents",
+        "3. **Content Generation**: claim_drafting_tool for structured output",
+        "4. **Quality Analysis**: claim_analysis_tool for validation and improvement",
+        "",
+        "### STEP 4: DECISION CRITERIA",
+        "- **CONVERSATION**: Simple greetings, general questions, basic assistance, templates",
+        "- **TOOL_WORKFLOW**: Any request requiring research, analysis, content generation, or multi-step processes",
+        "",
+        "### STEP 5: WORKFLOW PLANNING",
+        "When creating TOOL_WORKFLOW plans:",
+        "- Start with research tools (web_search, prior_art_search) to gather information",
+        "- Use analysis tools (claim_analysis) to process and understand the information",
+        "- Use generation tools (claim_drafting) to create new content",
+        "- Chain tools so each step builds on previous results using {previous_step_key} syntax",
+        "- Plan for comprehensive coverage of the topic",
+        "",
+        "CRITICAL: Analyze ONLY the current user message, not the conversation history.",
+        "",
+        "You MUST respond in this EXACT format with no additional text:",
+        "",
+        "TYPE: CONVERSATION",
+        "PLAN: ",
+        "",
+        "OR",
+        "",
+        "TYPE: TOOL_WORKFLOW",
+        "PLAN: [{\"step\": 1, \"tool\": \"tool_name\", \"params\": {\"key\": \"value\"}, \"output_key\": \"result_key\"}]",
+        "",
+        "CRITICAL:",
+        "- PLAN must be valid JSON array or empty",
+        "- Use double quotes in JSON",
+        "- No trailing commas",
+        "- No comments in JSON",
+        "- Extract actual parameters from user request",
+        "- Use {previous_step_key} syntax to reference earlier results",
+        "",
+        "## COMPREHENSIVE EXAMPLES:",
+        "",
+        "**Patent Application Request:**",
+        "TYPE: TOOL_WORKFLOW",
+        "PLAN: [{\"step\": 1, \"tool\": \"web_search_tool\", \"params\": {\"query\": \"5G network optimization techniques\"}, \"output_key\": \"web_research\"}, {\"step\": 2, \"tool\": \"prior_art_search_tool\", \"params\": {\"query\": \"5G network optimization patents\"}, \"output_key\": \"prior_art\"}, {\"step\": 3, \"tool\": \"claim_drafting_tool\", \"params\": {\"user_query\": \"draft patent claims for 5G optimization\", \"conversation_context\": \"{web_research}\", \"document_reference\": \"{prior_art}\"}, \"output_key\": \"draft_claims\"}, {\"step\": 4, \"tool\": \"claim_analysis_tool\", \"params\": {\"claims\": \"{draft_claims}\", \"analysis_type\": \"comprehensive\"}, \"output_key\": \"analysis\"}]",
+        "",
+        "**Research & Analysis Request:**",
+        "TYPE: TOOL_WORKFLOW",
+        "PLAN: [{\"step\": 1, \"tool\": \"web_search_tool\", \"params\": {\"query\": \"AI trends 2024\"}, \"output_key\": \"web_data\"}, {\"step\": 2, \"tool\": \"prior_art_search_tool\", \"params\": {\"query\": \"artificial intelligence patents\"}, \"output_key\": \"patent_data\"}, {\"step\": 3, \"tool\": \"claim_drafting_tool\", \"params\": {\"user_query\": \"draft comprehensive report\", \"conversation_context\": \"{web_data}\", \"document_reference\": \"{patent_data}\"}, \"output_key\": \"final_report\"}]",
+        "",
+        "**Simple Search Request:**",
+        "TYPE: TOOL_WORKFLOW",
+        "PLAN: [{\"step\": 1, \"tool\": \"web_search_tool\", \"params\": {\"query\": \"test\"}, \"output_key\": \"search_results\"}]",
+        "",
+        "**Conversation Request:**",
+        "TYPE: CONVERSATION",
+        "PLAN: ",
+        "",
+        "## PATTERN RECOGNITION:",
+        "- \"draft a patent on X\" → TOOL_WORKFLOW (comprehensive patent workflow)",
+        "- \"research X and create Y\" → TOOL_WORKFLOW (research + generation workflow)",
+        "- \"analyze X\" → TOOL_WORKFLOW (analysis workflow)",
+        "- \"search for X\" → TOOL_WORKFLOW (search workflow)",
+        "- \"hi\", \"hello\", \"help\" → CONVERSATION",
+        "- \"explain X\" → CONVERSATION (unless it needs research)"
+    ]
+    
+    prompt = "\n".join(prompt_parts)
     
     response = llm_client.generate_text(
         prompt=prompt,
@@ -223,7 +228,7 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
                 intent_type = "tool_workflow"
             elif type_value == "CONVERSATION":
                 intent_type = "conversation"
-    else:
+            else:
                 raise RuntimeError(f"Invalid intent type from LLM: {type_value}")
                 
         elif line.startswith("PLAN:"):
@@ -298,11 +303,11 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any])
     """Add context from previous steps to parameters."""
     enhanced_params = params.copy()
     
-    # Simple context injection using {{key}} syntax
+    # Simple context injection using {key} syntax
     for key, value in enhanced_params.items():
-        if isinstance(value, str) and "{{" in value and "}}" in value:
+        if isinstance(value, str) and "{" in value and "}" in value:
             for result_key, result_value in step_results.items():
-                placeholder = f"{{{{{result_key}}}}}"
+                placeholder = f"{{{result_key}}}"
                 if placeholder in value:
                     context_text = str(result_value.get("result", result_value))
                     enhanced_params[key] = value.replace(placeholder, context_text)
@@ -333,16 +338,16 @@ async def _generate_conversation_response(state: AgentState) -> str:
     conversation_history = state.get("conversation_history", [])
     document_content = state.get("document_content", "")
     
-        from app.services.agent import AgentService
-        agent_service = AgentService()
-        
-        llm_client = agent_service._get_llm_client()
-        if not llm_client:
+    from app.services.agent import AgentService
+    agent_service = AgentService()
+    
+    llm_client = agent_service._get_llm_client()
+    if not llm_client:
         raise RuntimeError("LLM client is required for conversation but not available")
         
     # Build context with improved history formatting
     history_context = ""
-        if conversation_history:
+    if conversation_history:
         recent = conversation_history[-3:]  # Last 3 messages
         history_parts = []
         for msg in recent:
@@ -376,8 +381,8 @@ Provide helpful, natural responses. Be concise but complete. Use context appropr
 
 For document drafting requests (like invention disclosures, reports, proposals), offer structured guidance and suggest using available tools for research and content generation when appropriate."""
     
-        response = llm_client.generate_text(
-            prompt=prompt,
+    response = llm_client.generate_text(
+        prompt=prompt,
         max_tokens=800
     )
     
