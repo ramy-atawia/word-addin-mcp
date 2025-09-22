@@ -91,13 +91,18 @@ class LLMClient:
             last_error = None
             for attempt in range(max_retries):
                 try:
-                    response = self.client.chat.completions.create(
-                        model=self.azure_deployment,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        stream=True  # Enable streaming
-                    )
+                    # GPT-5-nano only supports temperature=1 (default)
+                    api_params = {
+                        "model": self.azure_deployment,
+                        "messages": messages,
+                        "max_completion_tokens": max_tokens,
+                        "stream": True
+                    }
+                    # Only add temperature if it's not 0.0 (which is not supported)
+                    if temperature != 0.0:
+                        api_params["temperature"] = temperature
+                    
+                    response = self.client.chat.completions.create(**api_params)
                     break  # Success, exit retry loop
                 except Exception as e:
                     last_error = e
@@ -167,12 +172,17 @@ class LLMClient:
             last_error = None
             for attempt in range(max_retries):
                 try:
-                    response = self.client.chat.completions.create(
-                        model=self.azure_openai_deployment,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature
-                    )
+                    # GPT-5-nano only supports temperature=1 (default)
+                    api_params = {
+                        "model": self.azure_openai_deployment,
+                        "messages": messages,
+                        "max_completion_tokens": max_tokens
+                    }
+                    # Only add temperature if it's not 0.0 (which is not supported)
+                    if temperature != 0.0:
+                        api_params["temperature"] = temperature
+                    
+                    response = self.client.chat.completions.create(**api_params)
                     break  # Success, exit retry loop
                 except Exception as e:
                     last_error = e
