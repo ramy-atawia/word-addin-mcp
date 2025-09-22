@@ -77,11 +77,19 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     tool_list = "\n".join([f"- {tool['name']}: {tool.get('description', '')}" 
                           for tool in available_tools]) if available_tools else "No tools available"
     
+    # Format conversation history more clearly
     history_context = ""
     if conversation_history:
-        recent = conversation_history[-3:]
-        history_context = "\n".join([f"{msg.get('role', 'user')}: {msg.get('content', '')}" 
-                                   for msg in recent])
+        recent = conversation_history[-3:]  # Last 3 messages
+        history_parts = []
+        for msg in recent:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role == 'user':
+                history_parts.append(f"User: {content}")
+            elif role == 'assistant':
+                history_parts.append(f"Assistant: {content}")
+        history_context = "\n".join(history_parts)
     
     doc_context = ""
     if document_content:
@@ -90,8 +98,10 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     
     prompt = f"""You are an AI assistant that analyzes user requests to determine intent and create execution plans.
 
-User request: "{user_input}"
+## CURRENT USER MESSAGE (PRIORITY):
+"{user_input}"
 
+## CONTEXT (for reference only):
 Available tools:
 {tool_list}
 
@@ -99,12 +109,17 @@ Recent conversation:
 {history_context if history_context else "No previous conversation"}
 {doc_context}
 
-Analyze the user's request and determine:
+## ANALYSIS INSTRUCTIONS:
+Focus ONLY on the current user message above. Use context only for reference, not as part of the current request.
+
+Determine:
 1. Is this a CONVERSATION (general chat, writing assistance, questions) or TOOL_WORKFLOW (needs specific tools)?
 2. If TOOL_WORKFLOW, create a step-by-step execution plan using available tools.
 
 For CONVERSATION: Simple responses, greetings, general writing help, explanations
 For TOOL_WORKFLOW: Patent searches, claim drafting, technical analysis, data processing
+
+CRITICAL: Analyze ONLY the current user message, not the conversation history.
 
 You MUST respond in this EXACT format with no additional text:
 
@@ -277,12 +292,19 @@ async def _generate_conversation_response(state: AgentState) -> str:
     if not llm_client:
         raise RuntimeError("LLM client is required for conversation but not available")
     
-    # Build context
+    # Build context with improved history formatting
     history_context = ""
     if conversation_history:
         recent = conversation_history[-3:]  # Last 3 messages
-        history_context = "\n".join([f"{msg.get('role', 'user')}: {msg.get('content', '')}" 
-                                   for msg in recent])
+        history_parts = []
+        for msg in recent:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role == 'user':
+                history_parts.append(f"User: {content}")
+            elif role == 'assistant':
+                history_parts.append(f"Assistant: {content}")
+        history_context = "\n".join(history_parts)
     
     doc_context = ""
     if document_content:
@@ -291,13 +313,18 @@ async def _generate_conversation_response(state: AgentState) -> str:
     
     prompt = f"""You are a helpful AI assistant. Respond naturally to the user's message.
 
-Current message: "{user_input}"
+## CURRENT MESSAGE (PRIORITY):
+"{user_input}"
 
+## CONTEXT (for reference only):
 Recent conversation:
 {history_context if history_context else "No previous conversation"}
 {doc_context}
 
-Provide a helpful, natural response. Be concise but complete. Use context appropriately."""
+## RESPONSE INSTRUCTIONS:
+Focus on the current message above. Use conversation history only for context, not as part of the current request.
+
+Provide a helpful, natural response. Be concise but complete. Use context appropriately but prioritize the current message."""
     
     response = llm_client.generate_text(
         prompt=prompt,
