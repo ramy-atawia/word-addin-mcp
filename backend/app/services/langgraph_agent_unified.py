@@ -25,6 +25,13 @@ except ImportError:
     raise ImportError("LangGraph is required for this agent service. Install with: pip install langgraph")
 
 
+class AgentGraphDependencies:
+    """Dependencies required by the agent graph."""
+    def __init__(self, llm_client, mcp_orchestrator):
+        self.llm_client = llm_client
+        self.mcp_orchestrator = mcp_orchestrator
+
+
 class AgentState(TypedDict):
     """Unified agent state for all workflows."""
     # Input
@@ -32,6 +39,9 @@ class AgentState(TypedDict):
     document_content: Optional[str]
     conversation_history: List[Dict[str, Any]]
     available_tools: List[Dict[str, Any]]
+    
+    # Dependencies (injected)
+    dependencies: Optional[Any]  # Will hold AgentGraphDependencies
     
     # Processing
     intent_type: str  # 'conversation' or 'tool_workflow'
@@ -66,12 +76,12 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     conversation_history = state.get("conversation_history", [])
     document_content = state.get("document_content", "")
     
-    from app.services.agent import AgentService
-    agent_service = AgentService()
-    
-    llm_client = agent_service._get_llm_client()
-    if not llm_client:
+    # Use injected dependency instead of importing AgentService
+    dependencies = state.get("dependencies")
+    if not dependencies or not dependencies.llm_client:
         raise RuntimeError("LLM client is required for intent detection but not available")
+    
+    llm_client = dependencies.llm_client
     
     # Build context
     tool_list = "\n".join([f"- {tool['name']}: {tool.get('description', '')}" 
@@ -259,12 +269,12 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
         return state  # All steps completed
     
     try:
-        from app.services.agent import AgentService
-        agent_service = AgentService()
-        
-        orchestrator = agent_service._get_mcp_orchestrator()
-        if not orchestrator:
+        # Use injected dependency instead of importing AgentService
+        dependencies = state.get("dependencies")
+        if not dependencies or not dependencies.mcp_orchestrator:
             raise RuntimeError("MCP orchestrator is required for tool execution but not available")
+        
+        orchestrator = dependencies.mcp_orchestrator
         
         # Get current step
         step = workflow_plan[current_step]
@@ -338,12 +348,12 @@ async def _generate_conversation_response(state: AgentState) -> str:
     conversation_history = state.get("conversation_history", [])
     document_content = state.get("document_content", "")
     
-    from app.services.agent import AgentService
-    agent_service = AgentService()
-    
-    llm_client = agent_service._get_llm_client()
-    if not llm_client:
+    # Use injected dependency instead of importing AgentService
+    dependencies = state.get("dependencies")
+    if not dependencies or not dependencies.llm_client:
         raise RuntimeError("LLM client is required for conversation but not available")
+        
+    llm_client = dependencies.llm_client
         
     # Build context with improved history formatting
     history_context = ""
@@ -403,12 +413,12 @@ async def _generate_workflow_response(state: AgentState) -> str:
     if not step_results:
         raise RuntimeError("No workflow results to generate response from")
     
-    from app.services.agent import AgentService
-    agent_service = AgentService()
-    
-    llm_client = agent_service._get_llm_client()
-    if not llm_client:
+    # Use injected dependency instead of importing AgentService
+    dependencies = state.get("dependencies")
+    if not dependencies or not dependencies.llm_client:
         raise RuntimeError("LLM client is required for response synthesis but not available")
+    
+    llm_client = dependencies.llm_client
     
     # Collect tool outputs
     tool_outputs = []
@@ -538,8 +548,8 @@ def _route_workflow_continue(state: AgentState) -> str:
         return "generate_response"
 
 
-def create_agent_graph():
-    """Create the LangGraph workflow."""
+def create_agent_graph(dependencies: AgentGraphDependencies):
+    """Create the LangGraph workflow with injected dependencies."""
     logger.info("Creating LangGraph workflow")
     
     workflow = StateGraph(AgentState)
@@ -569,15 +579,15 @@ def create_agent_graph():
     )
     workflow.add_edge("generate_response", END)
     
-    return workflow.compile()
+    compiled_graph = workflow.compile()
+    
+    # Create a wrapper that injects dependencies
+    async def execute_with_dependencies(initial_state):
+        state_with_deps = {**initial_state, "dependencies": dependencies}
+        return await compiled_graph.ainvoke(state_with_deps)
+    
+    return execute_with_dependencies
 
 
-# Global graph instance with lazy initialization
-_agent_graph = None
-
-def get_agent_graph():
-    """Get the compiled agent graph."""
-    global _agent_graph
-    if _agent_graph is None:
-        _agent_graph = create_agent_graph()
-    return _agent_graph
+# Remove the global graph instance pattern
+# The calling code should create the graph with proper dependencies
