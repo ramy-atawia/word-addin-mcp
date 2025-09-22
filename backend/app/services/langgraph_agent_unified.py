@@ -424,14 +424,43 @@ def _validate_tool_result(result: Any, tool_name: str) -> bool:
 
 
 def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any]) -> Dict[str, Any]:
-    """Add context from previous steps to parameters with enhanced debugging."""
+    """Add context from previous steps by enhancing the user_query string."""
     enhanced_params = params.copy()
     
-    logger.info("Starting context substitution", 
+    logger.info("Starting context enhancement", 
                original_params=params, 
                available_results=list(step_results.keys()))
     
-    # Context injection using {key} syntax - handles multiple placeholders per value
+    # First, handle the enhanced user_query approach
+    if "user_query" in enhanced_params and step_results:
+        original_query = enhanced_params["user_query"]
+        
+        # Build context summary from previous steps
+        context_parts = []
+        for step_key, result in step_results.items():
+            if isinstance(result, dict) and result.get("success", True):
+                content = result.get("result", "")
+                if content and len(str(content).strip()) > 10:
+                    # Truncate long content to prevent prompt overflow
+                    context_text = str(content)
+                    if len(context_text) > 1500:
+                        context_text = context_text[:1500] + "... [truncated]"
+                    
+                    context_parts.append(f"{step_key}: {context_text}")
+        
+        # Enhance the user query with context
+        if context_parts:
+            context_summary = "\n\n".join(context_parts)
+            enhanced_params["user_query"] = f"{original_query}\n\nContext from previous steps:\n{context_summary}"
+            logger.info("Enhanced user_query with workflow context", 
+                       original_length=len(original_query),
+                       enhanced_length=len(enhanced_params["user_query"]),
+                       context_steps=len(context_parts))
+        else:
+            logger.warning("No valid context found to enhance user_query", 
+                          step_results_keys=list(step_results.keys()))
+    
+    # Also handle the existing {key} placeholder substitution for backward compatibility
     for key, value in enhanced_params.items():
         if isinstance(value, str) and "{" in value and "}" in value:
             logger.info(f"Processing parameter {key} with placeholders", value=value)
@@ -464,7 +493,7 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any])
                 logger.warning(f"No substitutions made for {key} despite placeholders", 
                              value=value, available_keys=list(step_results.keys()))
     
-    logger.info("Context substitution completed", enhanced_params=enhanced_params)
+    logger.info("Context enhancement completed", enhanced_params=enhanced_params)
     return enhanced_params
 
 
