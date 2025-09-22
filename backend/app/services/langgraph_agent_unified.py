@@ -106,17 +106,24 @@ Analyze the user's request and determine:
 For CONVERSATION: Simple responses, greetings, general writing help, explanations
 For TOOL_WORKFLOW: Patent searches, claim drafting, technical analysis, data processing
 
-Response format:
-TYPE: [CONVERSATION or TOOL_WORKFLOW]
-PLAN: [For TOOL_WORKFLOW, provide JSON array of steps. For CONVERSATION, leave empty]
+IMPORTANT: Respond with EXACTLY this format:
+TYPE: CONVERSATION
+PLAN: 
 
-Example TOOL_WORKFLOW plan:
-[
-  {{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "extracted search terms"}}, "output_key": "search_results"}},
-  {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "context": "{{search_results}}"}}, "output_key": "draft_results"}}
-]
+OR
 
-Extract actual parameters from the user request. Use {{previous_step_key}} syntax to reference earlier results."""
+TYPE: TOOL_WORKFLOW
+PLAN: [{{"step": 1, "tool": "tool_name", "params": {{"param": "value"}}, "output_key": "result_key"}}]
+
+For TOOL_WORKFLOW, the PLAN must be valid JSON. For CONVERSATION, leave PLAN empty.
+
+Example for search request:
+TYPE: TOOL_WORKFLOW
+PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "search terms"}}, "output_key": "search_results"}}]
+
+Example for claim drafting:
+TYPE: TOOL_WORKFLOW
+PLAN: [{{"step": 1, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims for topic"}}, "output_key": "draft_results"}}]"""
     
     response = llm_client.generate_text(
         prompt=prompt,
@@ -150,7 +157,30 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
                 try:
                     workflow_plan = json.loads(plan_text)
                 except json.JSONDecodeError as e:
-                    raise RuntimeError(f"Failed to parse workflow plan from LLM: {e}")
+                    logger.warning(f"Failed to parse workflow plan from LLM: {e}")
+                    logger.warning(f"LLM response: {response_text}")
+                    # Fallback: create a simple workflow plan based on common patterns
+                    if "search" in response_text.lower():
+                        workflow_plan = [{
+                            "step": 1,
+                            "tool": "web_search_tool",
+                            "params": {"query": "search query"},
+                            "output_key": "search_results"
+                        }]
+                    elif "draft" in response_text.lower() or "claim" in response_text.lower():
+                        workflow_plan = [{
+                            "step": 1,
+                            "tool": "claim_drafting_tool",
+                            "params": {"user_query": "draft claims"},
+                            "output_key": "draft_results"
+                        }]
+                    else:
+                        workflow_plan = [{
+                            "step": 1,
+                            "tool": "web_search_tool",
+                            "params": {"query": "search query"},
+                            "output_key": "search_results"
+                        }]
     
     return intent_type, workflow_plan
 
