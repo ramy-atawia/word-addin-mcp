@@ -64,9 +64,9 @@ async def detect_intent_node(state: AgentState) -> AgentState:
         **state,
         "intent_type": intent_type,
         "workflow_plan": workflow_plan,
-        "current_step": 0,
-        "step_results": {}
-    }
+            "current_step": 0,
+            "step_results": {}
+        }
     
 
 async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
@@ -441,7 +441,7 @@ async def _generate_workflow_response(state: AgentState) -> str:
                 content = result.get("result", str(result))
                 tool_name = step["tool"].replace("_tool", "").replace("_", " ").title()
                 tool_outputs.append(f"**{tool_name}:**\n{content}")
-            else:
+    else:
                 # Handle failed steps
                 error_key = f"step_{step['step']-1}_error"
                 if error_key in step_results:
@@ -597,7 +597,25 @@ def create_agent_graph(dependencies: AgentGraphDependencies):
         state_with_deps = {**initial_state, "dependencies": dependencies}
         return await compiled_graph.ainvoke(state_with_deps)
     
-    return execute_with_dependencies
+    # Create a wrapper for streaming that also injects dependencies
+    async def execute_with_dependencies_streaming(initial_state):
+        state_with_deps = {**initial_state, "dependencies": dependencies}
+        return compiled_graph.astream(state_with_deps, stream_mode=["updates", "messages"])
+    
+    # Return both the function and the compiled graph for different use cases
+    class AgentGraphWrapper:
+        def __init__(self, execute_func, stream_func, compiled_graph):
+            self.execute = execute_func
+            self.stream = stream_func
+            self.compiled_graph = compiled_graph
+        
+        async def __call__(self, initial_state):
+            return await self.execute(initial_state)
+        
+        def astream(self, initial_state, stream_mode=None):
+            return self.stream(initial_state)
+    
+    return AgentGraphWrapper(execute_with_dependencies, execute_with_dependencies_streaming, compiled_graph)
 
 
 # Remove the global graph instance pattern

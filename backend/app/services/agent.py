@@ -256,10 +256,7 @@ class AgentService:
             final_result = None
             
             # Use LangGraph's built-in streaming
-            async for chunk in langgraph_agent.astream(
-                initial_state, 
-                stream_mode=["updates", "messages"]
-            ):
+            async for chunk in langgraph_agent.astream(initial_state):
                 logger.debug(f"Received LangGraph chunk: {type(chunk)} - {chunk}")
                 
                 # Handle different chunk formats from LangGraph
