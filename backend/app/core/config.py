@@ -148,8 +148,12 @@ class Settings(BaseSettings):
         "/api/v1/health",
         "/api/v1/health/live",
         "/api/v1/health/ready",
-        "/api/v1/mcp/agent/chat/stream",  # Add streaming endpoint for testing
-        "/api/v1/mcp/tools"  # Add MCP tools endpoint for testing
+        "/api/v1/health/detailed",
+        "/api/v1/health/debug/config",
+        "/api/v1/health/metrics"
+        # Removed core endpoints for security:
+        # "/api/v1/mcp/agent/chat/stream" - Now requires authentication
+        # "/api/v1/mcp/tools" - Now requires authentication
     ]
     
     # API Configuration
