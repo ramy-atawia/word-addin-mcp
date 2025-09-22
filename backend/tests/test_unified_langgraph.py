@@ -10,11 +10,10 @@ from unittest.mock import Mock, patch, AsyncMock
 from app.services.langgraph_agent_unified import (
     AgentState,
     detect_intent_node,
-    plan_workflow_node,
-    execute_tool_node,
+    execute_workflow_node,
     generate_response_node,
     create_agent_graph,
-    get_agent_graph
+    AgentGraphDependencies
 )
 
 
@@ -69,7 +68,7 @@ class TestUnifiedLangGraph:
         assert "tool_parameters" in result
     
     @pytest.mark.asyncio
-    async def test_plan_workflow_node(self):
+    async def test_execute_workflow_node(self):
         """Test workflow planning node."""
         state = AgentState(
             user_input="search for AI patents then draft 5 claims",
@@ -81,19 +80,19 @@ class TestUnifiedLangGraph:
             tool_result=None,
             final_response="",
             intent_type="",
-            workflow_plan=None,
+            workflow_plan=[],
             current_step=0,
             total_steps=0,
             step_results={}
         )
         
-        result = await plan_workflow_node(state)
+        result = await execute_workflow_node(state)
         assert "workflow_plan" in result
         assert "total_steps" in result
         assert "current_step" in result
     
     @pytest.mark.asyncio
-    async def test_execute_tool_node_single(self):
+    async def test_execute_workflow_node_single(self):
         """Test single tool execution."""
         state = AgentState(
             user_input="search for AI patents",
@@ -119,11 +118,11 @@ class TestUnifiedLangGraph:
             mock_agent_service._get_mcp_orchestrator.return_value = mock_orchestrator
             mock_agent_service_class.return_value = mock_agent_service
             
-            result = await execute_tool_node(state)
+            result = await execute_workflow_node(state)
             assert "tool_result" in result
     
     @pytest.mark.asyncio
-    async def test_execute_tool_node_multi_step(self):
+    async def test_execute_workflow_node_multi_step(self):
         """Test multi-step tool execution."""
         state = AgentState(
             user_input="search for AI patents then draft 5 claims",
@@ -152,7 +151,7 @@ class TestUnifiedLangGraph:
             mock_agent_service._get_mcp_orchestrator.return_value = mock_orchestrator
             mock_agent_service_class.return_value = mock_agent_service
             
-            result = await execute_tool_node(state)
+            result = await execute_workflow_node(state)
             assert "current_step" in result
             assert "step_results" in result
     
@@ -178,7 +177,7 @@ class TestUnifiedLangGraph:
         result = await generate_response_node(state)
         assert "final_response" in result
         assert "Search results here" in result["final_response"]
-        assert "Web Search Results" in result["final_response"]
+        assert "**Web Search:**" in result["final_response"]
     
     @pytest.mark.asyncio
     async def test_generate_response_node_multi_step(self):
@@ -207,22 +206,31 @@ class TestUnifiedLangGraph:
         
         result = await generate_response_node(state)
         assert "final_response" in result
-        assert "Web Search Results" in result["final_response"]
+        assert "**Web Search:**" in result["final_response"]
         assert "Draft Claims" in result["final_response"]
     
     def test_create_agent_graph(self):
         """Test agent graph creation."""
-        graph = create_agent_graph()
+        # Create mock dependencies
+        mock_llm_client = Mock()
+        mock_mcp_orchestrator = Mock()
+        dependencies = AgentGraphDependencies(mock_llm_client, mock_mcp_orchestrator)
+        
+        graph = create_agent_graph(dependencies)
         assert graph is not None
-        # Graph should have the expected nodes
-        assert hasattr(graph, 'nodes')
+        assert callable(graph)  # Should return a function
     
-    def test_get_agent_graph(self):
-        """Test agent graph lazy initialization."""
-        graph1 = get_agent_graph()
-        graph2 = get_agent_graph()
-        # Should return the same instance (lazy initialization)
-        assert graph1 is graph2
+    def test_create_agent_graph_with_dependencies(self):
+        """Test agent graph creation with dependencies."""
+        # Create mock dependencies
+        mock_llm_client = Mock()
+        mock_mcp_orchestrator = Mock()
+        dependencies = AgentGraphDependencies(mock_llm_client, mock_mcp_orchestrator)
+        
+        # Create agent graph
+        agent_graph = create_agent_graph(dependencies)
+        assert agent_graph is not None
+        assert callable(agent_graph)  # Should return a function
 
 
 class TestUnifiedLangGraphIntegration:
@@ -368,7 +376,7 @@ PARAMETERS: {"query": "5G technical report"}"""
             assert intent_result["workflow_plan"] == []
             
             # Step 2: Workflow Planning
-            plan_result = await plan_workflow_node(intent_result)
+            plan_result = await execute_workflow_node(intent_result)
             assert plan_result["workflow_plan"] is not None
             assert len(plan_result["workflow_plan"]) == 4
             assert plan_result["total_steps"] == 4
@@ -384,7 +392,7 @@ PARAMETERS: {"query": "5G technical report"}"""
             # Step 3: Execute all tools (4 steps)
             current_state = plan_result
             for step_num in range(4):
-                current_state = await execute_tool_node(current_state)
+                current_state = await execute_workflow_node(current_state)
                 assert current_state["current_step"] == step_num + 1
                 # Check that the step result is stored with the correct output_key
                 output_key = workflow_plan[step_num]["output_key"]
@@ -489,12 +497,12 @@ PARAMETERS: {"query": "5G technology"}"""
             
             # Execute workflow
             intent_result = await detect_intent_node(initial_state)
-            plan_result = await plan_workflow_node(intent_result)
+            plan_result = await execute_workflow_node(intent_result)
             
             # Execute tools (first succeeds, second fails)
             current_state = plan_result
-            current_state = await execute_tool_node(current_state)  # Web search - succeeds
-            current_state = await execute_tool_node(current_state)  # Prior art - fails
+            current_state = await execute_workflow_node(current_state)  # Web search - succeeds
+            current_state = await execute_workflow_node(current_state)  # Prior art - fails
             
             # Generate response
             final_result = await generate_response_node(current_state)
