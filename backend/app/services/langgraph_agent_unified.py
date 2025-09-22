@@ -826,14 +826,21 @@ Recent conversation:
 **CRITICAL REQUIREMENT**: Your response MUST be based on the actual tool outputs above. Do NOT generate generic content that ignores the research findings.
 
 ### FOR PATENT APPLICATION REQUESTS:
-If the user requested patent-related work (drafting, analysis, research), create a comprehensive patent application document that includes:
+**DISTINGUISH BETWEEN SPECIFIC CLAIM DRAFTING AND FULL PATENT APPLICATIONS:**
 
-1. **Executive Summary**: Brief overview based on the research findings
-2. **Background & Prior Art**: Use the actual research data from the tool outputs
-3. **Technical Description**: Based on the specific information found in the research
-4. **Claims Section**: Well-structured patent claims using the researched technology/person/topic
-5. **Analysis & Recommendations**: Based on actual findings, not generic content
-6. **Next Steps**: Specific recommendations based on the research
+**For specific claim requests** (e.g., "draft 1 system claim", "draft 3 claims", "write a method claim"):
+- Generate ONLY the requested number and type of claims
+- Use the research findings to inform the claim content
+- Keep it focused and concise - just the claims, not a full application
+
+**For full patent application requests** (e.g., "draft a patent application", "create a complete patent", "full patent document"):
+- Create a comprehensive patent application document that includes:
+  1. **Executive Summary**: Brief overview based on the research findings
+  2. **Background & Prior Art**: Use the actual research data from the tool outputs
+  3. **Technical Description**: Based on the specific information found in the research
+  4. **Claims Section**: Well-structured patent claims using the researched technology/person/topic
+  5. **Analysis & Recommendations**: Based on actual findings, not generic content
+  6. **Next Steps**: Specific recommendations based on the research
 
 ### FOR RESEARCH & ANALYSIS REQUESTS:
 If the user requested research or analysis, create a comprehensive report that includes:
