@@ -101,12 +101,16 @@ class AgentService:
             try:
                 from .langgraph_agent_unified import create_agent_graph, AgentGraphDependencies
                 
-                # Get dependencies
+                # Get dependencies with specific validation
                 llm_client = self._get_llm_client()
                 mcp_orchestrator = self._get_mcp_orchestrator()
                 
-                if not llm_client or not mcp_orchestrator:
-                    raise RuntimeError("Required dependencies not available for LangGraph agent")
+                if not llm_client:
+                    logger.error("LLM client initialization failed - Azure OpenAI may not be configured")
+                    raise RuntimeError("LLM client not available for LangGraph agent")
+                if not mcp_orchestrator:
+                    logger.error("MCP orchestrator initialization failed")
+                    raise RuntimeError("MCP orchestrator not available for LangGraph agent")
                 
                 # Create dependencies object
                 dependencies = AgentGraphDependencies(llm_client, mcp_orchestrator)
@@ -256,7 +260,10 @@ class AgentService:
             final_result = None
             
             # Use LangGraph's built-in streaming
-            async for chunk in langgraph_agent.astream(initial_state):
+            async for chunk in langgraph_agent.astream(
+                initial_state, 
+                stream_mode=["updates", "messages"]
+            ):
                 logger.debug(f"Received LangGraph chunk: {type(chunk)} - {chunk}")
                 
                 # Handle different chunk formats from LangGraph
