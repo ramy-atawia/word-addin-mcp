@@ -131,7 +131,7 @@ Extract actual parameters from the user request. Use {{previous_step_key}} synta
 
 
 def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
-    """Parse LLM intent detection response with robust JSON handling."""
+    """Parse LLM intent detection response - fail fast on errors."""
     lines = response_text.strip().split('\n')
     intent_type = "conversation"
     workflow_plan = []
@@ -148,36 +148,11 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
             plan_text = line.split(":", 1)[1].strip()
             if plan_text and plan_text.lower() not in ["empty", "[]", "", "null"]:
                 try:
-                    # Try to extract JSON from anywhere in the response if line parsing fails
                     workflow_plan = json.loads(plan_text)
-                except json.JSONDecodeError:
-                    # Try to find JSON array in the entire response
-                    json_match = _extract_json_from_text(response_text)
-                    if json_match:
-                        workflow_plan = json_match
-                    else:
-                        logger.warning(f"Could not parse workflow plan, defaulting to conversation. Plan text: {plan_text}")
-                        intent_type = "conversation"
-                        workflow_plan = []
+                except json.JSONDecodeError as e:
+                    raise RuntimeError(f"LLM returned invalid JSON in workflow plan: {e}. Response: {response_text}")
     
     return intent_type, workflow_plan
-
-
-def _extract_json_from_text(text: str) -> List[Dict]:
-    """Extract JSON array from text using pattern matching."""
-    import re
-    
-    # Look for JSON array patterns
-    json_pattern = r'\[\s*\{.*?\}\s*\]'
-    matches = re.findall(json_pattern, text, re.DOTALL)
-    
-    for match in matches:
-        try:
-            return json.loads(match)
-        except json.JSONDecodeError:
-            continue
-    
-    return []
 
 
 async def execute_workflow_node(state: AgentState) -> AgentState:
@@ -223,13 +198,8 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
         
     except Exception as e:
         logger.error(f"Step {current_step} failed: {e}")
-        # Store error but continue to next step
-        step_results[f"step_{current_step}_error"] = str(e)
-        return {
-            **state,
-            "current_step": current_step + 1,
-            "step_results": step_results
-        }
+        # Fail fast - don't continue with errors
+        raise RuntimeError(f"Workflow execution failed at step {current_step}: {e}")
 
 
 def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any]) -> Dict[str, Any]:
@@ -313,12 +283,15 @@ Provide a helpful, natural response. Be concise but complete. Use context approp
 
 
 async def _generate_workflow_response(state: AgentState) -> str:
-    """Generate response from workflow results."""
+    """Generate response from workflow results - fail fast on errors."""
     step_results = state.get("step_results", {})
     workflow_plan = state.get("workflow_plan", [])
     
     if not step_results:
         raise RuntimeError("No workflow results to generate response from")
+    
+    if not workflow_plan:
+        raise RuntimeError("No workflow plan available for response generation")
     
     response_parts = []
     
@@ -335,11 +308,15 @@ async def _generate_workflow_response(state: AgentState) -> str:
                 tool_name = step["tool"].replace("_tool", "").replace("_", " ").title()
                 response_parts.append(f"**{tool_name}:**\n{content}")
             else:
-                # Handle failed steps
+                # Fail fast on failed steps
                 error_key = f"step_{step['step']-1}_error"
                 if error_key in step_results:
                     error_msg = step_results[error_key]
-                    response_parts.append(f"Step {step['step']} ({step['tool']}) failed: {error_msg}")
+                    raise RuntimeError(f"Workflow step {step['step']} ({step['tool']}) failed: {error_msg}")
+                else:
+                    raise RuntimeError(f"Workflow step {step['step']} ({step['tool']}) failed with no error details")
+        else:
+            raise RuntimeError(f"Missing result for workflow step {step['step']} ({step['tool']})")
     
     if not response_parts:
         raise RuntimeError("No valid results from workflow execution")
