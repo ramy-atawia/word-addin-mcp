@@ -61,6 +61,9 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
       - PATENTSVIEW_API_KEY=${PATENTSVIEW_API_KEY}
+      
+      # LangGraph Configuration
+      - USE_LANGGRAPH=${USE_LANGGRAPH:-true}
     ports:
       - "9000:9000"  # Backend API
       - "8001:8001"  # Internal MCP Server
