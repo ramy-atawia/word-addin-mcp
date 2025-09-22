@@ -149,7 +149,7 @@ When creating TOOL_WORKFLOW plans:
 - Start with research tools (web_search, prior_art_search) to gather information
 - Use analysis tools (claim_analysis) to process and understand the information
 - Use generation tools (claim_drafting) to create new content
-- Chain tools so each step builds on previous results using {{previous_step_key}} syntax
+- Chain tools so each step builds on previous results using {previous_step_key} syntax
 - Plan for comprehensive coverage of the topic
 
 CRITICAL: Analyze ONLY the current user message, not the conversation history.
@@ -162,7 +162,7 @@ PLAN:
 OR
 
 TYPE: TOOL_WORKFLOW  
-PLAN: [{{"step": 1, "tool": "tool_name", "params": {{"key": "value"}}, "output_key": "result_key"}}]
+PLAN: [{"step": 1, "tool": "tool_name", "params": {"key": "value"}, "output_key": "result_key"}]
 
 CRITICAL: 
 - PLAN must be valid JSON array or empty
@@ -176,15 +176,15 @@ CRITICAL:
 
 **Patent Application Request:**
 TYPE: TOOL_WORKFLOW
-PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "5G network optimization techniques"}}, "output_key": "web_research"}}, {{"step": 2, "tool": "prior_art_search_tool", "params": {{"query": "5G network optimization patents"}}, "output_key": "prior_art"}}, {{"step": 3, "tool": "claim_drafting_tool", "params": {{"user_query": "draft patent claims for 5G optimization", "conversation_context": "{{web_research}}", "document_reference": "{{prior_art}}"}}, "output_key": "draft_claims"}}, {{"step": 4, "tool": "claim_analysis_tool", "params": {{"claims": "{{draft_claims}}", "analysis_type": "comprehensive"}}, "output_key": "analysis"}}]
+PLAN: [{"step": 1, "tool": "web_search_tool", "params": {"query": "5G network optimization techniques"}, "output_key": "web_research"}, {"step": 2, "tool": "prior_art_search_tool", "params": {"query": "5G network optimization patents"}, "output_key": "prior_art"}, {"step": 3, "tool": "claim_drafting_tool", "params": {"user_query": "draft patent claims for 5G optimization", "conversation_context": "{web_research}", "document_reference": "{prior_art}"}, "output_key": "draft_claims"}, {"step": 4, "tool": "claim_analysis_tool", "params": {"claims": "{draft_claims}", "analysis_type": "comprehensive"}, "output_key": "analysis"}]
 
 **Research & Analysis Request:**
 TYPE: TOOL_WORKFLOW
-PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "AI trends 2024"}}, "output_key": "web_data"}}, {{"step": 2, "tool": "prior_art_search_tool", "params": {{"query": "artificial intelligence patents"}}, "output_key": "patent_data"}}, {{"step": 3, "tool": "claim_drafting_tool", "params": {{"user_query": "draft comprehensive report", "conversation_context": "{{web_data}}", "document_reference": "{{patent_data}}"}}, "output_key": "final_report"}}]
+PLAN: [{"step": 1, "tool": "web_search_tool", "params": {"query": "AI trends 2024"}, "output_key": "web_data"}, {"step": 2, "tool": "prior_art_search_tool", "params": {"query": "artificial intelligence patents"}, "output_key": "patent_data"}, {"step": 3, "tool": "claim_drafting_tool", "params": {"user_query": "draft comprehensive report", "conversation_context": "{web_data}", "document_reference": "{patent_data}"}, "output_key": "final_report"}]
 
 **Simple Search Request:**
 TYPE: TOOL_WORKFLOW
-PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "test"}}, "output_key": "search_results"}}]
+PLAN: [{"step": 1, "tool": "web_search_tool", "params": {"query": "test"}, "output_key": "search_results"}]
 
 **Conversation Request:**
 TYPE: CONVERSATION
@@ -223,7 +223,7 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
                 intent_type = "tool_workflow"
             elif type_value == "CONVERSATION":
                 intent_type = "conversation"
-            else:
+    else:
                 raise RuntimeError(f"Invalid intent type from LLM: {type_value}")
                 
         elif line.startswith("PLAN:"):
@@ -333,16 +333,16 @@ async def _generate_conversation_response(state: AgentState) -> str:
     conversation_history = state.get("conversation_history", [])
     document_content = state.get("document_content", "")
     
-    from app.services.agent import AgentService
-    agent_service = AgentService()
-    
-    llm_client = agent_service._get_llm_client()
-    if not llm_client:
+        from app.services.agent import AgentService
+        agent_service = AgentService()
+        
+        llm_client = agent_service._get_llm_client()
+        if not llm_client:
         raise RuntimeError("LLM client is required for conversation but not available")
         
     # Build context with improved history formatting
     history_context = ""
-    if conversation_history:
+        if conversation_history:
         recent = conversation_history[-3:]  # Last 3 messages
         history_parts = []
         for msg in recent:
@@ -376,8 +376,8 @@ Provide helpful, natural responses. Be concise but complete. Use context appropr
 
 For document drafting requests (like invention disclosures, reports, proposals), offer structured guidance and suggest using available tools for research and content generation when appropriate."""
     
-    response = llm_client.generate_text(
-        prompt=prompt,
+        response = llm_client.generate_text(
+            prompt=prompt,
         max_tokens=800
     )
     
