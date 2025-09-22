@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     # Azure OpenAI Configuration
     azure_openai_api_key: Optional[str] = os.getenv("AZURE_OPENAI_API_KEY")
     azure_openai_endpoint: Optional[str] = os.getenv("AZURE_OPENAI_ENDPOINT")
-    azure_openai_deployment: Optional[str] = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
-    azure_openai_api_version: Optional[str] = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    azure_openai_deployment: Optional[str] = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME") or os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-5-nano")
+    azure_openai_api_version: Optional[str] = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
     
     # Google Search API Configuration
     google_search_api_key: Optional[str] = os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_SEARCH_API_KEY")

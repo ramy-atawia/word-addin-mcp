@@ -22,6 +22,7 @@ class LLMClient:
     def __init__(self, azure_openai_api_key: Optional[str] = None,
                  azure_openai_endpoint: Optional[str] = None,
                  azure_openai_deployment: Optional[str] = None,
+                 azure_openai_api_version: Optional[str] = None,
                  model_name: str = "gpt-4"):
         """
         Initialize the LLM client.
@@ -30,11 +31,13 @@ class LLMClient:
             azure_openai_api_key: Azure OpenAI API key
             azure_openai_endpoint: Azure OpenAI endpoint URL
             azure_openai_deployment: Azure OpenAI deployment name
+            azure_openai_api_version: Azure OpenAI API version
             model_name: Model name to use
         """
         self.azure_openai_api_key = azure_openai_api_key
         self.azure_openai_endpoint = azure_openai_endpoint
         self.azure_openai_deployment = azure_openai_deployment
+        self.azure_openai_api_version = azure_openai_api_version
         self.model_name = model_name
         
         # Initialize Azure OpenAI client
@@ -42,11 +45,11 @@ class LLMClient:
             try:
                 self.client = AzureOpenAI(
                     api_key=azure_openai_api_key,
-                    api_version="2024-02-15-preview",
+                    api_version=azure_openai_api_version or "2024-12-01-preview",
                     azure_endpoint=azure_openai_endpoint,
                     timeout=300.0
                 )
-                self.azure_deployment = azure_openai_deployment or "gpt-4o-mini"
+                self.azure_deployment = azure_openai_deployment or "gpt-5-nano"
                 self.llm_available = True
                 logger.info(f"Azure OpenAI client initialized with deployment: {self.azure_deployment}")
             except Exception as e:
@@ -573,7 +576,8 @@ def create_llm_client():
         return LLMClient(
             azure_openai_api_key=config['api_key'],
             azure_openai_endpoint=config['endpoint'],
-            azure_openai_deployment=config['deployment']
+            azure_openai_deployment=config['deployment'],
+            azure_openai_api_version=config['api_version']
         )
     else:
         logger.warning("Azure OpenAI not configured - creating LLM client without credentials")
