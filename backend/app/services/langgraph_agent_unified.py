@@ -106,17 +106,33 @@ Analyze the user's request and determine:
 For CONVERSATION: Simple responses, greetings, general writing help, explanations
 For TOOL_WORKFLOW: Patent searches, claim drafting, technical analysis, data processing
 
-Response format:
-TYPE: [CONVERSATION or TOOL_WORKFLOW]
-PLAN: [For TOOL_WORKFLOW, provide JSON array of steps. For CONVERSATION, leave empty]
+You MUST respond in this EXACT format with no additional text:
 
-Example TOOL_WORKFLOW plan:
-[
-  {{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "extracted search terms"}}, "output_key": "search_results"}},
-  {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "context": "{{search_results}}"}}, "output_key": "draft_results"}}
-]
+TYPE: CONVERSATION
+PLAN: 
 
-Extract actual parameters from the user request. Use {{previous_step_key}} syntax to reference earlier results."""
+OR
+
+TYPE: TOOL_WORKFLOW  
+PLAN: [{{"step": 1, "tool": "tool_name", "params": {{"key": "value"}}, "output_key": "result_key"}}]
+
+CRITICAL: 
+- PLAN must be valid JSON array or empty
+- Use double quotes in JSON
+- No trailing commas
+- No comments in JSON
+- Extract actual parameters from user request
+- Use {{previous_step_key}} syntax to reference earlier results
+
+Examples:
+TYPE: CONVERSATION
+PLAN: 
+
+TYPE: TOOL_WORKFLOW
+PLAN: [{{"step": 1, "tool": "prior_art_search_tool", "params": {{"query": "AI patents"}}, "output_key": "search_results"}}]
+
+TYPE: TOOL_WORKFLOW
+PLAN: [{{"step": 1, "tool": "web_search_tool", "params": {{"query": "blockchain"}}, "output_key": "web_results"}}, {{"step": 2, "tool": "claim_drafting_tool", "params": {{"user_query": "draft claims", "context": "{{web_results}}"}}, "output_key": "draft_results"}}]"""
     
     response = llm_client.generate_text(
         prompt=prompt,
@@ -131,7 +147,7 @@ Extract actual parameters from the user request. Use {{previous_step_key}} synta
 
 
 def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
-    """Parse LLM intent detection response - fail fast on errors."""
+    """Parse LLM intent detection response with strict validation."""
     lines = response_text.strip().split('\n')
     intent_type = "conversation"
     workflow_plan = []
@@ -142,15 +158,23 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
             type_value = line.split(":", 1)[1].strip().upper()
             if type_value == "TOOL_WORKFLOW":
                 intent_type = "tool_workflow"
-            else:
+            elif type_value == "CONVERSATION":
                 intent_type = "conversation"
-        elif line.startswith("PLAN:") and intent_type == "tool_workflow":
+            else:
+                raise RuntimeError(f"Invalid intent type from LLM: {type_value}")
+                
+        elif line.startswith("PLAN:"):
             plan_text = line.split(":", 1)[1].strip()
-            if plan_text and plan_text.lower() not in ["empty", "[]", "", "null"]:
+            if intent_type == "tool_workflow":
+                if not plan_text:
+                    raise RuntimeError("TOOL_WORKFLOW requires a plan but none provided")
                 try:
                     workflow_plan = json.loads(plan_text)
+                    if not isinstance(workflow_plan, list):
+                        raise RuntimeError("Workflow plan must be a JSON array")
                 except json.JSONDecodeError as e:
-                    raise RuntimeError(f"LLM returned invalid JSON in workflow plan: {e}. Response: {response_text}")
+                    raise RuntimeError(f"Invalid JSON in workflow plan: {e}")
+            # For conversation, plan should be empty
     
     return intent_type, workflow_plan
 
@@ -198,8 +222,13 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
         
     except Exception as e:
         logger.error(f"Step {current_step} failed: {e}")
-        # Fail fast - don't continue with errors
-        raise RuntimeError(f"Workflow execution failed at step {current_step}: {e}")
+        # Store error but continue to next step
+        step_results[f"step_{current_step}_error"] = str(e)
+        return {
+            **state,
+            "current_step": current_step + 1,
+            "step_results": step_results
+        }
 
 
 def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any]) -> Dict[str, Any]:
@@ -283,15 +312,12 @@ Provide a helpful, natural response. Be concise but complete. Use context approp
 
 
 async def _generate_workflow_response(state: AgentState) -> str:
-    """Generate response from workflow results - fail fast on errors."""
+    """Generate response from workflow results."""
     step_results = state.get("step_results", {})
     workflow_plan = state.get("workflow_plan", [])
     
     if not step_results:
         raise RuntimeError("No workflow results to generate response from")
-    
-    if not workflow_plan:
-        raise RuntimeError("No workflow plan available for response generation")
     
     response_parts = []
     
@@ -308,15 +334,11 @@ async def _generate_workflow_response(state: AgentState) -> str:
                 tool_name = step["tool"].replace("_tool", "").replace("_", " ").title()
                 response_parts.append(f"**{tool_name}:**\n{content}")
             else:
-                # Fail fast on failed steps
+                # Handle failed steps
                 error_key = f"step_{step['step']-1}_error"
                 if error_key in step_results:
                     error_msg = step_results[error_key]
-                    raise RuntimeError(f"Workflow step {step['step']} ({step['tool']}) failed: {error_msg}")
-                else:
-                    raise RuntimeError(f"Workflow step {step['step']} ({step['tool']}) failed with no error details")
-        else:
-            raise RuntimeError(f"Missing result for workflow step {step['step']} ({step['tool']})")
+                    response_parts.append(f"Step {step['step']} ({step['tool']}) failed: {error_msg}")
     
     if not response_parts:
         raise RuntimeError("No valid results from workflow execution")
