@@ -62,11 +62,50 @@ class AgentState(TypedDict):
 
 
 async def detect_intent_node(state: AgentState) -> AgentState:
-    """Detect whether this is a conversation or tool workflow using LLM."""
+    """Detect whether this is a conversation or tool workflow using pattern fallback + LLM."""
     logger.info("Starting intent detection", user_input=state["user_input"][:100])
     
     try:
-        # Always use LLM for intent detection - no keyword logic
+        # Try simple pattern detection first for basic tool queries
+        user_input = state["user_input"]
+        simple_intent = _simple_intent_detection(user_input)
+        
+        if simple_intent == "tool_workflow":
+            # Use simple detection for basic tool queries
+            logger.info("Using pattern-based detection for tool workflow", user_input=user_input[:50])
+            
+            # Create appropriate workflow plan based on query
+            workflow_plan = []
+            if any(pattern in user_input.lower() for pattern in ["draft", "write claims", "generate claims", "create claims"]):
+                workflow_plan = [{"step": 1, "tool": "claim_drafting_tool", "params": {"user_query": user_input}, "output_key": "draft_claims"}]
+            elif any(pattern in user_input.lower() for pattern in ["prior art search", "search patents", "patent search"]):
+                workflow_plan = [{"step": 1, "tool": "prior_art_search_tool", "params": {"query": user_input}, "output_key": "prior_art_results"}]
+            elif any(pattern in user_input.lower() for pattern in ["analyze claims", "analyze patents", "claim analysis"]):
+                workflow_plan = [{"step": 1, "tool": "claim_analysis_tool", "params": {"claims": user_input}, "output_key": "analysis_results"}]
+            elif any(pattern in user_input.lower() for pattern in ["web search", "search for", "find information"]):
+                workflow_plan = [{"step": 1, "tool": "web_search_tool", "params": {"query": user_input}, "output_key": "web_search_results"}]
+            else:
+                # Fallback to LLM for complex patterns
+                intent_type, workflow_plan = await _llm_intent_detection(state)
+                return {
+                    **state,
+                    "intent_type": intent_type,
+                    "workflow_plan": workflow_plan,
+                    "current_step": 0,
+                    "step_results": {},
+                    "workflow_errors": []
+                }
+            
+            return {
+                **state,
+                "intent_type": "tool_workflow",
+                "workflow_plan": workflow_plan,
+                "current_step": 0,
+                "step_results": {},
+                "workflow_errors": []
+            }
+        
+        # Use LLM for complex queries and conversations
         intent_type, workflow_plan = await _llm_intent_detection(state)
         
         logger.info("Intent detection completed", 
@@ -250,9 +289,14 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
         "",
         "## PATTERN RECOGNITION:",
         "- \"draft a patent on X\" → TOOL_WORKFLOW (comprehensive patent workflow)",
+        "- \"draft X system claim\" → TOOL_WORKFLOW (claim drafting workflow)",
+        "- \"draft X claims\" → TOOL_WORKFLOW (claim drafting workflow)",
+        "- \"draft 1 system claim\" → TOOL_WORKFLOW (claim drafting workflow)",
+        "- \"prior art search X\" → TOOL_WORKFLOW (prior art search workflow)",
         "- \"research X and create Y\" → TOOL_WORKFLOW (research + generation workflow)",
         "- \"analyze X\" → TOOL_WORKFLOW (analysis workflow)",
         "- \"search for X\" → TOOL_WORKFLOW (search workflow)",
+        "- \"web search X\" → TOOL_WORKFLOW (web search workflow)",
         "- \"draft X\" + recent tool results → TOOL_WORKFLOW (continuation pattern)",
         "- \"analyze X\" + recent tool results → TOOL_WORKFLOW (continuation pattern)",
         "- \"create X\" + recent tool results → TOOL_WORKFLOW (continuation pattern)",
@@ -349,7 +393,8 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
                    raw_params=params)
         
         # Add context from previous steps if needed
-        enhanced_params = _add_context_to_params(params, step_results)
+        conversation_history = state.get("conversation_history", [])
+        enhanced_params = _add_context_to_params(params, step_results, conversation_history)
         
         logger.info("Enhanced params after context substitution", 
                    enhanced_params=enhanced_params)
@@ -431,7 +476,10 @@ def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> 
         if msg.get('role') == 'assistant':
             content = msg.get('content', '')
             # Check if this looks like a tool result (contains research, analysis, etc.)
-            if any(keyword in content.lower() for keyword in ['research', 'analysis', 'search results', 'findings', 'data', 'information']):
+            if any(keyword in content.lower() for keyword in [
+                'research', 'analysis', 'search results', 'findings', 'data', 'information',
+                'comprehensive', 'executive summary', 'overview', 'report', 'results', 'patent'
+            ]):
                 # Truncate long content
                 if len(content) > 1000:
                     content = content[:1000] + "... [truncated]"
@@ -440,6 +488,22 @@ def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> 
     if recent_tool_results:
         return "\n\n".join(recent_tool_results)
     return ""
+
+
+def _simple_intent_detection(user_input: str) -> str:
+    """Simple pattern-based intent detection as fallback."""
+    user_lower = user_input.lower()
+    
+    # Tool workflow patterns
+    if any(pattern in user_lower for pattern in [
+        "draft", "write claims", "generate claims", "create claims",
+        "prior art search", "search patents", "patent search",
+        "analyze claims", "analyze patents", "claim analysis",
+        "web search", "search for", "find information"
+    ]):
+        return "tool_workflow"
+    
+    return "conversation"
 
 
 def _validate_tool_result(result: Any, tool_name: str) -> bool:
@@ -466,15 +530,26 @@ def _validate_tool_result(result: Any, tool_name: str) -> bool:
     return True
 
 
-def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any]) -> Dict[str, Any]:
+def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any], conversation_history: List[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Add context from previous steps by enhancing the user_query string."""
     enhanced_params = params.copy()
     
     logger.info("Starting context enhancement", 
                original_params=params, 
-               available_results=list(step_results.keys()))
+               available_results=list(step_results.keys()),
+               conversation_history_length=len(conversation_history) if conversation_history else 0)
     
-    # First, handle the enhanced user_query approach
+    # First, handle conversation history context
+    if conversation_history and "user_query" in enhanced_params:
+        recent_tool_results = _extract_recent_tool_results(conversation_history)
+        if recent_tool_results:
+            original_query = enhanced_params["user_query"]
+            enhanced_params["user_query"] = f"{original_query}\n\nContext from previous conversation:\n{recent_tool_results}"
+            logger.info("Enhanced user_query with conversation history context", 
+                       original_length=len(original_query),
+                       enhanced_length=len(enhanced_params["user_query"]))
+    
+    # Second, handle the enhanced user_query approach with step results
     if "user_query" in enhanced_params and step_results:
         original_query = enhanced_params["user_query"]
         
