@@ -124,7 +124,7 @@ class PatentSearchService:
             response = self.llm_client.generate_text(
                 prompt=prompt,
                 system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
-                max_tokens=2500
+                max_tokens=4000
             )
             
             logger.info(f"LLM response: {response}")
@@ -530,14 +530,17 @@ Format as concise markdown.
             # Format query results for the report
             query_info = []
             for i, result in enumerate(query_results, 1):
-                query_info.append(f"  - {result['query_text']} → {result['result_count']} patents")
+                # Handle different query result formats
+                query_text = result.get('query_text', result.get('reasoning', f'Query {i}'))
+                result_count = result.get('result_count', result.get('count', 0))
+                query_info.append(f"  - {query_text} → {result_count} patents")
             query_summary = "\n".join(query_info)
             
             # Prepare claims summary for the prompt
             claims_context = f"\n\n**Detailed Claims Analysis:**\n{found_claims_summary}" if found_claims_summary else ""
             
             # Load the user prompt template with parameters
-            user_prompt = load_prompt_template("prior_art_search_comprehensive",
+            user_prompt = load_prompt_template("prior_art_search_simple",
                                               user_query=query,
                                               conversation_context=f"Search Queries Used (with result counts):\n{query_summary}\n\nPatents Found:\n{json.dumps(patent_summaries, indent=2)}{claims_context}",
                                               document_reference="Patent Search Results")
@@ -545,7 +548,7 @@ Format as concise markdown.
             response = self.llm_client.generate_text(
                 prompt=user_prompt,
                 system_message=system_prompt,
-                max_tokens=4000  # Increased back to 4000 with 300s timeout
+                max_tokens=6000  # Increased to 6000 for comprehensive reports
             )
             
             if response.get("success"):

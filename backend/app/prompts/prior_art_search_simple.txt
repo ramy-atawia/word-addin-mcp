@@ -1,0 +1,84 @@
+Generate a comprehensive prior art search report for: {user_query}
+
+**Patents Found**: {document_reference}
+
+Create a professional markdown report with this structure:
+
+## Executive Summary
+- **Invention Overview**: Brief technical summary of the invention being searched
+- **Search Scope**: Total patents found, databases used, time period covered
+- **Total Prior Art**: Number of relevant references found
+- **Patentability Assessment**: Overall novelty and non-obviousness conclusion
+- **Risk Level**: HIGH/MEDIUM/LOW with justification
+- **Key Recommendations**: 2-3 actionable insights
+
+## Search Methodology
+- **Databases Searched**: PatentsView API
+- **Search Strategy**: Multi-query approach with Boolean logic and text operators
+- **Search Terms**: Comprehensive list of terms and synonyms used
+- **Date Range**: [earliest] to [latest] publication dates
+- **Total Hits**: Raw search results before filtering
+
+## Prior Art References
+
+### Highly Relevant Patents
+For each patent, provide:
+
+#### Patent 1: [Title]
+- **Patent ID**: [id]
+- **Publication Date**: [date]
+- **Assignee**: [assignee]
+- **Inventors**: [inventor names]
+- **Abstract**: [full abstract]
+
+**Innovation Summary**: [Comprehensive 4-5 sentence summary including: key technical features, novel aspects, how it relates to the search query, patent scope and limitations, and technical implementation details]
+
+**Relevance**: HIGH/MEDIUM/LOW
+**Risk Assessment**: [specific reasoning for risk level]
+
+## Risk Analysis
+
+### Freedom to Operate
+- **HIGH RISK**: Patents with direct conflicts that could block commercialization
+- **MEDIUM RISK**: Patents with potential overlap requiring design-around
+- **LOW RISK**: Patents with minimal relevance to core invention
+
+### Patent Prosecution Risk
+- **Rejection Likelihood**: Probability of patent office rejection
+- **Claim Scope**: Potential claim limitations needed
+- **Prosecution Strategy**: Recommended approach for application
+
+## Conclusions and Recommendations
+
+### Patentability Opinion
+- **Overall Assessment**: Patentable/Not Patentable/Uncertain
+- **Strongest Aspects**: Which features have best patentability prospects
+- **Weakest Aspects**: Features likely to face rejection
+
+### Strategic Recommendations
+- **Immediate Actions**: Priority tasks for patent prosecution
+- **Claim Drafting**: Specific claim language recommendations
+- **Additional Searches**: Further prior art search needs
+- **Commercial Strategy**: Market entry and IP protection approach
+
+### Next Steps
+- **Filing Strategy**: Provisional vs non-provisional, timing
+- **Long-term Strategy**: Portfolio development recommendations
+- **Monitoring**: Ongoing patent landscape surveillance needs
+
+---
+
+## Report Metadata
+- **Search Date**: [current date]
+- **Search Engine**: PatentsView API
+- **Search Confidence**: High/Medium/Low
+- **Report Version**: 2.0 (Enhanced with detailed claim analysis)
+
+**Requirements:**
+- Use only data provided in the patents found
+- Include full claim text analysis for each key patent
+- Analyze claim elements and their relevance to the search query
+- Be specific and actionable
+- Focus on practical implications
+- Keep language clear and professional
+- Provide detailed analysis for all patents found
