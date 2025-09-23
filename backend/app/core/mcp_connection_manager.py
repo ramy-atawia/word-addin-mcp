@@ -248,7 +248,8 @@ class MCPConnectionManager:
                             connection.is_healthy):
                             
                             try:
-                                is_healthy = await connection.client.health_check()
+                                health_result = await connection.client.health_check()
+                                is_healthy = health_result.get("status") == "healthy"
                                 connection.is_healthy = is_healthy
                                 connection.last_health_check = current_time
                                 

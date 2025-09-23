@@ -535,7 +535,8 @@ class MCPServerRegistry:
                 # Connect to the server
                 if await client.connect():
                     # Test basic connectivity with health check
-                    is_connected = await client.health_check()
+                    health_result = await client.health_check()
+                    is_connected = health_result.get("status") == "healthy"
                     
                     if is_connected:
                         # Also try to list tools to ensure full functionality
@@ -626,8 +627,9 @@ class MCPServerRegistry:
                         
                         return health_data
                     
-                    # Use health check method from persistent connection
-                    is_healthy = await connection.client.health_check()
+                    # Use health check method from persistent connection with context manager
+                    health_result = await connection.client.health_check()
+                    is_healthy = health_result.get("status") == "healthy"
                     
                     if is_healthy:
                         server.last_health_check = time.time()

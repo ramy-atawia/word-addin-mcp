@@ -127,7 +127,9 @@ async def add_external_server(request: AddServerRequest):
             
             # Test connection
             async with client:
-                await client.health_check()
+                health_result = await client.health_check()
+                if health_result.get("status") != "healthy":
+                    raise ExternalMCPServerError(f"Health check failed: {health_result}")
                 tools = await client.list_tools()
                 logger.info(f"Connection test successful. Found {len(tools)} tools.")
                 
@@ -237,7 +239,9 @@ async def test_external_server_connection(request: ConnectionTestRequest):
             start_time = datetime.now()
             async with client:
                 # Perform health check and get tools
-                await client.health_check()
+                health_result = await client.health_check()
+                if health_result.get("status") != "healthy":
+                    raise ExternalMCPServerError(f"Health check failed: {health_result}")
                 
                 # Try to list tools to verify full functionality
                 try:
@@ -613,7 +617,8 @@ async def get_server_health(server_id: str):
             # Test connection
             start_time = datetime.now()
             async with client:
-                is_healthy = await client.health_check()
+                health_result = await client.health_check()
+                is_healthy = health_result.get("status") == "healthy"
                 response_time = (datetime.now() - start_time).total_seconds()
                 
                 # Get tool count
@@ -708,7 +713,8 @@ async def test_server_connection(server_id: str):
             # Test connection
             start_time = datetime.now()
             async with client:
-                is_connected = await client.health_check()
+                health_result = await client.health_check()
+                is_connected = health_result.get("status") == "healthy"
                 response_time = (datetime.now() - start_time).total_seconds()
                 
                 if is_connected:
