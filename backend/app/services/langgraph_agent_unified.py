@@ -487,6 +487,20 @@ def _validate_tool_result(result: Any, tool_name: str) -> bool:
             # Web search should return substantial content
             if isinstance(result_content, str) and len(result_content.strip()) < 50:
                 return False
+    elif isinstance(result, str):
+        # Direct string results (like prior art search reports)
+        if len(result.strip()) < 10:
+            return False
+            
+        # Tool-specific validation for string results
+        if tool_name == "prior_art_search_tool":
+            # Prior art search should return comprehensive report
+            if len(result.strip()) < 100:
+                return False
+        elif tool_name == "web_search_tool":
+            # Web search should return substantial content
+            if len(result.strip()) < 50:
+                return False
     
     return True
 
@@ -725,8 +739,18 @@ async def _generate_workflow_response(state: AgentState) -> str:
                 else:
                     tool_outputs.append(f"**{tool_name}:** No meaningful results returned")
                     logger.warning(f"Empty result from {tool_name}")
+            elif isinstance(result, str):
+                # Direct string results (like prior art search reports)
+                if result and len(result.strip()) > 10:
+                    tool_outputs.append(f"**{tool_name} Results:**\n{result}")
+                    successful_steps += 1
+                    logger.info(f"Added successful string result from {tool_name}", 
+                              content_length=len(result))
+                else:
+                    tool_outputs.append(f"**{tool_name}:** No meaningful results returned")
+                    logger.warning(f"Empty string result from {tool_name}")
             else:
-                error_msg = result.get("error", "Unknown error")
+                error_msg = result.get("error", "Unknown error") if isinstance(result, dict) else str(result)
                 tool_outputs.append(f"**{tool_name} (Failed):** {error_msg}")
                 logger.warning(f"Failed result from {tool_name}", error=error_msg)
         else:
