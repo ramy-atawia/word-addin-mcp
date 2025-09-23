@@ -166,7 +166,52 @@ class PatentSearchService:
             
         except json.JSONDecodeError as e:
             logger.error(f"LLM returned invalid JSON: {e}")
-            raise ValueError(f"Failed to parse LLM response as JSON. LLM may have returned invalid format: {e}")
+            logger.error(f"Raw LLM response: {response}")
+            logger.error(f"Response length: {len(response)} characters")
+            logger.error(f"Error at position: {e.pos if hasattr(e, 'pos') else 'unknown'}")
+            
+            # Try to extract JSON from the response if it's wrapped in markdown
+            if "```json" in response:
+                try:
+                    json_start = response.find("```json") + 7
+                    json_end = response.find("```", json_start)
+                    if json_end > json_start:
+                        json_text = response[json_start:json_end].strip()
+                        logger.info(f"Attempting to parse extracted JSON: {json_text[:200]}...")
+                        data = json.loads(json_text)
+                        queries = data.get("search_queries", [])
+                        if len(queries) >= 3:
+                            logger.info(f"Successfully parsed JSON from markdown wrapper")
+                            return queries
+                except (json.JSONDecodeError, KeyError) as e2:
+                    logger.error(f"Failed to parse extracted JSON: {e2}")
+            
+            # Try to fix common JSON issues
+            try:
+                # Remove any text before the first {
+                json_start = response.find('{')
+                if json_start > 0:
+                    response = response[json_start:]
+                
+                # Remove any text after the last }
+                json_end = response.rfind('}')
+                if json_end > 0 and json_end < len(response) - 1:
+                    response = response[:json_end + 1]
+                
+                # Try to fix common issues
+                response = response.replace('\n', ' ').replace('\r', ' ')
+                response = response.replace('  ', ' ')
+                
+                logger.info(f"Attempting to parse cleaned JSON: {response[:200]}...")
+                data = json.loads(response)
+                queries = data.get("search_queries", [])
+                if len(queries) >= 3:
+                    logger.info(f"Successfully parsed cleaned JSON")
+                    return queries
+            except (json.JSONDecodeError, KeyError) as e3:
+                logger.error(f"Failed to parse cleaned JSON: {e3}")
+            
+            raise ValueError(f"Failed to parse LLM response as JSON. Error at position {e.pos if hasattr(e, 'pos') else 'unknown'}: {e}. Response preview: '{response[:200]}...'")
         except KeyError as e:
             logger.error(f"LLM response missing required field: {e}")
             raise ValueError(f"LLM response missing required field '{e}'. Please try again.")
