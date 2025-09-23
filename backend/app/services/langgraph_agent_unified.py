@@ -56,6 +56,7 @@ class AgentState(TypedDict):
     current_step: int
     step_results: Dict[str, Any]
     workflow_errors: List[str]  # NEW: Track workflow errors
+    workflow_completed: Optional[bool]  # Track if workflow execution is complete
     
     # Output
     final_response: str
@@ -330,7 +331,13 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
     
     if current_step >= len(workflow_plan):
         logger.info("Workflow completed", total_steps=len(workflow_plan))
-        return state  # All steps completed
+        # Mark workflow as completed and continue to response generation
+        return {
+            **state,
+            "workflow_completed": True,
+            "step_results": step_results,
+            "workflow_errors": workflow_errors
+        }
     
     try:
         # Use injected dependency instead of importing AgentService
@@ -905,6 +912,7 @@ def _route_workflow_continue(state: AgentState) -> str:
     current_step = state.get("current_step", 0)
     workflow_plan = state.get("workflow_plan", [])
     workflow_errors = state.get("workflow_errors", [])
+    workflow_completed = state.get("workflow_completed", False)
     
     # If there's already a final response due to critical error, end workflow
     if state.get("final_response"):
@@ -914,6 +922,11 @@ def _route_workflow_continue(state: AgentState) -> str:
     if workflow_errors and any("Critical" in error for error in workflow_errors):
         return "generate_response"
     
+    # If workflow is marked as completed, go to response generation
+    if workflow_completed:
+        return "generate_response"
+    
+    # If there are more steps to execute, continue workflow
     if current_step < len(workflow_plan):
         return "execute_workflow"
     else:
