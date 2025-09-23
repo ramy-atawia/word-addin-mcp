@@ -62,50 +62,11 @@ class AgentState(TypedDict):
 
 
 async def detect_intent_node(state: AgentState) -> AgentState:
-    """Detect whether this is a conversation or tool workflow using pattern fallback + LLM."""
+    """Detect whether this is a conversation or tool workflow using LLM."""
     logger.info("Starting intent detection", user_input=state["user_input"][:100])
     
     try:
-        # Try simple pattern detection first for basic tool queries
-        user_input = state["user_input"]
-        simple_intent = _simple_intent_detection(user_input)
-        
-        if simple_intent == "tool_workflow":
-            # Use simple detection for basic tool queries
-            logger.info("Using pattern-based detection for tool workflow", user_input=user_input[:50])
-            
-            # Create appropriate workflow plan based on query
-            workflow_plan = []
-            if any(pattern in user_input.lower() for pattern in ["draft", "write claims", "generate claims", "create claims"]):
-                workflow_plan = [{"step": 1, "tool": "claim_drafting_tool", "params": {"user_query": user_input, "conversation_context": "", "document_reference": ""}, "output_key": "draft_claims"}]
-            elif any(pattern in user_input.lower() for pattern in ["prior art search", "search patents", "patent search"]):
-                workflow_plan = [{"step": 1, "tool": "prior_art_search_tool", "params": {"query": user_input}, "output_key": "prior_art_results"}]
-            elif any(pattern in user_input.lower() for pattern in ["analyze claims", "analyze patents", "claim analysis"]):
-                workflow_plan = [{"step": 1, "tool": "claim_analysis_tool", "params": {"claims": user_input}, "output_key": "analysis_results"}]
-            elif any(pattern in user_input.lower() for pattern in ["web search", "search for", "find information"]):
-                workflow_plan = [{"step": 1, "tool": "web_search_tool", "params": {"query": user_input}, "output_key": "web_search_results"}]
-            else:
-                # Fallback to LLM for complex patterns
-                intent_type, workflow_plan = await _llm_intent_detection(state)
-                return {
-                    **state,
-                    "intent_type": intent_type,
-                    "workflow_plan": workflow_plan,
-                    "current_step": 0,
-                    "step_results": {},
-                    "workflow_errors": []
-                }
-            
-            return {
-                **state,
-                "intent_type": "tool_workflow",
-                "workflow_plan": workflow_plan,
-                "current_step": 0,
-                "step_results": {},
-                "workflow_errors": []
-            }
-        
-        # Use LLM for complex queries and conversations
+        # Use LLM for all intent detection - no keyword logic
         intent_type, workflow_plan = await _llm_intent_detection(state)
         
         logger.info("Intent detection completed", 
@@ -466,58 +427,37 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
 
 
 def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> str:
-    """Extract recent tool results from conversation history for context."""
+    """Extract recent conversation context for tool workflows."""
     if not conversation_history:
         return ""
     
-    # Look for recent conversation pairs (user query + assistant response) that contain tool results
-    recent_tool_results = []
+    # Extract recent conversation pairs (user query + assistant response) without keyword filtering
+    recent_context = []
     for i in range(len(conversation_history) - 1, -1, -1):  # Check last 5 messages
         if i >= len(conversation_history) - 5:  # Only check last 5 messages
             msg = conversation_history[i]
             if msg.get('role') == 'assistant':
                 content = msg.get('content', '')
-                # Check if this looks like a tool result (contains research, analysis, etc.)
-                if any(keyword in content.lower() for keyword in [
-                    'research', 'analysis', 'search results', 'findings', 'data', 'information',
-                    'comprehensive', 'executive summary', 'overview', 'report', 'results', 'patent'
-                ]):
-                    # Get the previous user message if it exists
-                    user_query = ""
-                    if i > 0 and conversation_history[i-1].get('role') == 'user':
-                        user_query = conversation_history[i-1].get('content', '')
-                    
-                    # Create context with both user query and assistant response
-                    context_parts = []
-                    if user_query:
-                        context_parts.append(f"User Query: {user_query}")
-                    
-                    # Truncate long content
-                    if len(content) > 1000:
-                        content = content[:1000] + "... [truncated]"
-                    context_parts.append(f"Results: {content}")
-                    
-                    recent_tool_results.append("\n".join(context_parts))
+                # Get the previous user message if it exists
+                user_query = ""
+                if i > 0 and conversation_history[i-1].get('role') == 'user':
+                    user_query = conversation_history[i-1].get('content', '')
+                
+                # Create context with both user query and assistant response
+                context_parts = []
+                if user_query:
+                    context_parts.append(f"User Query: {user_query}")
+                
+                # Truncate long content to prevent prompt overflow
+                if len(content) > 1500:
+                    content = content[:1500] + "... [truncated]"
+                context_parts.append(f"Response: {content}")
+                
+                recent_context.append("\n".join(context_parts))
     
-    if recent_tool_results:
-        return "\n\n".join(recent_tool_results)
+    if recent_context:
+        return "\n\n".join(recent_context)
     return ""
-
-
-def _simple_intent_detection(user_input: str) -> str:
-    """Simple pattern-based intent detection as fallback."""
-    user_lower = user_input.lower()
-    
-    # Tool workflow patterns
-    if any(pattern in user_lower for pattern in [
-        "draft", "write claims", "generate claims", "create claims",
-        "prior art search", "search patents", "patent search",
-        "analyze claims", "analyze patents", "claim analysis",
-        "web search", "search for", "find information"
-    ]):
-        return "tool_workflow"
-    
-    return "conversation"
 
 
 def _validate_tool_result(result: Any, tool_name: str) -> bool:
