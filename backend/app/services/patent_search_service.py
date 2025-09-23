@@ -542,8 +542,8 @@ Format as concise markdown.
             # Load the user prompt template with parameters
             user_prompt = load_prompt_template("prior_art_search_simple",
                                               user_query=query,
-                                              conversation_context=f"Search Queries Used (with result counts):\n{query_summary}\n\nPatents Found:\n{json.dumps(patent_summaries, indent=2)}{claims_context}",
-                                              document_reference="Patent Search Results")
+                                              conversation_context=f"Search Queries Used (with result counts):\n{query_summary}",
+                                              document_reference=f"Patents Found:\n{json.dumps(patent_summaries, indent=2)}{claims_context}")
             
             response = self.llm_client.generate_text(
                 prompt=user_prompt,
