@@ -159,16 +159,17 @@ class FastMCPClient:
     async def health_check(self) -> Dict[str, Any]:
         """Perform health check using real FastMCP API."""
         if not self.client:
-            raise MCPConnectionError("Client not initialized")
+            raise MCPConnectionError("Client is not connected. Use 'async with client:' context manager first.")
         
         try:
-            # Try to ping the server using real FastMCP
-            result = await self.client.ping()
-            return {
-                "status": "healthy" if result else "unhealthy",
-                "server_name": self.config.server_name,
-                "ping_successful": result
-            }
+            # Use context manager properly for FastMCP client
+            async with self.client as client:
+                result = await client.ping()
+                return {
+                    "status": "healthy" if result else "unhealthy",
+                    "server_name": self.config.server_name,
+                    "ping_successful": result
+                }
             
         except Exception as e:
             logger.error(f"Health check failed: {e}")
