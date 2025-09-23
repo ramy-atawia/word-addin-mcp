@@ -475,8 +475,8 @@ def _validate_tool_result(result: Any, tool_name: str) -> bool:
         return False
     
     if isinstance(result, dict):
-        # Check success flag
-        if result.get("success") == False:
+        # Check status flag
+        if result.get("status") == "error":
             return False
         
         # Check for actual content
@@ -731,7 +731,7 @@ async def _generate_workflow_response(state: AgentState) -> str:
         
         if output_key in step_results:
             result = step_results[output_key]
-            if isinstance(result, dict) and result.get("success", True):
+            if isinstance(result, dict) and result.get("status") == "success":
                 content = result.get("result", str(result))
                 if content and len(str(content).strip()) > 10:  # Ensure meaningful content
                     tool_outputs.append(f"**{tool_name} Results:**\n{content}")
