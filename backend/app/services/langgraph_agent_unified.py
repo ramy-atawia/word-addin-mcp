@@ -325,6 +325,8 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
     step_results = state.get("step_results", {})
     workflow_errors = state.get("workflow_errors", [])
     
+    print(f"🔍 DEBUG: Executing workflow - Plan: {workflow_plan}, Step: {current_step}")
+    
     logger.info("Executing workflow step", 
                current_step=current_step, 
                total_steps=len(workflow_plan))

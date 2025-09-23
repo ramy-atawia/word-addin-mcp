@@ -55,37 +55,50 @@ class PatentSearchService:
             raise ValueError("Query cannot be empty")
         
         try:
-            logger.info(f"Starting patent search for: {query}")
+            logger.info(f"🔍 Starting patent search for: {query}")
+            print(f"🔍 DEBUG: Starting patent search for query: '{query}' with max_results: {max_results}")
             
             # Step 1: Generate search queries
             logger.info("Step 1: Generating search queries...")
+            print("🔍 DEBUG: Step 1 - Generating search queries...")
             search_queries = await self._generate_queries(query)
             logger.info(f"Step 1 completed: Generated {len(search_queries)} queries")
+            print(f"🔍 DEBUG: Step 1 completed - Generated {len(search_queries)} queries: {search_queries}")
             
             # Step 2: Search for patents
             logger.info("Step 2: Searching for patents...")
+            print("🔍 DEBUG: Step 2 - Searching for patents...")
             all_patents, query_results = await self._search_all_queries(search_queries)
             logger.info(f"Step 2 completed: Found {len(all_patents)} total patents")
+            print(f"🔍 DEBUG: Step 2 completed - Found {len(all_patents)} total patents")
             
             # Step 3: Deduplicate and limit results
             logger.info("Step 3: Deduplicating patents...")
+            print("🔍 DEBUG: Step 3 - Deduplicating patents...")
             unique_patents = self._deduplicate(all_patents)[:max_results]
             logger.info(f"Step 3 completed: {len(unique_patents)} unique patents")
+            print(f"🔍 DEBUG: Step 3 completed - {len(unique_patents)} unique patents after deduplication")
             
             # Step 4: Get claims for each patent
             logger.info("Step 4: Fetching patent claims...")
+            print("🔍 DEBUG: Step 4 - Fetching patent claims...")
             patents_with_claims = await self._add_claims(unique_patents)
             logger.info(f"Step 4 completed: Added claims to {len(patents_with_claims)} patents")
+            print(f"🔍 DEBUG: Step 4 completed - Added claims to {len(patents_with_claims)} patents")
             
             # Step 5: Summarize claims using LLM
             logger.info("Step 5: Summarizing patent claims...")
+            print("🔍 DEBUG: Step 5 - Summarizing patent claims...")
             found_claims_summary = await self._summarize_claims(patents_with_claims)
             logger.info(f"Step 5 completed: Generated claims summary of {len(found_claims_summary)} characters")
+            print(f"🔍 DEBUG: Step 5 completed - Generated claims summary of {len(found_claims_summary)} characters")
             
             # Step 6: Generate report
             logger.info("Step 6: Generating report...")
+            print("🔍 DEBUG: Step 6 - Generating report...")
             report = await self._generate_report(query, query_results, patents_with_claims, found_claims_summary)
             logger.info(f"Step 6 completed: Generated report of {len(report)} characters")
+            print(f"🔍 DEBUG: Step 6 completed - Generated report of {len(report)} characters")
             
             search_result = {
                 "query": query,
