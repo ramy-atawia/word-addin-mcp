@@ -503,8 +503,8 @@ Format as concise markdown.
             # Extract classification codes
             cpc_codes = patent.get("cpc_current", [])
             
-            # Determine if this patent gets detailed analysis (top 3)
-            is_top_patent = i < 3
+            # All patents get detailed analysis
+            is_top_patent = True
             
             # Create patent summary for Innovation Summary
             patent_summary = {

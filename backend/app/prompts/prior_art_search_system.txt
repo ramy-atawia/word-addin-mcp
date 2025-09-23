@@ -20,7 +20,7 @@ Report structure:
 - Search methodology documentation with databases and strategies
 - Invention analysis with technical field and key features
 - Innovation summaries for all patents (concise but comprehensive)
-- Detailed claim analysis for top 3 patents only
+- Detailed claim analysis for all patents found
 - Risk analysis using Freedom to Operate and prosecution frameworks
 - Strategic recommendations and next steps
 
@@ -29,7 +29,7 @@ Guidelines:
 - Use iterative analysis to balance generic vs specific terms
 - Provide clear risk assessments (HIGH/MEDIUM/LOW) with justification
 - Include specific patent citations and claim analysis
-- Generate detailed analysis only for top 3 most relevant patents
+- Generate detailed analysis for all patents found
 - Suggest strategic recommendations for patent prosecution
 - Maintain professional legal terminology and 35 USC framework
 - Balance comprehensive analysis with practical usability
