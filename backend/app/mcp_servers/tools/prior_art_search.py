@@ -1,16 +1,18 @@
 """
 Prior Art Search Tool
 
-Simplified patent search tool that:
-1. Generates 5 PatentsView API queries using LLM
+Fast-fail patent search tool that:
+1. Generates PatentsView API queries using LLM
 2. Executes API calls to get patent titles/numbers
 3. Fetches patent claims
 4. Generates comprehensive markdown report
+
+Fails immediately on any error condition.
 """
 
 import structlog
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any
 from .base import BaseInternalTool
 from app.services.patent_search_service import PatentSearchService
 
@@ -106,57 +108,84 @@ class PriorArtSearchTool(BaseInternalTool):
         self.patent_service = PatentSearchService()
     
     async def execute(self, parameters: Dict[str, Any]) -> str:
-        """Execute prior art search with comprehensive report generation."""
+        """Execute prior art search with fast-fail behavior."""
         start_time = time.time()
         
-        query = parameters.get("query", "")
+        # Strict parameter validation
+        query = parameters.get("query")
+        if not query:
+            raise ValueError("Query parameter is required")
+        
+        query = query.strip()
+        if not query:
+            raise ValueError("Query cannot be empty or whitespace only")
+        
+        if len(query) < 3:
+            raise ValueError("Query must be at least 3 characters long")
+        
+        if len(query) > 1000:
+            raise ValueError("Query cannot exceed 1000 characters")
+        
         context = parameters.get("context")
         conversation_history = parameters.get("conversation_history")
         max_results = parameters.get("max_results", 20)
         
+        if not isinstance(max_results, int):
+            raise ValueError("max_results must be an integer")
+        
+        if max_results < 1 or max_results > 100:
+            raise ValueError("max_results must be between 1 and 100")
+        
         logger.info(f"Executing prior art search for query: {query}")
         
-        # Validate query
-        if not query or not query.strip():
-            logger.error("Empty query provided to prior art search")
-            return "# Prior Art Search Report\n\n**Query**: (empty)\n\n**Error**: Query cannot be empty. Please provide a search term.\n\n**Suggestion**: Please provide a valid search query and try again."
+        # Execute the patent search (will raise exceptions on failure)
+        search_result, generated_queries = await self.patent_service.search_patents(
+            query=query,
+            context=context,
+            conversation_history=conversation_history,
+            max_results=max_results
+        )
         
-        try:
-            # Execute the patent search
-            search_result, generated_queries = await self.patent_service.search_patents(
-                query=query,
-                context=context,
-                conversation_history=conversation_history,
-                max_results=max_results
-            )
-            
-            logger.info(f"Prior art search completed for '{query}' - {search_result['results_found']} results")
-            
-            # Validate search result
-            if not search_result or not isinstance(search_result, dict):
-                logger.error(f"Invalid search result format: {type(search_result)}")
-                return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: Invalid search result format received.\n\n**Technical Details**: Search result is not a valid dictionary."
-            
-            # Check if report exists and is not empty
-            report = search_result.get("report", "")
-            if not report or not report.strip():
-                logger.error(f"Empty report generated for query: {query}")
-                return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: No report generated. This may be due to API issues or no results found.\n\n**Technical Details**: Report field is empty or missing."
-            
-            execution_time = time.time() - start_time
-            self.update_usage_stats(execution_time)
-            
-            # Return the markdown report
-            logger.info(f"Returning report of {len(report)} characters for query: {query}")
-            return report
-            
-        except ValueError as e:
-            execution_time = time.time() - start_time
-            logger.error(f"Prior art search failed with specific error for '{query}': {str(e)}")
-            # Return specific error as markdown
-            return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: {str(e)}\n\n**Suggestion**: Please check your query and try again, or contact support if the issue persists."
-        except Exception as e:
-            execution_time = time.time() - start_time
-            logger.error(f"Prior art search failed with unexpected error for '{query}': {str(e)}")
-            # Return generic error as markdown
-            return f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Error**: An unexpected error occurred during the search. Please try again.\n\n**Technical Details**: {str(e)}"
+        # Strict validation of search result
+        if not search_result:
+            raise ValueError("Patent service returned empty result")
+        
+        if not isinstance(search_result, dict):
+            raise ValueError(f"Invalid search result type: {type(search_result)}")
+        
+        # Validate required fields in search result
+        required_fields = ["query", "results_found", "patents", "report", "search_summary", "search_metadata"]
+        for field in required_fields:
+            if field not in search_result:
+                raise ValueError(f"Search result missing required field: {field}")
+        
+        report = search_result.get("report")
+        if not report:
+            raise ValueError("Search result contains empty report")
+        
+        if not isinstance(report, str):
+            raise ValueError(f"Report must be a string, got {type(report)}")
+        
+        report = report.strip()
+        if not report:
+            raise ValueError("Search result contains whitespace-only report")
+        
+        # Validate results count consistency
+        results_found = search_result.get("results_found")
+        patents = search_result.get("patents", [])
+        
+        if not isinstance(results_found, int):
+            raise ValueError(f"results_found must be an integer, got {type(results_found)}")
+        
+        if results_found != len(patents):
+            raise ValueError(f"Inconsistent results count: reported {results_found}, actual {len(patents)}")
+        
+        if results_found == 0:
+            raise ValueError("No patents found for the given query")
+        
+        execution_time = time.time() - start_time
+        self.update_usage_stats(execution_time)
+        
+        logger.info(f"Prior art search completed successfully for '{query}' - {results_found} results")
+        
+        return report
