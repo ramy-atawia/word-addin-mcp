@@ -77,7 +77,7 @@ async def detect_intent_node(state: AgentState) -> AgentState:
             # Create appropriate workflow plan based on query
             workflow_plan = []
             if any(pattern in user_input.lower() for pattern in ["draft", "write claims", "generate claims", "create claims"]):
-                workflow_plan = [{"step": 1, "tool": "claim_drafting_tool", "params": {"user_query": user_input}, "output_key": "draft_claims"}]
+                workflow_plan = [{"step": 1, "tool": "claim_drafting_tool", "params": {"user_query": user_input, "conversation_context": "", "document_reference": ""}, "output_key": "draft_claims"}]
             elif any(pattern in user_input.lower() for pattern in ["prior art search", "search patents", "patent search"]):
                 workflow_plan = [{"step": 1, "tool": "prior_art_search_tool", "params": {"query": user_input}, "output_key": "prior_art_results"}]
             elif any(pattern in user_input.lower() for pattern in ["analyze claims", "analyze patents", "claim analysis"]):
@@ -470,20 +470,34 @@ def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> 
     if not conversation_history:
         return ""
     
-    # Look for recent assistant messages that contain tool results
+    # Look for recent conversation pairs (user query + assistant response) that contain tool results
     recent_tool_results = []
-    for msg in conversation_history[-5:]:  # Check last 5 messages
-        if msg.get('role') == 'assistant':
-            content = msg.get('content', '')
-            # Check if this looks like a tool result (contains research, analysis, etc.)
-            if any(keyword in content.lower() for keyword in [
-                'research', 'analysis', 'search results', 'findings', 'data', 'information',
-                'comprehensive', 'executive summary', 'overview', 'report', 'results', 'patent'
-            ]):
-                # Truncate long content
-                if len(content) > 1000:
-                    content = content[:1000] + "... [truncated]"
-                recent_tool_results.append(content)
+    for i in range(len(conversation_history) - 1, -1, -1):  # Check last 5 messages
+        if i >= len(conversation_history) - 5:  # Only check last 5 messages
+            msg = conversation_history[i]
+            if msg.get('role') == 'assistant':
+                content = msg.get('content', '')
+                # Check if this looks like a tool result (contains research, analysis, etc.)
+                if any(keyword in content.lower() for keyword in [
+                    'research', 'analysis', 'search results', 'findings', 'data', 'information',
+                    'comprehensive', 'executive summary', 'overview', 'report', 'results', 'patent'
+                ]):
+                    # Get the previous user message if it exists
+                    user_query = ""
+                    if i > 0 and conversation_history[i-1].get('role') == 'user':
+                        user_query = conversation_history[i-1].get('content', '')
+                    
+                    # Create context with both user query and assistant response
+                    context_parts = []
+                    if user_query:
+                        context_parts.append(f"User Query: {user_query}")
+                    
+                    # Truncate long content
+                    if len(content) > 1000:
+                        content = content[:1000] + "... [truncated]"
+                    context_parts.append(f"Results: {content}")
+                    
+                    recent_tool_results.append("\n".join(context_parts))
     
     if recent_tool_results:
         return "\n\n".join(recent_tool_results)
@@ -545,9 +559,13 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any],
         if recent_tool_results:
             original_query = enhanced_params["user_query"]
             enhanced_params["user_query"] = f"{original_query}\n\nContext from previous conversation:\n{recent_tool_results}"
+            # Also populate conversation_context parameter if it exists
+            if "conversation_context" in enhanced_params:
+                enhanced_params["conversation_context"] = recent_tool_results
             logger.info("Enhanced user_query with conversation history context", 
                        original_length=len(original_query),
-                       enhanced_length=len(enhanced_params["user_query"]))
+                       enhanced_length=len(enhanced_params["user_query"]),
+                       conversation_context_length=len(recent_tool_results))
     
     # Second, handle the enhanced user_query approach with step results
     if "user_query" in enhanced_params and step_results:
