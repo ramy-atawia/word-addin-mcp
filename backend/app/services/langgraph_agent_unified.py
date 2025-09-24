@@ -890,7 +890,7 @@ Create a response that the user will find immediately valuable and actionable ba
 
     response = llm_client.generate_text(
         prompt=prompt,
-        max_tokens=16384  # Maximum token limit for comprehensive analysis of all tool outputs
+        max_tokens=12000  # Conservative limit for gpt-5-nano model
     )
     
     if not response.get("success"):
