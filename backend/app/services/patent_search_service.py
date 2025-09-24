@@ -127,9 +127,9 @@ class PatentSearchService:
         text = response["text"].strip()
 
         # Debug logging to see what LLM returned
-        logger.debug(f"🔍 PATENT SERVICE DEBUG - Raw LLM response (length: {len(text)}):")
-        logger.debug(f"🔍 PATENT SERVICE DEBUG - Response starts with: {text[:200]}...")
-        logger.debug(f"🔍 PATENT SERVICE DEBUG - Response ends with: {text[-200:] if len(text) > 200 else text}")
+        logger.info(f"🔍 PATENT SERVICE DEBUG - Raw LLM response (length: {len(text)}):")
+        logger.info(f"🔍 PATENT SERVICE DEBUG - Response starts with: {text[:200]}...")
+        logger.info(f"🔍 PATENT SERVICE DEBUG - Response ends with: {text[-200:] if len(text) > 200 else text}")
 
         # Clean JSON markers
         if text.startswith("```json"):
@@ -138,8 +138,8 @@ class PatentSearchService:
             text = text[3:-3]
 
         # Debug cleaned text
-        logger.debug(f"🔍 PATENT SERVICE DEBUG - After cleaning (length: {len(text)}):")
-        logger.debug(f"🔍 PATENT SERVICE DEBUG - Cleaned text: {text[:300]}...")
+        logger.info(f"🔍 PATENT SERVICE DEBUG - After cleaning (length: {len(text)}):")
+        logger.info(f"🔍 PATENT SERVICE DEBUG - Cleaned text: {text[:300]}...")
 
         try:
             data = json.loads(text)
