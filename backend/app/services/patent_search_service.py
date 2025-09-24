@@ -39,11 +39,11 @@ class PatentSearchService:
             azure_openai_deployment=settings.azure_openai_deployment
         )
         
-        # Use gpt-4o for report generation (larger context window for comprehensive reports)
+        # Use same deployment for report generation as main client (consistent with actual deployment)
         self.report_llm_client = LLMClient(
             azure_openai_api_key=settings.azure_openai_api_key,
             azure_openai_endpoint=settings.azure_openai_endpoint,
-            azure_openai_deployment="gpt-4o"
+            azure_openai_deployment=settings.azure_openai_deployment  # Use actual deployed model
         )
         
         # PatentsView API key is optional but validate if provided
@@ -125,17 +125,39 @@ class PatentSearchService:
             raise ValueError(f"LLM failed to generate queries: {response.get('error')}")
         
         text = response["text"].strip()
-        
+
+        # Debug logging to see what LLM returned
+        logger.debug(f"🔍 PATENT SERVICE DEBUG - Raw LLM response (length: {len(text)}):")
+        logger.debug(f"🔍 PATENT SERVICE DEBUG - Response starts with: {text[:200]}...")
+        logger.debug(f"🔍 PATENT SERVICE DEBUG - Response ends with: {text[-200:] if len(text) > 200 else text}")
+
         # Clean JSON markers
         if text.startswith("```json"):
             text = text[7:-3]
         elif text.startswith("```"):
             text = text[3:-3]
-        
+
+        # Debug cleaned text
+        logger.debug(f"🔍 PATENT SERVICE DEBUG - After cleaning (length: {len(text)}):")
+        logger.debug(f"🔍 PATENT SERVICE DEBUG - Cleaned text: {text[:300]}...")
+
         try:
             data = json.loads(text)
         except json.JSONDecodeError as e:
-            raise ValueError(f"LLM returned invalid JSON at position {e.pos}: {e}")
+            logger.error(f"🔍 PATENT SERVICE DEBUG - JSON parsing failed at position {e.pos}: {e}")
+            logger.error(f"🔍 PATENT SERVICE DEBUG - Attempting to fix JSON...")
+            # Try to fix common JSON issues
+            if text.startswith("```"):
+                text = text[3:-3]
+            text = text.strip()
+            if text.startswith("json"):
+                text = text[4:].strip()
+            try:
+                data = json.loads(text)
+                logger.info("🔍 PATENT SERVICE DEBUG - JSON fixed successfully")
+            except json.JSONDecodeError:
+                logger.error(f"🔍 PATENT SERVICE DEBUG - Failed to fix JSON. Raw response: {text}")
+                raise ValueError(f"LLM returned invalid JSON at position {e.pos}: {e}. Raw response: {text[:500]}")
         
         queries = data.get("search_queries")
         if not queries:
@@ -474,7 +496,7 @@ Format as concise markdown.
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
-            max_tokens=16384  # Conservative limit to ensure reliable generation
+            max_tokens=12000  # Conservative limit for gpt-5-nano model
         )
         
         if not response.get("success"):
