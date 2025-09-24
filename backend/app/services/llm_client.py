@@ -43,20 +43,13 @@ class LLMClient:
         # Initialize Azure OpenAI client
         if azure_openai_api_key and azure_openai_endpoint:
             try:
-                # Force a text-generating model if gpt-5-nano is detected
-                deployment_name = azure_openai_deployment
-                if deployment_name == "gpt-5-nano":
-                    deployment_name = "gpt-4o-mini"  # Use a model that can generate text
-                    print(f"⚠️  WARNING: gpt-5-nano is reasoning-only, switching to {deployment_name}")
-                
                 self.client = AzureOpenAI(
                     api_key=azure_openai_api_key,
                     api_version=azure_openai_api_version or "2024-12-01-preview",
                     azure_endpoint=azure_openai_endpoint,
                     timeout=300.0
                 )
-                # Override the deployment name
-                self.azure_openai_deployment = deployment_name
+                self.azure_openai_deployment = azure_openai_deployment or "gpt-5-nano"
                 self.azure_deployment = azure_openai_deployment or "gpt-5-nano"
                 self.llm_available = True
                 logger.info(f"Azure OpenAI client initialized with deployment: {self.azure_deployment}")

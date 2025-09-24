@@ -26,19 +26,19 @@ You are a patent search expert. Think like a domain expert and analyze query spe
 ## **SPECIFICITY EXAMPLES**:
 
 **GENERIC (too broad - 1000+ results)**:
-❌ "5G" → Too many results, low relevance
-❌ "AI" → Too many results, low relevance
-❌ "blockchain" → Too many results, low relevance
+"5G" → Too many results, low relevance
+"AI" → Too many results, low relevance
+"blockchain" → Too many results, low relevance
 
 **OPTIMAL (balanced - 50-200 results)**:
-✅ "5G handover" → Good balance of specificity and coverage
-✅ "neural network training" → Good balance of specificity and coverage
-✅ "blockchain smart contracts" → Good balance of specificity and coverage
+"5G handover" → Good balance of specificity and coverage
+"neural network training" → Good balance of specificity and coverage
+"blockchain smart contracts" → Good balance of specificity and coverage
 
 **SPECIFIC (too narrow - <10 results)**:
-❌ "5G handover using machine learning" → Too restrictive, may miss relevant patents
-❌ "neural network training with backpropagation" → Too restrictive, may miss relevant patents
-❌ "blockchain smart contracts using Solidity" → Too restrictive, may miss relevant patents
+"5G handover using machine learning" → Too restrictive, may miss relevant patents
+"neural network training with backpropagation" → Too restrictive, may miss relevant patents
+"blockchain smart contracts using Solidity" → Too restrictive, may miss relevant patents
 
 ## **PatentsView API Format** (use these exact patterns for text fields):
 - Single field (ALL words): `{{"_text_all": {{"patent_abstract": "term1 term2"}}}}`
@@ -49,19 +49,19 @@ You are a patent search expert. Think like a domain expert and analyze query spe
 
 ## **GOOD EXAMPLES** (use these patterns):
 
-✅ **Balanced single term**: `{{"_text_all": {{"patent_abstract": "5G handover"}}}}`
-✅ **OR search**: `{{"_or": [{{"_text_all": {{"patent_abstract": "neural network"}}}}, {{"_text_all": {{"patent_title": "neural network"}}}}]}}`
-✅ **AND search**: `{{"_and": [{{"_text_all": {{"patent_abstract": "blockchain"}}}}, {{"_text_all": {{"patent_abstract": "smart contracts"}}}}]}}`
-✅ **Multiple terms**: `{{"_and": [{{"_text_all": {{"patent_abstract": "machine learning"}}}}, {{"_text_all": {{"patent_abstract": "neural network"}}}}]}}`
-✅ **Exact phrase**: `{{"_text_phrase": {{"patent_abstract": "dynamic spectrum sharing"}}}}`
+**Balanced single term**: `{{"_text_all": {{"patent_abstract": "5G handover"}}}}`
+**OR search**: `{{"_or": [{{"_text_all": {{"patent_abstract": "neural network"}}}}, {{"_text_all": {{"patent_title": "neural network"}}}}]}}`
+**AND search**: `{{"_and": [{{"_text_all": {{"patent_abstract": "blockchain"}}}}, {{"_text_all": {{"patent_abstract": "smart contracts"}}}}]}}`
+**Multiple terms**: `{{"_and": [{{"_text_all": {{"patent_abstract": "machine learning"}}}}, {{"_text_all": {{"patent_abstract": "neural network"}}}}]}}`
+**Exact phrase**: `{{"_text_phrase": {{"patent_abstract": "dynamic spectrum sharing"}}}}`
 
 ## **BAD EXAMPLES** (avoid these):
 
-❌ **Wrong syntax**: `{{"patent_abstract": "5G handover"}}` (use _text_all instead)
-❌ **Too complex**: `{{"_and": [{{"_or": [{{"_text_all": {{"patent_abstract": "5G"}}}}, {{"_text_all": {{"patent_title": "5G"}}}}]}}, {{"_text_all": {{"patent_abstract": "handover"}}}}]}}`
-❌ **Wrong fields**: `{{"inventor_name": "Smith"}}`
-❌ **Nested arrays**: `{{"patent_abstract": ["5G", "handover", "AI"]}}`
-❌ **Old syntax**: `{{"_contains": {{"patent_abstract": "spectrum management"}}}}` (use _text_all instead)
+**Wrong syntax**: `{{"patent_abstract": "5G handover"}}` (use _text_all instead)
+**Too complex**: `{{"_and": [{{"_or": [{{"_text_all": {{"patent_abstract": "5G"}}}}, {{"_text_all": {{"patent_title": "5G"}}}}]}}, {{"_text_all": {{"patent_abstract": "handover"}}}}]}}`
+**Wrong fields**: `{{"inventor_name": "Smith"}}`
+**Nested arrays**: `{{"patent_abstract": ["5G", "handover", "AI"]}}`
+**Old syntax**: `{{"_contains": {{"patent_abstract": "spectrum management"}}}}` (use _text_all instead)
 
 ## **Response Format** (JSON only):
 ```json

@@ -84,10 +84,14 @@ class PatentSearchService:
         patents_with_claims = await self._add_claims(unique_patents)
         
         # Step 5: Summarize claims using LLM (fail if cannot summarize)
+        logger.info(f"Starting claims summarization for {len(patents_with_claims)} patents")
         found_claims_summary = await self._summarize_claims(patents_with_claims)
+        logger.info(f"Claims summarization completed. Summary length: {len(found_claims_summary)} chars")
         
         # Step 6: Generate report (fail if cannot generate)
+        logger.info("Starting final report generation")
         report = await self._generate_report(query, query_results, patents_with_claims, found_claims_summary)
+        logger.info(f"Final report generated successfully. Report length: {len(report)} chars")
         
         search_result = {
             "query": query,
@@ -212,17 +216,21 @@ class PatentSearchService:
     
     async def _add_claims(self, patents: List[Dict]) -> List[Dict]:
         """Add claims data to each patent with strict validation."""
+        logger.info(f"Starting claims fetching for {len(patents)} patents")
         patents_with_claims = []
         
-        for patent in patents:
+        for i, patent in enumerate(patents, 1):
             patent_id = patent.get("patent_id")
             if not patent_id:
                 raise ValueError("Patent missing required 'patent_id' field")
             
+            logger.info(f"Fetching claims for patent {i}/{len(patents)}: {patent_id}")
             claims = await self._fetch_claims(patent_id)
+            logger.info(f"Patent {patent_id}: Fetched {len(claims)} claims")
             patent["claims"] = claims
             patents_with_claims.append(patent)
         
+        logger.info(f"Claims fetching completed for {len(patents_with_claims)} patents")
         return patents_with_claims
     
     async def _summarize_claims(self, patents: List[Dict]) -> str:
@@ -230,8 +238,9 @@ class PatentSearchService:
         if not patents:
             raise ValueError("No patents provided for claims summary")
         
-        # Process top 5 patents for performance
-        top_patents = patents[:5]
+        # Process all patents (up to 20 for performance)
+        top_patents = patents[:20]
+        logger.info(f"Starting claims analysis for {len(top_patents)} patents (out of {len(patents)} total)")
         claims_summaries = []
         
         async def process_patent_claims(patent):
@@ -239,27 +248,38 @@ class PatentSearchService:
             patent_title = patent.get("patent_title", "No title")
             claims = patent.get("claims", [])
             
+            logger.info(f"Processing claims for patent {patent_id}: {patent_title[:50]}...")
+            logger.info(f"Patent {patent_id} has {len(claims)} claims")
+            
             if not claims:
+                logger.warning(f"Patent {patent_id} has no claims data")
                 return f"**Patent {patent_id}: {patent_title}**\n- Claims: Not available\n"
             
-            # Prepare claims text (first 3 claims only)
+            # Prepare claims text (all claims)
             claims_text = []
-            for claim in claims[:3]:
+            valid_claims_count = 0
+            for claim in claims:  # Process all claims, not just first 3
                 claim_number = claim.get("number")
                 claim_text = claim.get("text")
                 claim_type = claim.get("type", "unknown")
                 
                 if not claim_number or not claim_text:
+                    logger.debug(f"Patent {patent_id}: Skipping claim {claim_number} - missing number or text")
                     continue
                 
                 if len(claim_text.strip()) < 10:
+                    logger.debug(f"Patent {patent_id}: Skipping claim {claim_number} - text too short")
                     continue
                 
-                # Truncate very long claims
-                truncated_text = claim_text[:500] + "..." if len(claim_text) > 500 else claim_text
+                # Truncate very long claims to 300 chars to fit more claims
+                truncated_text = claim_text[:300] + "..." if len(claim_text) > 300 else claim_text
                 claims_text.append(f"Claim {claim_number} ({claim_type}): {truncated_text}")
+                valid_claims_count += 1
+            
+            logger.info(f"Patent {patent_id}: Processed {valid_claims_count} valid claims out of {len(claims)} total")
             
             if not claims_text:
+                logger.warning(f"Patent {patent_id}: No valid claim text found after processing")
                 return f"**Patent {patent_id}: {patent_title}**\n- Claims: No valid claim text found\n"
             
             claims_prompt = f"""
@@ -277,35 +297,52 @@ Analyze the patent claims for patent {patent_id} titled "{patent_title}".
 Format as concise markdown.
 """
             
+            logger.info(f"Patent {patent_id}: Sending claims analysis request to LLM (prompt length: {len(claims_prompt)} chars)")
+            logger.debug(f"Patent {patent_id}: Claims prompt preview: {claims_prompt[:200]}...")
+            
             response = self.llm_client.generate_text(
                 prompt=claims_prompt,
-                max_tokens=300
+                max_tokens=500  # Increased to handle more claims
             )
             
             if not response.get("success"):
+                logger.error(f"Patent {patent_id}: LLM claims analysis failed - {response.get('error')}")
                 raise ValueError(f"Failed to summarize claims for patent {patent_id}: {response.get('error')}")
             
             summary = response["text"]
+            logger.info(f"Patent {patent_id}: Claims analysis completed successfully (response length: {len(summary)} chars)")
+            logger.debug(f"Patent {patent_id}: Claims analysis response preview: {summary[:200]}...")
             return f"**Patent {patent_id}: {patent_title}**\n{summary}\n"
         
         # Process patents in parallel
+        logger.info(f"Starting parallel processing of {len(top_patents)} patents for claims analysis")
         tasks = [process_patent_claims(patent) for patent in top_patents]
-        results = await asyncio.gather(*tasks)
+        
+        try:
+            results = await asyncio.gather(*tasks)
+            logger.info(f"Successfully completed claims analysis for {len(results)} patents")
+        except Exception as e:
+            logger.error(f"Error during parallel claims processing: {str(e)}")
+            raise
         
         claims_summaries.extend(results)
         
         # Add note for remaining patents if any
-        if len(patents) > 5:
-            remaining_count = len(patents) - 5
+        if len(patents) > 20:
+            remaining_count = len(patents) - 20
+            logger.info(f"Note: {remaining_count} additional patents found but not analyzed for claims")
             claims_summaries.append(f"**Additional Patents**: {remaining_count} more patents found with claims data\n")
         
-        return "\n".join(claims_summaries)
+        final_summary = "\n".join(claims_summaries)
+        logger.info(f"Claims summarization completed. Final summary length: {len(final_summary)} chars")
+        return final_summary
     
     async def _fetch_claims(self, patent_id: str) -> List[Dict]:
         """Fetch claims for a specific patent with strict validation."""
         if not patent_id:
             raise ValueError("Patent ID is required")
         
+        logger.debug(f"Fetching claims for patent {patent_id}")
         url = f"{self.base_url}/g_claim/"
         
         payload = {
@@ -320,17 +357,21 @@ Format as concise markdown.
             headers["X-Api-Key"] = self.api_key
         
         async with httpx.AsyncClient(timeout=30.0) as client:
+            logger.debug(f"Making API call to PatentsView Claims API for patent {patent_id}")
             response = await client.post(url, json=payload, headers=headers)
             
             if not response.is_success:
+                logger.error(f"PatentsView Claims API call failed for patent {patent_id}: {response.status_code}")
                 response.raise_for_status()
             
             data = response.json()
             
             if data.get("error"):
+                logger.error(f"PatentsView Claims API error for patent {patent_id}: {data['error']}")
                 raise ValueError(f"PatentsView Claims API Error: {data['error']}")
             
             claims_data = data.get("g_claims", [])
+            logger.debug(f"Patent {patent_id}: Received {len(claims_data)} raw claims from API")
             
             claims = []
             for claim in claims_data:
@@ -338,9 +379,11 @@ Format as concise markdown.
                 claim_number = claim.get("claim_number")
                 
                 if not claim_text or not claim_number:
+                    logger.debug(f"Patent {patent_id}: Skipping claim - missing text or number")
                     continue
                 
                 if len(claim_text.strip()) < 10:
+                    logger.debug(f"Patent {patent_id}: Skipping claim {claim_number} - text too short")
                     continue
                 
                 claims.append({
@@ -350,6 +393,7 @@ Format as concise markdown.
                     "sequence": claim.get("claim_sequence", 0)
                 })
             
+            logger.info(f"Patent {patent_id}: Processed {len(claims)} valid claims from {len(claims_data)} raw claims")
             return claims
     
     async def _generate_report(self, query: str, query_results: List[Dict], 
@@ -409,6 +453,9 @@ Format as concise markdown.
                                           conversation_context=f"Search Queries Used (with result counts):\n{query_summary}",
                                           document_reference=f"Patents Found:\n{json.dumps(patent_summaries, indent=2)}{claims_context}")
         
+        logger.info(f"Generating final report with prompt length: {len(user_prompt)} chars")
+        logger.debug(f"Report generation prompt preview: {user_prompt[:300]}...")
+        
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
@@ -416,8 +463,10 @@ Format as concise markdown.
         )
         
         if not response.get("success"):
+            logger.error(f"Report generation failed: {response.get('error')}")
             raise ValueError(f"Failed to generate report: {response.get('error')}")
         
+        logger.info(f"Report generation completed successfully. Response length: {len(response['text'])} chars")
         return response["text"]
     
     def _extract_inventor(self, inventors: List[Dict]) -> str:
