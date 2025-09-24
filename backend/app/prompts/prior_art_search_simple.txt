@@ -46,6 +46,24 @@ For each patent, provide:
 
 [Continue this pattern for ALL patents - do not stop at 4 patents]
 
+### Detailed Claim Analysis (ALL Patents Found)
+**CRITICAL: Analyze ALL patents found, not just the first 3. Provide detailed claim-by-claim analysis for every patent.**
+
+#### Patent 1: [Title] - Detailed Analysis
+**Innovation Summary**: [Detailed technical analysis]
+**Patentability Assessment**:
+- **Novelty Risk (35 USC 102)**: [Assessment]
+- **Obviousness Risk (35 USC 103)**: [Assessment]  
+- **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
+
+#### Patent 2: [Title] - Detailed Analysis
+[Continue for ALL patents found - do not stop at 3 patents]
+
+#### Patent 3: [Title] - Detailed Analysis
+[Continue for ALL patents found - do not stop at 3 patents]
+
+[Continue this pattern for ALL patents - analyze every single patent found]
+
 ## Risk Analysis
 
 ### Freedom to Operate
