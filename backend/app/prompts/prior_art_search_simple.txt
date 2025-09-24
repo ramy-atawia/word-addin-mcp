@@ -2,6 +2,8 @@ Generate a comprehensive prior art search report for: {user_query}
 
 **Patents Found**: {document_reference}
 
+**CRITICAL INSTRUCTION: This report MUST analyze ALL patents found, not just the first 3. Do NOT limit detailed analysis to 3 patents. Analyze every single patent with detailed claim-by-claim analysis.**
+
 Create a professional markdown report with this structure:
 
 ## Executive Summary
