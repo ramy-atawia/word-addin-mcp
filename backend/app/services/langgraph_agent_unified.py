@@ -833,6 +833,22 @@ Recent conversation:
   5. **Analysis & Recommendations**: Based on actual findings, not generic content
   6. **Next Steps**: Specific recommendations based on the research
 
+### FOR PRIOR ART SEARCH REQUESTS:
+**CRITICAL**: When synthesizing prior art search results, you MUST:
+- Analyze ALL patents found, not just the first 3
+- Include detailed claim-by-claim analysis for EVERY patent
+- Override any internal patterns that limit analysis to "top 3 patents only"
+- Ensure the final response includes comprehensive analysis of all 20 patents
+- Use the actual patent data from the tool outputs, not generic summaries
+
+Create a comprehensive prior art search report that includes:
+1. **Executive Summary**: Key findings from ALL patents researched
+2. **Research Findings**: Analysis of EVERY patent found (not just top 3)
+3. **Detailed Claim Analysis**: Claim-by-claim analysis for ALL patents found
+4. **Risk Analysis**: Based on actual patent claims, not generic assessments
+5. **Recommendations**: Actionable next steps based on comprehensive analysis
+6. **References**: Attribution of ALL patents analyzed
+
 ### FOR RESEARCH & ANALYSIS REQUESTS:
 If the user requested research or analysis, create a comprehensive report that includes:
 
