@@ -127,6 +127,9 @@ class PatentSearchService:
         text = response["text"].strip()
 
         # Debug logging to see what LLM returned
+        print(f"🔍 PATENT SERVICE DEBUG - Raw LLM response (length: {len(text)}):")
+        print(f"🔍 PATENT SERVICE DEBUG - Response starts with: {text[:200]}...")
+        print(f"🔍 PATENT SERVICE DEBUG - Response ends with: {text[-200:] if len(text) > 200 else text}")
         logger.info(f"🔍 PATENT SERVICE DEBUG - Raw LLM response (length: {len(text)}):")
         logger.info(f"🔍 PATENT SERVICE DEBUG - Response starts with: {text[:200]}...")
         logger.info(f"🔍 PATENT SERVICE DEBUG - Response ends with: {text[-200:] if len(text) > 200 else text}")
