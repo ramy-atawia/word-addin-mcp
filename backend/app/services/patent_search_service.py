@@ -32,10 +32,18 @@ class PatentSearchService:
             raise ValueError("Azure OpenAI deployment is required")
         
         from app.services.llm_client import LLMClient
+        # Use gpt-5-nano for query generation (works well)
         self.llm_client = LLMClient(
             azure_openai_api_key=settings.azure_openai_api_key,
             azure_openai_endpoint=settings.azure_openai_endpoint,
             azure_openai_deployment=settings.azure_openai_deployment
+        )
+        
+        # Use gpt-4o-mini for report generation (more reliable for complex tasks)
+        self.report_llm_client = LLMClient(
+            azure_openai_api_key=settings.azure_openai_api_key,
+            azure_openai_endpoint=settings.azure_openai_endpoint,
+            azure_openai_deployment="gpt-4o-mini"
         )
         
         # PatentsView API key is optional but validate if provided
@@ -166,7 +174,7 @@ class PatentSearchService:
             "f": ["patent_id", "patent_title", "patent_abstract", "patent_date", 
                   "inventors", "assignees", "cpc_current"],
             "s": [{"patent_date": "desc"}],
-            "o": {"size": 10}
+            "o": {"size": 20}  # Increased from 10 to 20 per query for more diverse results
         }
         
         headers = {"Content-Type": "application/json"}
@@ -353,19 +361,20 @@ Format as concise markdown.
         if not found_claims_summary:
             raise ValueError("Claims summary is required for report generation")
         
-        # Prepare patent summaries
+        # Prepare patent summaries (without full claims text to reduce prompt size)
         patent_summaries = []
         for i, patent in enumerate(patents):
             patent_id = patent.get("patent_id")
             if not patent_id:
                 raise ValueError(f"Patent {i} missing required 'patent_id' field")
             
-            claims_text = []
+            # Extract only claim numbers and types (not full text) to reduce prompt size
+            claims_info = []
             for claim in patent.get("claims", []):
-                claim_text = claim.get("text")
                 claim_number = claim.get("number")
-                if claim_text and claim_number:
-                    claims_text.append(f"Claim {claim_number}: {claim_text}")
+                claim_type = claim.get("type", "unknown")
+                if claim_number:
+                    claims_info.append(f"Claim {claim_number} ({claim_type})")
             
             patent_summary = {
                 "id": patent_id,
@@ -373,7 +382,7 @@ Format as concise markdown.
                 "date": patent.get("patent_date", "Unknown"),
                 "abstract": patent.get("patent_abstract", "No abstract"),
                 "claims_count": len(patent.get("claims", [])),
-                "claims_text": claims_text,
+                "claims_info": claims_info,  # Just claim numbers/types, not full text
                 "inventor": self._extract_inventor(patent.get("inventors", [])),
                 "assignee": self._extract_assignee(patent.get("assignees", [])),
                 "cpc_codes": patent.get("cpc_current", []),
@@ -400,7 +409,7 @@ Format as concise markdown.
                                           conversation_context=f"Search Queries Used (with result counts):\n{query_summary}",
                                           document_reference=f"Patents Found:\n{json.dumps(patent_summaries, indent=2)}{claims_context}")
         
-        response = self.llm_client.generate_text(
+        response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
             max_tokens=6000
