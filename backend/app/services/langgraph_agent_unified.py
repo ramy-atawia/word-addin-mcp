@@ -868,7 +868,7 @@ Create a response that the user will find immediately valuable and actionable ba
 
     response = llm_client.generate_text(
         prompt=prompt,
-        max_tokens=2000
+        max_tokens=32768  # Maximum token limit to handle comprehensive analysis of all tool outputs
     )
     
     if not response.get("success"):
