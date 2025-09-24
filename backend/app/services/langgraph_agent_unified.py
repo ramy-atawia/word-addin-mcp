@@ -282,7 +282,12 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     if not response.get("success"):
         raise RuntimeError(f"LLM intent detection failed: {response.get('error', 'Unknown error')}")
     
-    return _parse_llm_intent(response.get("text", ""))
+    # Debug logging for intent detection
+    response_text = response.get("text", "")
+    logger.info(f"🔍 INTENT DEBUG - LLM response (length: {len(response_text)}):")
+    logger.info(f"🔍 INTENT DEBUG - Response: {response_text}")
+    
+    return _parse_llm_intent(response_text)
 
 
 def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
