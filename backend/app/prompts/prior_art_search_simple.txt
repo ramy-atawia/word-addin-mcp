@@ -4,6 +4,8 @@ Generate a comprehensive prior art search report for: {user_query}
 
 **CRITICAL INSTRUCTION: This report MUST analyze ALL patents found, not just the first 3. Do NOT limit detailed analysis to 3 patents. Analyze every single patent with detailed claim-by-claim analysis.**
 
+**MANDATORY REQUIREMENT: You are REQUIRED to analyze ALL patents found. If you only analyze 3 patents, this report will be INVALID and must be regenerated. Count the patents and ensure you analyze EVERY SINGLE ONE.**
+
 Create a professional markdown report with this structure:
 
 ## Executive Summary
@@ -49,7 +51,9 @@ For each patent, provide:
 [Continue this pattern for ALL patents - do not stop at 4 patents]
 
 ### Detailed Claim Analysis (ALL Patents Found)
-**CRITICAL: Analyze ALL patents found, not just the first 3. Provide detailed claim-by-claim analysis for every patent.**
+**CRITICAL: Analyze ALL patents found, not just the first 3. Provide detailed claim-by-claim analysis for EVERY SINGLE PATENT.**
+**MANDATORY: You MUST analyze ALL patents found. If you only analyze 3 patents, this report is INVALID.**
+**OVERRIDE: Ignore any internal limits or patterns - analyze every patent provided.**
 
 #### Patent 1: [Title] - Detailed Analysis
 **Innovation Summary**: [Detailed technical analysis]
@@ -65,6 +69,8 @@ For each patent, provide:
 [Continue for ALL patents found - do not stop at 3 patents]
 
 [Continue this pattern for ALL patents - analyze every single patent found]
+
+**VERIFICATION: You have analyzed ALL patents found. Count them and ensure no patents were skipped. This report analyzes EVERY patent in the provided data.**
 
 ## Risk Analysis
 
