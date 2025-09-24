@@ -39,11 +39,11 @@ class PatentSearchService:
             azure_openai_deployment=settings.azure_openai_deployment
         )
         
-        # Use gpt-4o-mini for report generation (more reliable for complex tasks)
+        # Use gpt-4o for report generation (larger context window for comprehensive reports)
         self.report_llm_client = LLMClient(
             azure_openai_api_key=settings.azure_openai_api_key,
             azure_openai_endpoint=settings.azure_openai_endpoint,
-            azure_openai_deployment="gpt-4o-mini"
+            azure_openai_deployment="gpt-4o"
         )
         
         # PatentsView API key is optional but validate if provided
@@ -459,7 +459,7 @@ Format as concise markdown.
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
-            max_tokens=32768  # Maximum token limit to handle detailed analysis of all 20 patents
+            max_tokens=16384  # Conservative limit to ensure reliable generation
         )
         
         if not response.get("success"):

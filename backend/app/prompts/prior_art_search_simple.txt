@@ -58,140 +58,140 @@ For each patent, provide:
 **IMPORTANT: You are REQUIRED to analyze ALL patents. Do NOT stop at 3 patents.**
 
 #### Patent 1: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 2: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 3: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 4: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 5: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 6: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 7: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 8: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 9: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 10: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 11: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 12: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 13: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 14: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 15: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 16: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 17: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 18: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 19: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
 - **Overall Assessment**: [Patentable/Not Patentable/Uncertain]
 
 #### Patent 20: [Title] - Detailed Analysis
-**Innovation Summary**: [Detailed technical analysis]
+**Innovation Summary**: [Technical analysis]
 **Patentability Assessment**:
 - **Novelty Risk (35 USC 102)**: [Assessment]
 - **Obviousness Risk (35 USC 103)**: [Assessment]
