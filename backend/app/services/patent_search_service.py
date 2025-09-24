@@ -155,17 +155,23 @@ class PatentSearchService:
             query_data = search_query.get("search_query")
             if not query_data:
                 raise ValueError(f"Query {i+1} missing 'search_query' field")
-            
+
+            # Add delay between search queries to prevent rate limiting
+            if i > 0:
+                logger.info("🔍 PATENT SERVICE DEBUG - Adding 3-second delay between search queries...")
+                await asyncio.sleep(3)
+
+            logger.info(f"🔍 PATENT SERVICE DEBUG - Searching with query {i+1}/{len(search_queries)}: {query_data}")
             patents = await self._search_patents_api(query_data)
             all_patents.extend(patents)
-            
+
             query_text = search_query.get("reasoning", f"Query {i+1}")
             query_results.append({
                 "query_text": query_text,
                 "result_count": len(patents)
             })
-            
-            logger.info(f"Query {i+1} returned {len(patents)} patents")
+
+            logger.info(f"🔍 PATENT SERVICE DEBUG - Query {i+1} returned {len(patents)} patents")
         
         return all_patents, query_results
     
@@ -184,8 +190,10 @@ class PatentSearchService:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
-        
+            logger.debug(f"🔍 PATENT SERVICE DEBUG - Using PatentsView API key: {self.api_key[:10]}...")
+
         async with httpx.AsyncClient(timeout=60.0) as client:
+            logger.info(f"🔍 PATENT SERVICE DEBUG - Making PatentsView search API request for: {search_query}")
             response = await client.post(url, json=payload, headers=headers)
             
             if not response.is_success:
@@ -223,10 +231,16 @@ class PatentSearchService:
             patent_id = patent.get("patent_id")
             if not patent_id:
                 raise ValueError("Patent missing required 'patent_id' field")
-            
-            logger.info(f"Fetching claims for patent {i}/{len(patents)}: {patent_id}")
+
+            logger.info(f"🔍 PATENT SERVICE DEBUG - Fetching claims for patent {i}/{len(patents)}: {patent_id}")
+
+            # Add delay between claims requests to prevent rate limiting
+            if i > 1:
+                logger.info("🔍 PATENT SERVICE DEBUG - Adding 1-second delay between claims requests...")
+                await asyncio.sleep(1)
+
             claims = await self._fetch_claims(patent_id)
-            logger.info(f"Patent {patent_id}: Fetched {len(claims)} claims")
+            logger.info(f"🔍 PATENT SERVICE DEBUG - Patent {patent_id}: Fetched {len(claims)} claims")
             patent["claims"] = claims
             patents_with_claims.append(patent)
         
@@ -355,9 +369,10 @@ Format as concise markdown.
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
-        
+            logger.debug(f"🔍 PATENT SERVICE DEBUG - Using PatentsView API key for claims: {self.api_key[:10]}...")
+
         async with httpx.AsyncClient(timeout=30.0) as client:
-            logger.debug(f"Making API call to PatentsView Claims API for patent {patent_id}")
+            logger.info(f"🔍 PATENT SERVICE DEBUG - Making PatentsView claims API request for patent {patent_id}")
             response = await client.post(url, json=payload, headers=headers)
             
             if not response.is_success:
