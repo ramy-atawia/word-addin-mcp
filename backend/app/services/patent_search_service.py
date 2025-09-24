@@ -459,7 +459,7 @@ Format as concise markdown.
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
-            max_tokens=6000
+            max_tokens=8000  # Increased to handle all 20 patents
         )
         
         if not response.get("success"):

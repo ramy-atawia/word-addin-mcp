@@ -22,6 +22,8 @@ Create a professional markdown report with this structure:
 ## Prior Art References
 
 ### Highly Relevant Patents
+**IMPORTANT: Analyze ALL patents found. Do not skip any patents. Provide detailed analysis for each patent.**
+
 For each patent, provide:
 
 #### Patent 1: [Title]
@@ -35,6 +37,14 @@ For each patent, provide:
 
 **Relevance**: HIGH/MEDIUM/LOW
 **Risk Assessment**: [specific reasoning for risk level]
+
+#### Patent 2: [Title]
+[Continue for ALL patents found...]
+
+#### Patent 3: [Title]
+[Continue for ALL patents found...]
+
+[Continue this pattern for ALL patents - do not stop at 4 patents]
 
 ## Risk Analysis
 
