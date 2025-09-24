@@ -167,7 +167,7 @@ class LLMClient:
             last_error = None
             for attempt in range(max_retries):
                 try:
-                    # GPT-5-nano only supports default temperature
+                    # Standard configuration for text generation
                     api_params = {
                         "model": self.azure_openai_deployment,
                         "messages": messages,

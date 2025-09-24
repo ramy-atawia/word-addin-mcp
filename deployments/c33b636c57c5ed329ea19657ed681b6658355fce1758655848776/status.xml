@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<deployment>
+  <id>c33b636c57c5ed329ea19657ed681b6658355fce1758655848776</id>
+  <author>ramy-atawia</author>
+  <deployer>GitHub</deployer>
+  <authorEmail />
+  <message>{"type":"Deployment","sha":"c33b636c57c5ed329ea19657ed681b6658355fce","repoName":"ramy-atawia/word-addin-mcp","actor":"ramy-atawia","slotName":"production"}</message>
+  <progress />
+  <status>Success</status>
+  <statusText />
+  <lastSuccessEndTime>2025-09-23T19:30:54.8245646Z</lastSuccessEndTime>
+  <receivedTime>2025-09-23T19:30:54.8245646Z</receivedTime>
+  <startTime>2025-09-23T19:30:54.8245646Z</startTime>
+  <endTime>2025-09-23T19:30:54.8245646Z</endTime>
+  <complete>True</complete>
+  <is_temp>False</is_temp>
+  <is_readonly>True</is_readonly>
+  <buildSummary />
+</deployment>

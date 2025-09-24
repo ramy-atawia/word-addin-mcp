@@ -1,0 +1,5 @@
+<step title="Incoming Request" date="2025-09-15T04:48:14.466" instance="e44952" url="/logstream" method="GET" type="request" pid="767,1,5" Host="novitai-word-mcp-backend-dev.scm.azurewebsites.net" User-Agent="AZURECLI/2.75.0 (HOMEBREW)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="1e7fdfdc-91ef-11f0-a75a-bee5e14eede1" X-ARR-LOG-ID="1e7fdfdc-91ef-11f0-a75a-bee5e14eede1" CLIENT-IP="174.113.19.144:58860" X-SITE-DEPLOYMENT-ID="novitai-word-mcp-backend-dev" WAS-DEFAULT-HOSTNAME="novitai-word-mcp-backend-dev.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-Client-IP="174.113.19.144" X-Client-Port="58860" >
+  <step title="LogStreamHandlerMiddleware.Invoke" date="2025-09-15T04:48:14.489" /><!-- duration: 6034ms -->
+  <step title="Error occurred" date="2025-09-15T04:53:20.531" type="error" text="LogStreamManager: ProcessRequest end" /><!-- duration: 6ms -->
+  <step title="Outgoing response" date="2025-09-15T04:53:20.552" type="response" statusCode="200" statusText="OK" /><!-- duration: 7ms -->
+</step><!-- duration: 306102ms -->
