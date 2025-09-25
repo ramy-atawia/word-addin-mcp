@@ -260,8 +260,8 @@ jobs:
           ALLOWED_HOSTS='["*"]' \
           AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
           AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
-          AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini \
-          AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini \
+          AZURE_OPENAI_DEPLOYMENT=gpt-5-nano \
+          AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-nano \
           AZURE_OPENAI_API_VERSION=2024-02-15-preview \
           AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
           AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
@@ -286,6 +286,11 @@ jobs:
         echo "Setting ACR password for backend..."
         ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" --output tsv)
         az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings DOCKER_REGISTRY_SERVER_PASSWORD="$ACR_PASSWORD"
+
+    - name: Configure Backend HTTP/2 Settings
+      run: |
+        echo "Disabling HTTP/2 for streaming compatibility..."
+        az webapp config set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --http20-enabled false
 
     - name: Deploy Frontend to Azure App Service
       uses: azure/webapps-deploy@v2
@@ -615,8 +620,8 @@ jobs:
           ALLOWED_HOSTS='["*"]' \
           AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
           AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
-          AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini \
-          AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o-mini \
+          AZURE_OPENAI_DEPLOYMENT=gpt-5-nano \
+          AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-nano \
           AZURE_OPENAI_API_VERSION=2024-02-15-preview \
           AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
           AUTH0_AUDIENCE=INws849yDXaC6MZVXnLhMJi6CZC4nx6U \
@@ -641,6 +646,11 @@ jobs:
         echo "Setting ACR password for backend..."
         ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" --output tsv)
         az webapp config appsettings set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --settings DOCKER_REGISTRY_SERVER_PASSWORD="$ACR_PASSWORD"
+
+    - name: Configure Backend HTTP/2 Settings
+      run: |
+        echo "Disabling HTTP/2 for streaming compatibility..."
+        az webapp config set --name ${{ env.BACKEND_APP_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --http20-enabled false
 
     - name: Deploy Frontend to Azure App Service
       uses: azure/webapps-deploy@v2
