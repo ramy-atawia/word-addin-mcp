@@ -1,5 +1,5 @@
 # Multi-stage build for Python backend with MCP functionality
-FROM python:3.12-slim as builder
+FROM novitaiwordmcp.azurecr.io/python:3.12-slim as builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -28,7 +28,7 @@ RUN pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt
 
 # Development stage
-FROM python:3.12-slim as development
+FROM novitaiwordmcp.azurecr.io/python:3.12-slim as development
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -70,7 +70,7 @@ EXPOSE 9000
 CMD ["sh", "-c", "python -m app.app_starter"]
 
 # Production stage
-FROM python:3.12-slim as production
+FROM novitaiwordmcp.azurecr.io/python:3.12-slim as production
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

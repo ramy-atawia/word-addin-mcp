@@ -1,5 +1,5 @@
 # Multi-stage build for React Word Add-in frontend
-FROM node:18-alpine as builder
+FROM novitaiwordmcp.azurecr.io/node:18-alpine as builder
 
 # Set working directory
 WORKDIR /app
@@ -11,7 +11,7 @@ COPY package*.json ./
 RUN npm ci --only=production
 
 # Development stage
-FROM node:18-alpine as development
+FROM novitaiwordmcp.azurecr.io/node:18-alpine as development
 
 # Install curl for health checks
 RUN apk add --no-cache curl
@@ -43,7 +43,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 CMD ["npm", "run", "dev-simple"]
 
 # Production build stage
-FROM node:18-alpine as build
+FROM novitaiwordmcp.azurecr.io/node:18-alpine as build
 
 # Accept build arguments
 ARG REACT_APP_API_BASE_URL
@@ -72,7 +72,7 @@ COPY . .
 RUN npm run build
 
 # Production stage with nginx
-FROM nginx:alpine as production
+FROM novitaiwordmcp.azurecr.io/nginx:alpine as production
 
 # Install curl for health checks
 RUN apk add --no-cache curl
