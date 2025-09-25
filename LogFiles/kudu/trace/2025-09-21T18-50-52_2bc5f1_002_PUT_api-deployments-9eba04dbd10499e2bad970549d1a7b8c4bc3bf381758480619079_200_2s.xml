@@ -1,0 +1,6 @@
+<step title="Incoming Request" date="2025-09-21T18:50:52.246" instance="2bc5f1" url="/api/deployments/9eba04dbd10499e2bad970549d1a7b8c4bc3bf381758480619079" method="PUT" type="request" pid="768,1,5" Host="novitai-word-mcp-backend-dev.scm.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_7ccf1257355081a90363d990b852a7f777fcdf0a3a630d694643cd5616f5b35e" Authorization="Bea..." Content-Type="application/json; charset=utf-8" Content-Length="319" X-ARR-LOG-ID="68aea408-8895-4862-a434-6cba43571f10" CLIENT-IP="48.214.54.48:9217" X-SITE-DEPLOYMENT-ID="novitai-word-mcp-backend-dev" WAS-DEFAULT-HOSTNAME="novitai-word-mcp-backend-dev.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/9eba04dbd10499e2bad970549d1a7b8c4bc3bf381758480619079" X-Client-IP="48.214.54.48" X-Client-Port="9217" >
+  <step title="DeploymentService.Deploy(id)" date="2025-09-21T18:50:52.773" >
+    <step title="DeploymentService.Create(id)" date="2025-09-21T18:50:52.780" /><!-- duration: 1427ms -->
+  </step><!-- duration: 1452ms -->
+  <step title="Outgoing response" date="2025-09-21T18:50:54.320" type="response" statusCode="200" statusText="OK" /><!-- duration: 11ms -->
+</step><!-- duration: 2099ms -->
