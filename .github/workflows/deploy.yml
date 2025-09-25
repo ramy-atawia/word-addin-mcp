@@ -91,6 +91,13 @@ jobs:
         
         echo "All configuration files are valid"
 
+    - name: Login to Azure Container Registry for testing
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.ACR_LOGIN_SERVER }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
     - name: Test Docker Build (Backend)
       run: |
         echo "Testing backend Docker build..."
