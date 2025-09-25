@@ -499,7 +499,7 @@ Format as concise markdown.
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
-            max_tokens=12000  # Conservative limit for gpt-5-nano model
+            max_tokens=32000  # Increased limit for comprehensive patent analysis
         )
         
         if not response.get("success"):

@@ -760,7 +760,7 @@ Provide a well-formatted markdown response that directly answers the user's ques
             # Get formatted response from LLM
             result = llm_client.generate_text(
                 prompt=user_prompt,
-                max_tokens=12000,  # Conservative limit for gpt-5-nano model
+                max_tokens=32000,  # Increased limit for comprehensive analysis
                 system_message=system_prompt
             )
             
