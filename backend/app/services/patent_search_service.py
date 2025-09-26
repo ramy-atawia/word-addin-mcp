@@ -118,7 +118,7 @@ class PatentSearchService:
         response = self.llm_client.generate_text(
             prompt=prompt,
             system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
-            max_tokens=4000
+            max_tokens=8000  # Increased to handle comprehensive query generation
         )
         
         if not response.get("success"):
