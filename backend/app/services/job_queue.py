@@ -98,32 +98,12 @@ class JobQueue:
                 
             # Return the job result directly with job metadata
             if job.result:
-                # Debug: Check what type job.result is
-                logger.info(f"Job result type: {type(job.result)}, value: {job.result}")
-                
-                # Ensure job.result is a dictionary before spreading
-                if isinstance(job.result, dict):
-                    return {
-                        **job.result,  # Spread the agent response fields
-                        "job_id": job_id,
-                        "status": job.status.value,
-                        "completed_at": job.completed_at.isoformat()
-                    }
-                else:
-                    # Handle non-dict results (like tuples)
-                    logger.error(f"Job result is not a dict: {type(job.result)} - {job.result}")
-                    return {
-                        "job_id": job_id,
-                        "status": job.status.value,
-                        "response": f"Error: Job result is not a dictionary: {type(job.result)}",
-                        "intent_type": "error",
-                        "tool_name": None,
-                        "execution_time": 0.0,
-                        "success": False,
-                        "error": f"Job result type error: {type(job.result)}",
-                        "workflow_metadata": {},
-                        "completed_at": job.completed_at.isoformat()
-                    }
+                return {
+                    **job.result,  # Spread the agent response fields
+                    "job_id": job_id,
+                    "status": job.status.value,
+                    "completed_at": job.completed_at.isoformat()
+                }
             else:
                 return {
                     "job_id": job_id,
@@ -236,9 +216,6 @@ class JobQueue:
                         timeout=timeout_seconds
                     )
                     
-                    # Debug: Check what type the result is before setting
-                    logger.info(f"Job processing result type: {type(result)}, value: {result}")
-                    
                     await self.set_job_result(job_id, result)
                     logger.info("Job completed successfully", job_id=job_id, retry_count=retry_count)
                     return  # Success, exit retry loop
@@ -345,9 +322,18 @@ class JobQueue:
             await self.update_job_progress(job.id, 10)
             
             # Execute with progress callbacks
+            # Create a wrapper function to handle the bound method correctly
+            async def process_message_wrapper(message, document_content, available_tools, chat_history):
+                return await agent_service.process_user_message_unified_langgraph(
+                    user_message=message,
+                    document_content=document_content,
+                    available_tools=available_tools,
+                    frontend_chat_history=chat_history
+                )
+            
             result = await self._execute_with_progress(
                 job.id,
-                agent_service.process_user_message_unified_langgraph,
+                process_message_wrapper,
                 request_data.get("message", ""),
                 request_data.get("document_content", ""),
                 [],
@@ -399,9 +385,6 @@ class JobQueue:
             # For sync functions, run in thread pool
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, func, *args, **kwargs)
-        
-        # Debug: Check what type the result is
-        logger.info(f"_execute_with_progress result type: {type(result)}, value: {result}")
         
         # Final progress update
         await self.update_job_progress(job_id, progress_end)
