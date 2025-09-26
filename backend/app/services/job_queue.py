@@ -98,12 +98,32 @@ class JobQueue:
                 
             # Return the job result directly with job metadata
             if job.result:
-                return {
-                    **job.result,  # Spread the agent response fields
-                    "job_id": job_id,
-                    "status": job.status.value,
-                    "completed_at": job.completed_at.isoformat()
-                }
+                # Debug: Check what type job.result is
+                logger.info(f"Job result type: {type(job.result)}, value: {job.result}")
+                
+                # Ensure job.result is a dictionary before spreading
+                if isinstance(job.result, dict):
+                    return {
+                        **job.result,  # Spread the agent response fields
+                        "job_id": job_id,
+                        "status": job.status.value,
+                        "completed_at": job.completed_at.isoformat()
+                    }
+                else:
+                    # Handle non-dict results (like tuples)
+                    logger.error(f"Job result is not a dict: {type(job.result)} - {job.result}")
+                    return {
+                        "job_id": job_id,
+                        "status": job.status.value,
+                        "response": f"Error: Job result is not a dictionary: {type(job.result)}",
+                        "intent_type": "error",
+                        "tool_name": None,
+                        "execution_time": 0.0,
+                        "success": False,
+                        "error": f"Job result type error: {type(job.result)}",
+                        "workflow_metadata": {},
+                        "completed_at": job.completed_at.isoformat()
+                    }
             else:
                 return {
                     "job_id": job_id,

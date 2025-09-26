@@ -169,6 +169,9 @@ class AgentService:
             # Run unified LangGraph workflow (langgraph_agent is already a function with dependencies injected)
             result = await langgraph_agent(initial_state)
             
+            # Debug: Check what type the result is
+            logger.info(f"LangGraph result type: {type(result)}, keys: {result.keys() if isinstance(result, dict) else 'Not a dict'}")
+            
             # Convert to existing response format
             execution_time = time.time() - start_time
             
