@@ -10,6 +10,7 @@ Core Flow:
 
 import json
 import asyncio
+import logging
 from typing import Dict, List, Any, Tuple, Optional
 import httpx
 import structlog
@@ -126,13 +127,10 @@ class PatentSearchService:
         
         text = response["text"].strip()
 
-        # Debug logging to see what LLM returned
-        print(f"🔍 PATENT SERVICE DEBUG - Raw LLM response (length: {len(text)}):")
-        print(f"🔍 PATENT SERVICE DEBUG - Response starts with: {text[:200]}...")
-        print(f"🔍 PATENT SERVICE DEBUG - Response ends with: {text[-200:] if len(text) > 200 else text}")
-        logger.info(f"🔍 PATENT SERVICE DEBUG - Raw LLM response (length: {len(text)}):")
-        logger.info(f"🔍 PATENT SERVICE DEBUG - Response starts with: {text[:200]}...")
-        logger.info(f"🔍 PATENT SERVICE DEBUG - Response ends with: {text[-200:] if len(text) > 200 else text}")
+        # Log LLM response for debugging
+        logger.debug(f"LLM response received (length: {len(text)})")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Response preview: {text[:200]}...")
 
         # Clean JSON markers
         if text.startswith("```json"):
@@ -140,15 +138,16 @@ class PatentSearchService:
         elif text.startswith("```"):
             text = text[3:-3]
 
-        # Debug cleaned text
-        logger.info(f"🔍 PATENT SERVICE DEBUG - After cleaning (length: {len(text)}):")
-        logger.info(f"🔍 PATENT SERVICE DEBUG - Cleaned text: {text[:300]}...")
+        # Log cleaned text for debugging
+        logger.debug(f"Cleaned JSON text (length: {len(text)})")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"Cleaned text preview: {text[:300]}...")
 
         try:
             data = json.loads(text)
         except json.JSONDecodeError as e:
-            logger.error(f"🔍 PATENT SERVICE DEBUG - JSON parsing failed at position {e.pos}: {e}")
-            logger.error(f"🔍 PATENT SERVICE DEBUG - Attempting to fix JSON...")
+            logger.error(f"JSON parsing failed at position {e.pos}: {e}")
+            logger.debug("Attempting to fix JSON...")
             # Try to fix common JSON issues
             if text.startswith("```"):
                 text = text[3:-3]
@@ -157,9 +156,9 @@ class PatentSearchService:
                 text = text[4:].strip()
             try:
                 data = json.loads(text)
-                logger.info("🔍 PATENT SERVICE DEBUG - JSON fixed successfully")
+                logger.debug("JSON fixed successfully")
             except json.JSONDecodeError:
-                logger.error(f"🔍 PATENT SERVICE DEBUG - Failed to fix JSON. Raw response: {text}")
+                logger.error(f"Failed to fix JSON. Raw response: {text}")
                 raise ValueError(f"LLM returned invalid JSON at position {e.pos}: {e}. Raw response: {text[:500]}")
         
         queries = data.get("search_queries")
@@ -183,10 +182,10 @@ class PatentSearchService:
 
             # Add delay between search queries to prevent rate limiting
             if i > 0:
-                logger.info("🔍 PATENT SERVICE DEBUG - Adding 3-second delay between search queries...")
+                logger.debug("Adding delay between search queries...")
                 await asyncio.sleep(3)
-
-            logger.info(f"🔍 PATENT SERVICE DEBUG - Searching with query {i+1}/{len(search_queries)}: {query_data}")
+            
+            logger.debug(f"Searching with query {i+1}/{len(search_queries)}: {query_data}")
             patents = await self._search_patents_api(query_data)
             all_patents.extend(patents)
 
@@ -196,7 +195,7 @@ class PatentSearchService:
                 "result_count": len(patents)
             })
 
-            logger.info(f"🔍 PATENT SERVICE DEBUG - Query {i+1} returned {len(patents)} patents")
+            logger.debug(f"Query {i+1} returned {len(patents)} patents")
         
         return all_patents, query_results
     
@@ -215,10 +214,10 @@ class PatentSearchService:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
-            logger.debug(f"🔍 PATENT SERVICE DEBUG - Using PatentsView API key: {self.api_key[:10]}...")
+            logger.debug(f"Using PatentsView API key: {self.api_key[:10]}...")
 
         async with httpx.AsyncClient(timeout=60.0) as client:
-            logger.info(f"🔍 PATENT SERVICE DEBUG - Making PatentsView search API request for: {search_query}")
+            logger.debug(f"Making PatentsView search API request for: {search_query}")
             response = await client.post(url, json=payload, headers=headers)
             
             if not response.is_success:
@@ -257,15 +256,15 @@ class PatentSearchService:
             if not patent_id:
                 raise ValueError("Patent missing required 'patent_id' field")
 
-            logger.info(f"🔍 PATENT SERVICE DEBUG - Fetching claims for patent {i}/{len(patents)}: {patent_id}")
+            logger.debug(f"Fetching claims for patent {i}/{len(patents)}: {patent_id}")
 
             # Add delay between claims requests to prevent rate limiting
             if i > 1:
-                logger.info("🔍 PATENT SERVICE DEBUG - Adding 1-second delay between claims requests...")
+                logger.debug("Adding delay between claims requests...")
                 await asyncio.sleep(1)
 
             claims = await self._fetch_claims(patent_id)
-            logger.info(f"🔍 PATENT SERVICE DEBUG - Patent {patent_id}: Fetched {len(claims)} claims")
+            logger.debug(f"Patent {patent_id}: Fetched {len(claims)} claims")
             patent["claims"] = claims
             patents_with_claims.append(patent)
         
@@ -394,10 +393,10 @@ Format as concise markdown.
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
-            logger.debug(f"🔍 PATENT SERVICE DEBUG - Using PatentsView API key for claims: {self.api_key[:10]}...")
+            logger.debug(f"Using PatentsView API key for claims: {self.api_key[:10]}...")
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            logger.info(f"🔍 PATENT SERVICE DEBUG - Making PatentsView claims API request for patent {patent_id}")
+            logger.debug(f"Making PatentsView claims API request for patent {patent_id}")
             response = await client.post(url, json=payload, headers=headers)
             
             if not response.is_success:

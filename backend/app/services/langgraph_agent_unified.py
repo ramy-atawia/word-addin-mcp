@@ -20,6 +20,7 @@ FIXES APPLIED:
 
 import structlog
 import json
+import logging
 from typing import TypedDict, List, Dict, Any, Optional
 
 logger = structlog.get_logger()
@@ -302,10 +303,11 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     if not response.get("success"):
         raise RuntimeError(f"LLM intent detection failed: {response.get('error', 'Unknown error')}")
     
-    # Debug logging for intent detection
+    # Log intent detection response
     response_text = response.get("text", "")
-    logger.info(f"🔍 INTENT DEBUG - LLM response (length: {len(response_text)}):")
-    logger.info(f"🔍 INTENT DEBUG - Response: {response_text}")
+    logger.debug(f"Intent detection response (length: {len(response_text)})")
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"Response: {response_text}")
     
     return _parse_llm_intent(response_text)
 
@@ -356,7 +358,7 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
     step_results = state.get("step_results", {})
     workflow_errors = state.get("workflow_errors", [])
     
-    print(f"🔍 DEBUG: Executing workflow - Plan: {workflow_plan}, Step: {current_step}")
+    logger.debug(f"Executing workflow - Plan: {workflow_plan}, Step: {current_step}")
     
     logger.info("Executing workflow step", 
                current_step=current_step, 

@@ -175,16 +175,16 @@ class LLMClient:
                         "max_completion_tokens": max_tokens
                     }
 
-                    # Debug logging for token limits
-                    logger.info(f"🔍 LLM DEBUG - Model: {self.azure_openai_deployment}")
-                    logger.info(f"🔍 LLM DEBUG - Requested tokens: {max_tokens}")
-                    logger.info(f"🔍 LLM DEBUG - API params: {api_params}")
+                    # Log token limits for debugging
+                    logger.debug(f"Model: {self.azure_openai_deployment}, Requested tokens: {max_tokens}")
+                    if logger.isEnabledFor(logging.DEBUG):
+                        logger.debug(f"API params: {api_params}")
                     
                     response = self.client.chat.completions.create(**api_params)
                     break  # Success, exit retry loop
                 except Exception as e:
                     last_error = e
-                    logger.error(f"🔍 LLM DEBUG - API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                    logger.error(f"API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
                     if attempt < max_retries - 1:
                         logger.warning(f"LLM API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
                         import time

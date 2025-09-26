@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
 import structlog
+import threading
 
 logger = structlog.get_logger()
 
@@ -46,6 +47,7 @@ class JobQueue:
         self.job_ttl = 3600  # Job TTL in seconds (1 hour)
         self.cleanup_interval = 300  # Cleanup every 5 minutes
         self.last_cleanup = datetime.utcnow()
+        self._lock = threading.RLock()  # Reentrant lock for thread safety
         
     async def submit_job(self, job_type: str, request_data: Dict[str, Any]) -> str:
         """Submit a new job and return job ID"""
@@ -62,71 +64,77 @@ class JobQueue:
             estimated_duration=self._estimate_duration(job_type)
         )
         
-        self.jobs[job_id] = job
-        await self.processing_queue.put((job_id, job_type))
+        with self._lock:
+            self.jobs[job_id] = job
+            await self.processing_queue.put((job_id, job_type))
         
         logger.info("Job submitted", job_id=job_id, job_type=job_type)
         return job_id
     
     async def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job status and progress"""
-        job = self.jobs.get(job_id)
-        if not job:
-            return None
-            
-        return {
-            "job_id": job_id,
-            "status": job.status.value,
-            "progress": job.progress,
-            "created_at": job.created_at.isoformat(),
-            "started_at": job.started_at.isoformat() if job.started_at else None,
-            "completed_at": job.completed_at.isoformat() if job.completed_at else None,
-            "estimated_duration": job.estimated_duration,
-            "error": job.error
-        }
+        with self._lock:
+            job = self.jobs.get(job_id)
+            if not job:
+                return None
+                
+            return {
+                "job_id": job_id,
+                "status": job.status.value,
+                "progress": job.progress,
+                "created_at": job.created_at.isoformat(),
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "estimated_duration": job.estimated_duration,
+                "error": job.error
+            }
     
     async def get_job_result(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job result if completed"""
-        job = self.jobs.get(job_id)
-        if not job or job.status != JobStatus.COMPLETED:
-            return None
-            
-        return {
-            "job_id": job_id,
-            "status": job.status.value,
-            "result": job.result,
-            "completed_at": job.completed_at.isoformat()
-        }
+        with self._lock:
+            job = self.jobs.get(job_id)
+            if not job or job.status != JobStatus.COMPLETED:
+                return None
+                
+            return {
+                "job_id": job_id,
+                "status": job.status.value,
+                "result": job.result,
+                "completed_at": job.completed_at.isoformat()
+            }
     
     async def update_job_progress(self, job_id: str, progress: int, status: JobStatus = None):
         """Update job progress"""
-        job = self.jobs.get(job_id)
-        if job:
-            job.progress = progress
-            if status:
-                job.status = status
-                
-            if status == JobStatus.PROCESSING and not job.started_at:
-                job.started_at = datetime.utcnow()
-            elif status == JobStatus.COMPLETED:
-                job.completed_at = datetime.utcnow()
+        with self._lock:
+            job = self.jobs.get(job_id)
+            if job:
+                job.progress = progress
+                if status:
+                    job.status = status
+                    
+                if status == JobStatus.PROCESSING and not job.started_at:
+                    job.started_at = datetime.utcnow()
+                elif status == JobStatus.COMPLETED:
+                    job.completed_at = datetime.utcnow()
                 
     async def set_job_result(self, job_id: str, result: Dict[str, Any]):
         """Set job result and mark as completed"""
-        job = self.jobs.get(job_id)
-        if job:
-            job.result = result
-            job.status = JobStatus.COMPLETED
-            job.completed_at = datetime.utcnow()
-            job.progress = 100
+        with self._lock:
+            job = self.jobs.get(job_id)
+            if job:
+                job.result = result
+                job.status = JobStatus.COMPLETED
+                job.completed_at = datetime.utcnow()
+                job.progress = 100
             
     async def set_job_error(self, job_id: str, error: str):
         """Set job error and mark as failed"""
-        job = self.jobs.get(job_id)
-        if job:
-            job.error = error
-            job.status = JobStatus.FAILED
-            job.completed_at = datetime.utcnow()
+        with self._lock:
+            job = self.jobs.get(job_id)
+            if job:
+                job.error = error
+                job.status = JobStatus.FAILED
+                job.completed_at = datetime.utcnow()
     
     def _estimate_duration(self, job_type: str) -> int:
         """Estimate job duration based on type"""
@@ -383,41 +391,49 @@ class JobQueue:
         if (current_time - self.last_cleanup).total_seconds() < self.cleanup_interval:
             return
         
-        self.last_cleanup = current_time
+        with self._lock:
+            self.last_cleanup = current_time
         
-        # Remove expired jobs
-        expired_jobs = []
-        for job_id, job in self.jobs.items():
-            age_seconds = (current_time - job.created_at).total_seconds()
+            # Create a copy of jobs to avoid race conditions during iteration
+            jobs_copy = dict(self.jobs)
             
-            # Remove jobs older than TTL
-            if age_seconds > self.job_ttl:
-                expired_jobs.append(job_id)
-            # Remove completed/failed jobs older than 10 minutes
-            elif job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
-                if age_seconds > 600:  # 10 minutes
+            # Remove expired jobs
+            expired_jobs = []
+            for job_id, job in jobs_copy.items():
+                age_seconds = (current_time - job.created_at).total_seconds()
+                
+                # Remove jobs older than TTL
+                if age_seconds > self.job_ttl:
                     expired_jobs.append(job_id)
-        
-        # Remove expired jobs
-        for job_id in expired_jobs:
-            del self.jobs[job_id]
-            logger.info("Cleaned up expired job", job_id=job_id)
-        
-        # If still too many jobs, remove oldest completed jobs
-        if len(self.jobs) > self.max_jobs:
-            completed_jobs = [
-                (job_id, job) for job_id, job in self.jobs.items()
-                if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]
-            ]
+                # Remove completed/failed jobs older than 10 minutes
+                elif job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+                    if age_seconds > 600:  # 10 minutes
+                        expired_jobs.append(job_id)
             
-            # Sort by creation time (oldest first)
-            completed_jobs.sort(key=lambda x: x[1].created_at)
+            # Remove expired jobs from the original dict
+            for job_id in expired_jobs:
+                if job_id in self.jobs:  # Double-check job still exists
+                    del self.jobs[job_id]
+                    logger.info("Cleaned up expired job", job_id=job_id)
             
-            # Remove oldest completed jobs
-            jobs_to_remove = len(self.jobs) - self.max_jobs
-            for job_id, _ in completed_jobs[:jobs_to_remove]:
-                del self.jobs[job_id]
-                logger.info("Cleaned up old completed job", job_id=job_id)
+            # If still too many jobs, remove oldest completed jobs
+            if len(self.jobs) > self.max_jobs:
+                # Create another copy for the second cleanup pass
+                jobs_copy = dict(self.jobs)
+                completed_jobs = [
+                    (job_id, job) for job_id, job in jobs_copy.items()
+                    if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]
+                ]
+                
+                # Sort by creation time (oldest first)
+                completed_jobs.sort(key=lambda x: x[1].created_at)
+                
+                # Remove oldest completed jobs
+                jobs_to_remove = len(self.jobs) - self.max_jobs
+                for job_id, _ in completed_jobs[:jobs_to_remove]:
+                    if job_id in self.jobs:  # Double-check job still exists
+                        del self.jobs[job_id]
+                        logger.info("Cleaned up old completed job", job_id=job_id)
         
         logger.info("Job cleanup completed", 
                    total_jobs=len(self.jobs), 
@@ -425,18 +441,19 @@ class JobQueue:
     
     async def get_job_stats(self) -> Dict[str, Any]:
         """Get job queue statistics"""
-        status_counts = {}
-        for job in self.jobs.values():
-            status = job.status.value
-            status_counts[status] = status_counts.get(status, 0) + 1
-        
-        return {
-            "total_jobs": len(self.jobs),
-            "status_counts": status_counts,
-            "max_jobs": self.max_jobs,
-            "job_ttl": self.job_ttl,
-            "last_cleanup": self.last_cleanup.isoformat()
-        }
+        with self._lock:
+            status_counts = {}
+            for job in self.jobs.values():
+                status = job.status.value
+                status_counts[status] = status_counts.get(status, 0) + 1
+            
+            return {
+                "total_jobs": len(self.jobs),
+                "status_counts": status_counts,
+                "max_jobs": self.max_jobs,
+                "job_ttl": self.job_ttl,
+                "last_cleanup": self.last_cleanup.isoformat()
+            }
 
 
 # Global job queue instance

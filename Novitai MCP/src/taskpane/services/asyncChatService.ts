@@ -41,6 +41,8 @@ export class AsyncChatService {
   private maxPollingInterval: number = 10000; // 10 seconds max
   private maxPollingAttempts: number = 300; // 10 minutes max
   private backoffMultiplier: number = 1.5; // Exponential backoff multiplier
+  private activePollingTimeouts: Set<number> = new Set();
+  private isDestroyed: boolean = false;
 
   constructor() {
     this.baseURL = (window as any).BACKEND_URL || 'http://localhost:9000';
@@ -195,12 +197,22 @@ export class AsyncChatService {
     jobId: string,
     callbacks: AsyncChatCallbacks
   ): Promise<void> {
+    if (this.isDestroyed) {
+      callbacks.onError(new Error('Service has been destroyed'));
+      return;
+    }
+
     let attempts = 0;
     let currentInterval = this.basePollingInterval;
     let consecutiveErrors = 0;
     const maxConsecutiveErrors = 3;
 
     const poll = async () => {
+      // Check if service is destroyed before each poll
+      if (this.isDestroyed) {
+        return;
+      }
+
       try {
         attempts++;
         
@@ -240,8 +252,9 @@ export class AsyncChatService {
           );
         }
 
-        // Continue polling with adaptive interval
-        setTimeout(poll, Math.round(currentInterval));
+        // Continue polling with adaptive interval - track timeout for cleanup
+        const timeoutId = setTimeout(poll, Math.round(currentInterval));
+        this.activePollingTimeouts.add(timeoutId);
         
       } catch (error) {
         consecutiveErrors++;
@@ -259,13 +272,25 @@ export class AsyncChatService {
         
         console.warn(`Polling error (${consecutiveErrors}/${maxConsecutiveErrors}):`, error);
         
-        // Continue polling with increased interval
-        setTimeout(poll, Math.round(currentInterval));
+        // Continue polling with increased interval - track timeout for cleanup
+        const timeoutId = setTimeout(poll, Math.round(currentInterval));
+        this.activePollingTimeouts.add(timeoutId);
       }
     };
 
     // Start polling
     poll();
+  }
+
+  /**
+   * Clean up all active polling timeouts
+   */
+  cleanup(): void {
+    this.isDestroyed = true;
+    this.activePollingTimeouts.forEach(timeoutId => {
+      clearTimeout(timeoutId);
+    });
+    this.activePollingTimeouts.clear();
   }
 
   /**

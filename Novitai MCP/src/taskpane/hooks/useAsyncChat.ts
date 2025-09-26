@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { asyncChatService, JobStatus, JobResult, AsyncChatCallbacks } from '../services/asyncChatService';
 
 export interface ChatMessage {
@@ -34,6 +34,7 @@ export const useAsyncChat = ({
   const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
   
   const abortControllerRef = useRef<AbortController | null>(null);
+  const asyncChatServiceRef = useRef<typeof asyncChatService | null>(null);
 
   // During processing, always use internal messages for real-time updates
   // When not processing, use external messages if available (for persistence across tab switches)
@@ -44,6 +45,11 @@ export const useAsyncChat = ({
     setCurrentJobId(null);
     setJobProgress(null);
     setInternalMessages([]);
+    
+    // Clean up any active polling
+    if (asyncChatServiceRef.current) {
+      asyncChatServiceRef.current.cleanup();
+    }
   }, []);
 
   const cancelCurrentJob = useCallback(async () => {
@@ -211,6 +217,9 @@ export const useAsyncChat = ({
         }
       };
 
+      // Store service reference for cleanup
+      asyncChatServiceRef.current = asyncChatService;
+      
       // Start async processing
       await asyncChatService.processChatAsync({
         message,
@@ -251,6 +260,15 @@ export const useAsyncChat = ({
     setInternalMessages([]);
     resetAsyncState();
   }, [resetAsyncState]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (asyncChatServiceRef.current) {
+        asyncChatServiceRef.current.cleanup();
+      }
+    };
+  }, []);
 
   return {
     messages,
