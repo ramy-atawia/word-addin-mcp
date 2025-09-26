@@ -397,6 +397,9 @@ class JobQueue:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, func, *args, **kwargs)
         
+        # Debug: Check what type the result is
+        logger.info(f"_execute_with_progress result type: {type(result)}, value: {result}")
+        
         # Final progress update
         await self.update_job_progress(job_id, progress_end)
         
