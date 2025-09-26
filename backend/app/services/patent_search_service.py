@@ -293,10 +293,10 @@ class PatentSearchService:
                 logger.warning(f"Patent {patent_id} has no claims data")
                 return f"**Patent {patent_id}: {patent_title}**\n- Claims: Not available\n"
             
-            # Prepare claims text (limit to first 5 claims for gpt-5-nano compatibility)
+            # Prepare claims text (process all claims)
             claims_text = []
             valid_claims_count = 0
-            for claim in claims[:5]:  # Process only first 5 claims to reduce prompt size
+            for claim in claims:  # Process all claims
                 claim_number = claim.get("number")
                 claim_text = claim.get("text")
                 claim_type = claim.get("type", "unknown")
