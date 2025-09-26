@@ -210,6 +210,7 @@ export class AsyncChatService {
     const poll = async () => {
       // Check if service is destroyed before each poll
       if (this.isDestroyed) {
+        console.log('AsyncChatService: Polling stopped - service destroyed');
         return;
       }
 
@@ -286,11 +287,22 @@ export class AsyncChatService {
    * Clean up all active polling timeouts
    */
   cleanup(): void {
-    this.isDestroyed = true;
+    console.log('AsyncChatService: Starting cleanup...');
     this.activePollingTimeouts.forEach(timeoutId => {
       clearTimeout(timeoutId);
     });
     this.activePollingTimeouts.clear();
+    // Don't set isDestroyed = true here to allow graceful completion
+    console.log('AsyncChatService: Cleanup completed');
+  }
+
+  /**
+   * Force destroy the service (use only when absolutely necessary)
+   */
+  destroy(): void {
+    console.log('AsyncChatService: Force destroying service...');
+    this.isDestroyed = true;
+    this.cleanup();
   }
 
   /**

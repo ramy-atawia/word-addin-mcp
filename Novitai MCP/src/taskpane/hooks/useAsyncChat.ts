@@ -46,7 +46,7 @@ export const useAsyncChat = ({
     setJobProgress(null);
     setInternalMessages([]);
     
-    // Clean up any active polling
+    // Only clean up polling timeouts, don't destroy the service
     if (asyncChatServiceRef.current) {
       asyncChatServiceRef.current.cleanup();
     }
@@ -267,7 +267,7 @@ export const useAsyncChat = ({
   useEffect(() => {
     return () => {
       if (asyncChatServiceRef.current) {
-        asyncChatServiceRef.current.cleanup();
+        asyncChatServiceRef.current.destroy();
       }
     };
   }, []);
