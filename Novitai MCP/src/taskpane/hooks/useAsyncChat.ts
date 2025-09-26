@@ -84,6 +84,11 @@ export const useAsyncChat = ({
     setIsProcessing(true);
     setJobProgress(null);
     setCurrentJobId(null);
+    
+    // Notify parent component of loading state change
+    if (onLoadingChange) {
+      onLoadingChange(true);
+    }
 
     // Create assistant message placeholder
     const assistantMessageId = `assistant-${Date.now()}`;
@@ -127,6 +132,11 @@ export const useAsyncChat = ({
           setIsProcessing(false);
           setCurrentJobId(null);
           
+          // Notify parent component of loading state change
+          if (onLoadingChange) {
+            onLoadingChange(false);
+          }
+          
           // Update assistant message with final result
           const finalContent = result.result?.result || result.result || 'Request completed successfully';
           setInternalMessages(prev => 
@@ -161,6 +171,11 @@ export const useAsyncChat = ({
           console.error('Async processing error:', error);
           setIsProcessing(false);
           setCurrentJobId(null);
+          
+          // Notify parent component of loading state change
+          if (onLoadingChange) {
+            onLoadingChange(false);
+          }
           
           // Update assistant message with error
           setInternalMessages(prev => 
@@ -203,6 +218,11 @@ export const useAsyncChat = ({
       console.error('Error in async processing:', error);
       setIsProcessing(false);
       setCurrentJobId(null);
+      
+      // Notify parent component of loading state change
+      if (onLoadingChange) {
+        onLoadingChange(false);
+      }
       
       // Update assistant message with error
       setInternalMessages(prev => 
