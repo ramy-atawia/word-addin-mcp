@@ -257,12 +257,19 @@ export const useAsyncChat = ({
                 if (typeof result.result === 'string') {
                   finalContent = result.result;
                 } else if (typeof result.result === 'object' && result.result !== null) {
-                  // FIX: Better content extraction
-                  finalContent = result.result.content || 
-                               result.result.response || 
-                               result.result.message || 
-                               result.result.result ||
-                               JSON.stringify(result.result, null, 2);
+                  // FIX: Better content extraction - prioritize response field
+                  if (result.result.response && typeof result.result.response === 'string') {
+                    finalContent = result.result.response;
+                  } else if (result.result.content && typeof result.result.content === 'string') {
+                    finalContent = result.result.content;
+                  } else if (result.result.message && typeof result.result.message === 'string') {
+                    finalContent = result.result.message;
+                  } else if (result.result.result && typeof result.result.result === 'string') {
+                    finalContent = result.result.result;
+                  } else {
+                    // Fallback to JSON stringify for complex objects
+                    finalContent = JSON.stringify(result.result, null, 2);
+                  }
                 } else {
                   finalContent = String(result.result);
                 }
