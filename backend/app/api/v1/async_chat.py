@@ -1,11 +1,9 @@
 """
 Asynchronous Chat API Endpoints
 """
-import asyncio
-from datetime import datetime
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.services.job_queue import job_queue, JobStatus
@@ -207,25 +205,7 @@ async def list_jobs(limit: int = 10, status: Optional[str] = None):
     Note: In production, this should be restricted to admin users.
     """
     try:
-        # This is a simplified implementation
-        # In production, you'd want proper filtering and pagination
-        jobs = []
-        
-        for job_id, job in list(job_queue.jobs.items())[-limit:]:
-            if status and job.status.value != status:
-                continue
-                
-            jobs.append({
-                "job_id": job_id,
-                "status": job.status.value,
-                "created_at": job.created_at.isoformat(),
-                "progress": job.progress
-            })
-        
-        return {
-            "jobs": jobs,
-            "total": len(jobs)
-        }
+        return await job_queue.list_jobs(limit=limit, status_filter=status)
         
     except Exception as e:
         logger.error("Failed to list jobs", error=str(e))

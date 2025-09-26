@@ -2,12 +2,11 @@
 Asynchronous Job Queue System for Long-Running Tasks
 """
 import asyncio
-import json
 import uuid
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import structlog
 import threading
 
@@ -476,6 +475,27 @@ class JobQueue:
                 "max_jobs": self.max_jobs,
                 "job_ttl": self.job_ttl,
                 "last_cleanup": self.last_cleanup.isoformat()
+            }
+    
+    async def list_jobs(self, limit: int = 10, status_filter: Optional[str] = None) -> Dict[str, Any]:
+        """List recent jobs with optional status filtering"""
+        with self._lock:
+            jobs = []
+            
+            for job_id, job in list(self.jobs.items())[-limit:]:
+                if status_filter and job.status.value != status_filter:
+                    continue
+                    
+                jobs.append({
+                    "job_id": job_id,
+                    "status": job.status.value,
+                    "created_at": job.created_at.isoformat(),
+                    "progress": job.progress
+                })
+            
+            return {
+                "jobs": jobs,
+                "total": len(jobs)
             }
 
 
