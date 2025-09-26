@@ -280,11 +280,8 @@ class JobQueue:
             # Progress: Finalizing results
             await self.update_job_progress(job.id, 95)
             
-            return {
-                "type": "prior_art_search",
-                "result": result,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            # Return the result directly instead of wrapping it
+            return result
             
         except Exception as e:
             logger.error("Prior art search failed", job_id=job.id, error=str(e))
@@ -305,11 +302,8 @@ class JobQueue:
         
         await self.update_job_progress(job.id, 90)
         
-        return {
-            "type": "claim_drafting",
-            "result": result,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        # Return the result directly instead of wrapping it
+        return result
     
     async def _process_general_chat(self, job: Job, agent_service, mcp_orchestrator):
         """Process general chat job with real progress tracking"""
@@ -334,11 +328,8 @@ class JobQueue:
             # Progress: Finalizing
             await self.update_job_progress(job.id, 95)
             
-            return {
-                "type": "general_chat",
-                "result": result,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            # Return the result directly instead of wrapping it
+            return result
             
         except Exception as e:
             logger.error("General chat processing failed", job_id=job.id, error=str(e))
