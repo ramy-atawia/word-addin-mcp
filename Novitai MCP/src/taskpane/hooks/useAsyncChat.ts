@@ -138,13 +138,24 @@ export const useAsyncChat = ({
           }
           
               // Update assistant message with final result
-              const finalContent = typeof result.result?.result === 'string' 
-                ? result.result.result 
-                : typeof result.result === 'string' 
-                  ? result.result 
-                  : typeof result.result === 'object' && result.result !== null
-                    ? result.result.response || JSON.stringify(result.result, null, 2)
-                    : String(result.result || 'Request completed successfully');
+              // Extract the response content from the nested result structure
+              let finalContent = 'Request completed successfully';
+              
+              if (result && result.result) {
+                if (typeof result.result === 'string') {
+                  finalContent = result.result;
+                } else if (typeof result.result === 'object' && result.result !== null) {
+                  // Check for response field first (most common case)
+                  if (result.result.response && typeof result.result.response === 'string') {
+                    finalContent = result.result.response;
+                  } else if (result.result.result && typeof result.result.result === 'string') {
+                    finalContent = result.result.result;
+                  } else {
+                    // Fallback to JSON stringify for complex objects
+                    finalContent = JSON.stringify(result.result, null, 2);
+                  }
+                }
+              }
           setInternalMessages(prev => 
             prev.map(msg => 
               msg.id === assistantMessageId 
