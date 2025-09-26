@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { asyncChatService, JobStatus, JobResult, AsyncChatCallbacks } from '../services/asyncChatService';
 
 export interface ChatMessage {
@@ -13,25 +13,39 @@ export interface UseAsyncChatProps {
   messages?: ChatMessage[];
   onMessage?: (message: ChatMessage) => void;
   onLoadingChange?: (loading: boolean) => void;
+  autoRetry?: boolean;
+  maxRetries?: number;
 }
 
 
 export const useAsyncChat = ({ 
   messages: externalMessages = [], 
   onMessage, 
-  onLoadingChange 
+  onLoadingChange,
+  autoRetry = true,
+  maxRetries = 3
 }: UseAsyncChatProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [jobProgress, setJobProgress] = useState<JobStatus | null>(null);
   const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
+  const [retryCount, setRetryCount] = useState(0);
   
+  // FIX: Use refs to prevent race conditions
+  const processingRef = useRef(false);
+  const currentJobRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const asyncChatServiceRef = useRef<typeof asyncChatService | null>(null);
+  const mountedRef = useRef(true);
 
-  // During processing, always use internal messages for real-time updates
-  // When not processing, use external messages if available (for persistence across tab switches)
-  // If no external messages and no internal messages, return empty array (parent will handle welcome message)
-  const messages = isProcessing ? internalMessages : (externalMessages.length > 0 ? externalMessages : internalMessages);
+  // FIX: Stable message selection logic
+  const messages = useMemo(() => {
+    // Always use internal messages during processing to prevent flickering
+    if (isProcessing || internalMessages.length > 0) {
+      return internalMessages;
+    }
+    return externalMessages;
+  }, [isProcessing, internalMessages, externalMessages]);
 
   const resetAsyncState = useCallback(() => {
     setIsProcessing(false);
