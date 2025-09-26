@@ -341,7 +341,7 @@ Format as concise markdown.
             
             response = self.llm_client.generate_text(
                 prompt=claims_prompt,
-                max_tokens=500  # Increased to handle more claims
+                max_tokens=2000  # Increased to handle comprehensive claims analysis
             )
             
             if not response.get("success"):
