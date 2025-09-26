@@ -250,14 +250,14 @@ export const useAsyncChat = ({
             
             console.log('Job completed:', result);
             
-            // Extract content from result - SIMPLIFIED!
+            // Extract content from result - BACKEND FIXED!
             const extractResponse = (data: any): string => {
-              // Direct access first
+              // Backend now returns response directly, so this is much simpler
               if (data?.response && typeof data.response === 'string') return data.response;
               if (data?.content && typeof data.content === 'string') return data.content;
               if (data?.message && typeof data.message === 'string') return data.message;
               
-              // Nested access (current backend structure)
+              // Fallback for old nested structure (backward compatibility)
               if (data?.result?.response && typeof data.result.response === 'string') return data.result.response;
               if (data?.result?.content && typeof data.result.content === 'string') return data.result.content;
               if (data?.result?.message && typeof data.result.message === 'string') return data.result.message;
