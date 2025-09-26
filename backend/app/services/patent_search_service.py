@@ -119,7 +119,7 @@ class PatentSearchService:
         response = self.llm_client.generate_text(
             prompt=prompt,
             system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
-            max_tokens=8000  # Increased to handle comprehensive query generation
+            max_tokens=1000  # Reduced for gpt-5-nano compatibility
         )
         
         if not response.get("success"):
@@ -293,10 +293,10 @@ class PatentSearchService:
                 logger.warning(f"Patent {patent_id} has no claims data")
                 return f"**Patent {patent_id}: {patent_title}**\n- Claims: Not available\n"
             
-            # Prepare claims text (all claims)
+            # Prepare claims text (limit to first 5 claims for gpt-5-nano compatibility)
             claims_text = []
             valid_claims_count = 0
-            for claim in claims:  # Process all claims, not just first 3
+            for claim in claims[:5]:  # Process only first 5 claims to reduce prompt size
                 claim_number = claim.get("number")
                 claim_text = claim.get("text")
                 claim_type = claim.get("type", "unknown")
@@ -309,8 +309,8 @@ class PatentSearchService:
                     logger.debug(f"Patent {patent_id}: Skipping claim {claim_number} - text too short")
                     continue
                 
-                # Truncate very long claims to 300 chars to fit more claims
-                truncated_text = claim_text[:300] + "..." if len(claim_text) > 300 else claim_text
+                # Truncate very long claims to 150 chars to fit gpt-5-nano limits
+                truncated_text = claim_text[:150] + "..." if len(claim_text) > 150 else claim_text
                 claims_text.append(f"Claim {claim_number} ({claim_type}): {truncated_text}")
                 valid_claims_count += 1
             
@@ -340,7 +340,7 @@ Format as concise markdown.
             
             response = self.llm_client.generate_text(
                 prompt=claims_prompt,
-                max_tokens=2000  # Increased to handle comprehensive claims analysis
+                max_tokens=500   # Reduced for gpt-5-nano compatibility
             )
             
             if not response.get("success"):
@@ -498,7 +498,7 @@ Format as concise markdown.
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
-            max_tokens=32000  # Increased limit for comprehensive patent analysis
+            max_tokens=2000   # Reduced for gpt-5-nano compatibility
         )
         
         if not response.get("success"):
