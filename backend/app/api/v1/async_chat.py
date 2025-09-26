@@ -141,7 +141,7 @@ async def get_job_result(job_id: str):
         return JobResultResponse(
             job_id=job_id,
             status=status["status"],
-            result=None,
+            response=None,
             completed_at=None
         )
         

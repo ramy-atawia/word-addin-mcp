@@ -277,7 +277,7 @@ class JobQueue:
             await self.update_job_progress(job.id, 20)
             
             # Execute with progress callbacks
-            result = await self._execute_with_progress(
+            search_result, generated_queries = await self._execute_with_progress(
                 job.id,
                 patent_service.search_patents,
                 request_data.get("message", ""),
@@ -288,8 +288,23 @@ class JobQueue:
             # Progress: Finalizing results
             await self.update_job_progress(job.id, 95)
             
-            # Return the result directly instead of wrapping it
-            return result
+            # Convert patent search result to match agent service format
+            return {
+                "response": search_result.get("report", "No report generated"),
+                "intent_type": "tool_execution",
+                "tool_name": "prior_art_search_tool",
+                "execution_time": 0.0,  # Will be calculated by agent service
+                "success": True,
+                "error": None,
+                "workflow_metadata": {
+                    "total_steps": 1,
+                    "completed_steps": 1,
+                    "workflow_type": "single_tool",
+                    "workflow_plan": [{"tool": "prior_art_search_tool", "step": 1}],
+                    "search_queries": generated_queries,
+                    "patents_found": search_result.get("results_found", 0)
+                }
+            }
             
         except Exception as e:
             logger.error("Prior art search failed", job_id=job.id, error=str(e))
