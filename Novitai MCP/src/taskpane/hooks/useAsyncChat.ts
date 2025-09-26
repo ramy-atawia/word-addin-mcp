@@ -250,34 +250,27 @@ export const useAsyncChat = ({
             
             console.log('Job completed:', result);
             
-            // Extract content from result
-            let finalContent = 'Request completed successfully';
-            if (result.result) {
-              try {
-                if (typeof result.result === 'string') {
-                  finalContent = result.result;
-                } else if (typeof result.result === 'object' && result.result !== null) {
-                  // FIX: Better content extraction - prioritize response field
-                  if (result.result.response && typeof result.result.response === 'string') {
-                    finalContent = result.result.response;
-                  } else if (result.result.content && typeof result.result.content === 'string') {
-                    finalContent = result.result.content;
-                  } else if (result.result.message && typeof result.result.message === 'string') {
-                    finalContent = result.result.message;
-                  } else if (result.result.result && typeof result.result.result === 'string') {
-                    finalContent = result.result.result;
-                  } else {
-                    // Fallback to JSON stringify for complex objects
-                    finalContent = JSON.stringify(result.result, null, 2);
-                  }
-                } else {
-                  finalContent = String(result.result);
-                }
-              } catch (e) {
-                console.error('Error extracting result content:', e);
-                finalContent = 'Response received but could not be displayed';
-              }
-            }
+            // Extract content from result - SIMPLIFIED!
+            const extractResponse = (data: any): string => {
+              // Direct access first
+              if (data?.response && typeof data.response === 'string') return data.response;
+              if (data?.content && typeof data.content === 'string') return data.content;
+              if (data?.message && typeof data.message === 'string') return data.message;
+              
+              // Nested access (current backend structure)
+              if (data?.result?.response && typeof data.result.response === 'string') return data.result.response;
+              if (data?.result?.content && typeof data.result.content === 'string') return data.result.content;
+              if (data?.result?.message && typeof data.result.message === 'string') return data.result.message;
+              
+              // String fallback
+              if (typeof data === 'string') return data;
+              if (typeof data?.result === 'string') return data.result;
+              
+              // JSON fallback
+              return JSON.stringify(data, null, 2);
+            };
+            
+            const finalContent = result ? extractResponse(result) : 'Request completed successfully';
             
             const finalMessage: ChatMessage = {
               id: messageId,
