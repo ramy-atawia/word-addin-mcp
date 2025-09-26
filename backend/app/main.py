@@ -14,10 +14,11 @@ import time
 from contextlib import asynccontextmanager
 
 import os
+import asyncio
 from .core.config import settings
 from .core.logging import setup_logging
 from .middleware.auth0_jwt_middleware import Auth0JWTMiddleware
-from .api.v1 import mcp, external_mcp, session, health
+from .api.v1 import mcp, external_mcp, session, health, async_chat
 
 # Setup logging
 setup_logging()
@@ -77,10 +78,28 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize MCP Orchestrator: {str(e)}")
         raise
     
+    # Initialize Job Queue
+    try:
+        from .services.job_queue import job_queue
+        # Start job queue worker in background
+        asyncio.create_task(job_queue.start_worker())
+        logger.info("Job queue worker started")
+    except Exception as e:
+        logger.error(f"Failed to start job queue worker: {str(e)}")
+        # Don't raise - job queue is optional for basic functionality
+    
     yield
     
     # Shutdown
     logger.info("Shutting down Word Add-in MCP Backend")
+    
+    # Stop Job Queue Worker
+    try:
+        from .services.job_queue import job_queue
+        await job_queue.stop_worker()
+        logger.info("Job queue worker stopped")
+    except Exception as e:
+        logger.error(f"Failed to stop job queue worker: {str(e)}")
     
     # Cleanup MCP Orchestrator
     try:
@@ -262,6 +281,12 @@ app.include_router(
     health.router,
     prefix="/api/v1",
     tags=["health"]
+)
+
+app.include_router(
+    async_chat.router,
+    prefix="/api/v1/async/chat",
+    tags=["async-chat"]
 )
 
 

@@ -151,19 +151,25 @@ class Settings(BaseSettings):
         "/api/v1/health/detailed",
         "/api/v1/health/debug/config",
         "/api/v1/health/metrics",
-        "/api/v1/mcp/agent/chat/stream"  # Temporarily allow streaming without auth for testing
+        "/api/v1/mcp/agent/chat/stream",  # Temporarily allow streaming without auth for testing
+        "/api/v1/async/chat/submit",      # Allow async chat submission
+        "/api/v1/async/chat/status",      # Allow async chat status checks
+        "/api/v1/async/chat/result",      # Allow async chat result retrieval
+        "/api/v1/async/chat/cancel",      # Allow async chat cancellation
+        "/api/v1/async/chat/jobs",        # Allow async chat job listing
+        "/api/v1/async/chat/stats"        # Allow async chat statistics
         # Removed core endpoints for security:
         # "/api/v1/mcp/tools" - Now requires authentication
     ]
-    
-    # API Configuration
-    api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:9000")
-    api_docs_url: str = os.getenv("API_DOCS_URL", "http://localhost:9000/docs")
-    
-    class Config:
-        env_file = [".env", "../.env", "/Users/Mariam/word-addin-mcp/.env"]
-        case_sensitive = False
-        extra = "allow"  # Allow extra fields from .env
+
+# API Configuration
+api_base_url: str = os.getenv("API_BASE_URL", "http://localhost:9000")
+api_docs_url: str = os.getenv("API_DOCS_URL", "http://localhost:9000/docs")
+
+class Config:
+    env_file = [".env", "../.env", "/Users/Mariam/word-addin-mcp/.env"]
+    case_sensitive = False
+    extra = "allow"  # Allow extra fields from .env
 
 
 # Global settings instance
