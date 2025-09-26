@@ -290,10 +290,15 @@ class MCPToolService {
                     if (chunk.messages && Array.isArray(chunk.messages)) {
                       for (const message of chunk.messages) {
                         if (message && message.content) {
+                          // Ensure content is a string
+                          const contentString = typeof message.content === 'string' 
+                            ? message.content 
+                            : String(message.content || '');
+                          
                           params.callbacks.onEvent({
                             event_type: 'llm_token',
                             data: {
-                              content: message.content,
+                              content: contentString,
                               is_streaming: true
                             },
                             timestamp: streamingEvent.timestamp

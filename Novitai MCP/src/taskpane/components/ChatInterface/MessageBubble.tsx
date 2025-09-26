@@ -7,6 +7,24 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { officeIntegrationService } from '../../services/officeIntegrationService';
 
+// Type guard to ensure content is always a string
+const ensureStringContent = (content: any): string => {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (content === null || content === undefined) {
+    return '';
+  }
+  if (typeof content === 'object') {
+    try {
+      return JSON.stringify(content);
+    } catch {
+      return '[Object]';
+    }
+  }
+  return String(content);
+};
+
 export interface ChatMessage {
   id: string;
   type: 'user' | 'assistant' | 'system';
@@ -322,7 +340,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       }
 
       // Convert markdown to HTML first (same as bubble chat)
-      const htmlContent = convertMarkdownToHTML(message.content);
+      const htmlContent = convertMarkdownToHTML(ensureStringContent(message.content));
       
       // Insert the HTML content at the cursor position
       await officeIntegrationService.insertHTML(htmlContent, {
@@ -425,10 +443,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   };
 
   const formatContent = (content: any) => {
-    // Ensure content is a string
+    // Ensure content is a string with robust type checking
     if (typeof content !== 'string') {
       console.warn('MessageBubble: content is not a string:', content);
-      content = String(content || '');
+      if (content === null || content === undefined) {
+        content = '';
+      } else if (typeof content === 'object') {
+        try {
+          content = JSON.stringify(content);
+        } catch {
+          content = '[Object]';
+        }
+      } else {
+        content = String(content);
+      }
     }
     
     // For assistant messages, always treat as markdown since they come from our tools

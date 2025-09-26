@@ -4,6 +4,24 @@ import { StreamingEvent, StreamingProgress, MCPTool } from '../services/types';
 import mcpToolService from '../services/mcpToolService';
 import { officeIntegrationService } from '../services/officeIntegrationService';
 
+// Type guard to ensure content is always a string
+const ensureStringContent = (content: any): string => {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (content === null || content === undefined) {
+    return '';
+  }
+  if (typeof content === 'object') {
+    try {
+      return JSON.stringify(content);
+    } catch {
+      return '[Object]';
+    }
+  }
+  return String(content);
+};
+
 interface UseStreamingChatProps {
   messages?: ChatMessage[];
   onMessage?: (message: ChatMessage) => void;
@@ -74,7 +92,10 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
             
             // Check if this node contains a final_response
             if (nodeName === 'response_generation' && nodeData && typeof nodeData === 'object' && 'final_response' in nodeData) {
-              streamingResponseRef.current = (nodeData as any).final_response;
+              const finalResponse = (nodeData as any).final_response;
+              streamingResponseRef.current = typeof finalResponse === 'string' 
+                ? finalResponse 
+                : String(finalResponse || '');
               updateStreamingMessage(messageId, streamingResponseRef.current, {
                 streamingProgress: status
               });
@@ -91,7 +112,11 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       if (data.messages?.length > 0) {
         for (const message of data.messages) {
           if (message?.content) {
-            streamingResponseRef.current += message.content;
+            // Ensure content is a string
+            const contentString = typeof message.content === 'string' 
+              ? message.content 
+              : String(message.content || '');
+            streamingResponseRef.current += contentString;
             updateStreamingMessage(messageId, streamingResponseRef.current, {
               streamingProgress: 'response_generation'
             });
@@ -102,7 +127,11 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       // Handle direct LLM response events
       const data = event.data;
       if (data?.content) {
-        streamingResponseRef.current = data.content;
+        // Ensure content is a string
+        const contentString = typeof data.content === 'string' 
+          ? data.content 
+          : String(data.content || '');
+        streamingResponseRef.current = contentString;
         updateStreamingMessage(messageId, streamingResponseRef.current, {
           streamingProgress: 'response_generation'
         });
@@ -119,13 +148,13 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       .filter(msg => 
         !msg.metadata?.isStreaming && 
         msg.type !== 'system' && 
-        msg.content.trim() !== '' &&
+        ensureStringContent(msg.content).trim() !== '' &&
         msg.id !== currentUserMessageId // Exclude current user message from context
       )
       .slice(-50)
       .map(msg => ({
         role: msg.type === 'user' ? 'user' : 'assistant',
-        content: msg.content,
+        content: ensureStringContent(msg.content),
         timestamp: msg.timestamp
       }));
   }, [externalMessages, internalMessages, currentUserMessageId]);
@@ -156,13 +185,13 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
         .filter(msg => 
           !msg.metadata?.isStreaming && 
           msg.type !== 'system' && 
-          msg.content.trim() !== '' &&
+          ensureStringContent(msg.content).trim() !== '' &&
           msg.id !== userMessageId // Exclude current user message
         )
         .slice(-5) // Limit to last 5 messages to prevent context confusion
         .map(msg => ({
           role: msg.type === 'user' ? 'user' : 'assistant',
-          content: msg.content,
+          content: ensureStringContent(msg.content),
           timestamp: msg.timestamp
         }));
 
@@ -208,7 +237,7 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
       console.log('🔍 Streaming Debug:', {
         userMessage,
         conversationHistoryLength: currentConversationHistory.length,
-        conversationHistory: currentConversationHistory.map(msg => ({ role: msg.role, content: msg.content.substring(0, 50) + '...' })),
+        conversationHistory: currentConversationHistory.map(msg => ({ role: msg.role, content: ensureStringContent(msg.content).substring(0, 50) + '...' })),
         documentContentLength: documentContent.length,
         availableToolsCount: availableTools.length
       });
@@ -225,7 +254,11 @@ export const useStreamingChat = ({ messages: externalMessages = [], onMessage, o
         callbacks: {
           onEvent: (event) => handleStreamingEvent(event, streamingMessageId),
           onComplete: (finalResponse) => {
-            const finalContent = streamingResponseRef.current || finalResponse?.final_response || 'Request completed successfully';
+            const finalContent = streamingResponseRef.current || 
+              (typeof finalResponse?.final_response === 'string' 
+                ? finalResponse.final_response 
+                : String(finalResponse?.final_response || '')) || 
+              'Request completed successfully';
             
             // Update internal state with final content
             setInternalMessages(prev => 

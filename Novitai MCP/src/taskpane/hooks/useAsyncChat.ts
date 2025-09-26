@@ -138,7 +138,11 @@ export const useAsyncChat = ({
           }
           
           // Update assistant message with final result
-          const finalContent = result.result?.result || result.result || 'Request completed successfully';
+            const finalContent = typeof result.result?.result === 'string' 
+              ? result.result.result 
+              : typeof result.result === 'string' 
+                ? result.result 
+                : String(result.result || 'Request completed successfully');
           setInternalMessages(prev => 
             prev.map(msg => 
               msg.id === assistantMessageId 
