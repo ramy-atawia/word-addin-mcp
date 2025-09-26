@@ -236,6 +236,9 @@ class JobQueue:
                         timeout=timeout_seconds
                     )
                     
+                    # Debug: Check what type the result is before setting
+                    logger.info(f"Job processing result type: {type(result)}, value: {result}")
+                    
                     await self.set_job_result(job_id, result)
                     logger.info("Job completed successfully", job_id=job_id, retry_count=retry_count)
                     return  # Success, exit retry loop
