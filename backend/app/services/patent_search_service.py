@@ -119,7 +119,7 @@ class PatentSearchService:
         response = self.llm_client.generate_text(
             prompt=prompt,
             system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
-            max_tokens=1000  # Reduced for gpt-5-nano compatibility
+            max_tokens=2000  # Increased for gpt-5-nano
         )
         
         if not response.get("success"):
@@ -332,6 +332,8 @@ Analyze the patent claims for patent {patent_id} titled "{patent_title}".
 3. **Claim Structure**: Identify independent vs dependent claims
 4. **Technical Scope**: Brief scope and limitations
 
+**IMPORTANT**: Keep your response under 200 words. Be concise and focused.
+
 Format as concise markdown.
 """
             
@@ -340,7 +342,7 @@ Format as concise markdown.
             
             response = self.llm_client.generate_text(
                 prompt=claims_prompt,
-                max_tokens=500   # Reduced for gpt-5-nano compatibility
+                max_tokens=1500  # Increased for gpt-5-nano
             )
             
             if not response.get("success"):
@@ -498,7 +500,7 @@ Format as concise markdown.
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
-            max_tokens=2000   # Reduced for gpt-5-nano compatibility
+            max_tokens=3000   # Increased for gpt-5-nano
         )
         
         if not response.get("success"):
