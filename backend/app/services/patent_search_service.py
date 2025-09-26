@@ -116,11 +116,11 @@ class PatentSearchService:
                                     context="",
                                     conversation_history="")
         
-        response = self.llm_client.generate_text(
-            prompt=prompt,
-            system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
-            max_tokens=2000  # Increased for gpt-5-nano
-        )
+            response = self.llm_client.generate_text(
+                prompt=prompt,
+                system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
+                max_tokens=16384  # Official Azure max for gpt-5-nano
+            )
         
         if not response.get("success"):
             raise ValueError(f"LLM failed to generate queries: {response.get('error')}")
@@ -342,7 +342,7 @@ Format as concise markdown.
             
             response = self.llm_client.generate_text(
                 prompt=claims_prompt,
-                max_tokens=1500  # Increased for gpt-5-nano
+                max_tokens=16384  # Official Azure max for gpt-5-nano
             )
             
             if not response.get("success"):
@@ -500,7 +500,7 @@ Format as concise markdown.
         response = self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
-            max_tokens=3000   # Increased for gpt-5-nano
+            max_tokens=16384  # Official Azure max for gpt-5-nano
         )
         
         if not response.get("success"):
