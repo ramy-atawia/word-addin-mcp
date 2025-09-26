@@ -221,7 +221,7 @@ export const useAsyncChat = ({
         )
       );
     }
-  }, [isProcessing, onMessage, assistantMessageId]);
+  }, [isProcessing, onMessage]);
 
   const clearMessages = useCallback(() => {
     setInternalMessages([]);
