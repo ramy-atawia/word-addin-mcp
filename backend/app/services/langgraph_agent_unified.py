@@ -123,8 +123,18 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
         recent = conversation_history[-3:]  # Last 3 messages
         history_parts = []
         for msg in recent:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
+            # Handle both dict and string message formats
+            if isinstance(msg, dict):
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+            elif isinstance(msg, str):
+                # If it's a string, treat as user message
+                role = 'user'
+                content = msg
+            else:
+                # Skip invalid message formats
+                continue
+                
             if role == 'user':
                 history_parts.append(f"User: {content}")
             elif role == 'assistant':
@@ -478,12 +488,26 @@ def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> 
     for i in range(len(conversation_history) - 1, -1, -1):  # Check last 5 messages
         if i >= len(conversation_history) - 5:  # Only check last 5 messages
             msg = conversation_history[i]
-            if msg.get('role') == 'assistant':
+            
+            # Handle both dict and string message formats
+            if isinstance(msg, dict):
+                role = msg.get('role', 'user')
                 content = msg.get('content', '')
+            elif isinstance(msg, str):
+                role = 'user'
+                content = msg
+            else:
+                continue
+                
+            if role == 'assistant':
                 # Get the previous user message if it exists
                 user_query = ""
-                if i > 0 and conversation_history[i-1].get('role') == 'user':
-                    user_query = conversation_history[i-1].get('content', '')
+                if i > 0:
+                    prev_msg = conversation_history[i-1]
+                    if isinstance(prev_msg, dict) and prev_msg.get('role') == 'user':
+                        user_query = prev_msg.get('content', '')
+                    elif isinstance(prev_msg, str):
+                        user_query = prev_msg
                 
                 # Create context with both user query and assistant response
                 context_parts = []

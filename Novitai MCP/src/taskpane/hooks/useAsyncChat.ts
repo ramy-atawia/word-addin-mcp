@@ -144,10 +144,12 @@ export const useAsyncChat = ({
           }
           
           // Update assistant message with final result
-            const finalContent = typeof result.result?.result === 'string' 
-              ? result.result.result 
-              : typeof result.result === 'string' 
-                ? result.result 
+          const finalContent = typeof result.result?.result === 'string' 
+            ? result.result.result 
+            : typeof result.result === 'string' 
+              ? result.result 
+              : typeof result.result === 'object' && result.result !== null
+                ? JSON.stringify(result.result, null, 2)
                 : String(result.result || 'Request completed successfully');
           setInternalMessages(prev => 
             prev.map(msg => 
