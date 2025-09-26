@@ -98,6 +98,17 @@ const useStyles = makeStyles({
     fontSize: '14px',
     borderBottom: '1px solid #fecaca',
   },
+  '@keyframes pulse': {
+    '0%': {
+      opacity: 1,
+    },
+    '50%': {
+      opacity: 0.5,
+    },
+    '100%': {
+      opacity: 1,
+    },
+  },
 });
 
 const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({ 
@@ -124,18 +135,29 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
     isProcessing,
     currentJobId,
     jobProgress,
+    error: asyncError,
+    processingInfo,
     handleAsyncMessage,
     cancelCurrentJob,
-    clearMessages
+    retryCurrentMessage,
+    clearMessages,
+    canCancel,
+    canRetry,
+    hasError
   } = useAsyncChat({
     messages: externalMessages,
     onMessage,
-    onLoadingChange
+    onLoadingChange,
+    maxRetries: 3,
+    enableRetry: true
   });
   
   // Merge messages: use async messages when processing, otherwise use chat messages (which includes welcome message)
   const messages = isProcessing ? asyncMessages : chatMessages;
   const loading = externalLoading || isProcessing;
+  
+  // Enhanced error handling - combine local and async errors
+  const displayError = error || asyncError;
 
   // Initialize messages and load tools
   useEffect(() => {
@@ -212,52 +234,119 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   return (
     <ErrorBoundary>
       <div className={styles.container}>
-        {error && (
+        {displayError && (
           <div className={styles.errorContainer}>
-            {error}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>❌ {displayError}</span>
+              {hasError && canRetry && (
+                <button
+                  onClick={retryCurrentMessage}
+                  style={{
+                    background: '#0078d4',
+                    color: 'white',
+                    border: 'none',
+                    padding: '4px 8px',
+                    borderRadius: '3px',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    marginLeft: '8px'
+                  }}
+                >
+                  🔄 Retry
+                </button>
+              )}
+            </div>
           </div>
         )}
         
-        {/* Controls */}
+        {/* Enhanced Controls */}
         <div className={styles.controlsContainer}>
-          <button
-            onClick={clearMessages}
-            className={styles.clearButton}
-            title="Clear conversation history for new invention context"
-          >
-            🧹 Clear Context
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={clearMessages}
+              className={styles.clearButton}
+              title="Clear conversation history for new invention context"
+              disabled={isProcessing}
+            >
+              🧹 Clear Context
+            </button>
+            
+            {isProcessing && (
+              <div style={{ 
+                fontSize: '12px', 
+                color: '#0078d4',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#0078d4',
+                  animation: 'pulse 1.5s ease-in-out infinite'
+                }}></div>
+                Processing...
+              </div>
+            )}
+          </div>
           
-          {toolsLoading && (
-            <div style={{ fontSize: '12px', color: '#666' }}>
-              🔄 Loading tools...
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {toolsLoading && (
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                🔄 Loading tools...
+              </div>
+            )}
+            
+            {hasError && canRetry && (
+              <button
+                onClick={retryCurrentMessage}
+                style={{
+                  background: '#0078d4',
+                  color: 'white',
+                  border: 'none',
+                  padding: '4px 8px',
+                  borderRadius: '3px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+                title="Retry the last failed operation"
+              >
+                🔄 Retry
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Progress Indicator for Async Processing */}
-        {isProcessing && jobProgress && (
+        {/* Enhanced Progress Indicator for Async Processing */}
+        {isProcessing && (jobProgress || processingInfo) && (
           <div className={styles.progressContainer}>
             <div className={styles.progressHeader}>
               <span>
-                {jobProgress.status === 'processing' ? '🔄 Processing...' : 
-                 jobProgress.status === 'pending' ? '⏳ Queued...' : 
-                 jobProgress.status === 'completed' ? '✅ Completed' : 
-                 jobProgress.status}
-                {jobProgress.progress > 0 && ` (${jobProgress.progress}%)`}
+                {jobProgress?.status === 'processing' ? '🔄 Processing...' : 
+                 jobProgress?.status === 'pending' ? '⏳ Queued...' : 
+                 jobProgress?.status === 'completed' ? '✅ Completed' : 
+                 processingInfo?.status === 'pending' ? '⏳ Starting...' :
+                 processingInfo?.status === 'processing' ? '🔄 Processing...' :
+                 'Processing...'}
+                {(jobProgress?.progress || processingInfo?.progress || 0) > 0 && 
+                 ` (${jobProgress?.progress || processingInfo?.progress || 0}%)`}
+                {processingInfo?.retryCount > 0 && ` (Retry ${processingInfo.retryCount}/3)`}
               </span>
-              {currentJobId && (
+              {canCancel && (
                 <button
                   onClick={cancelCurrentJob}
                   className={styles.cancelButton}
+                  title="Cancel current operation"
                 >
                   Cancel
                 </button>
               )}
             </div>
-            {jobProgress.estimated_duration && (
+            {jobProgress?.estimated_duration && (
               <div className={styles.progressText}>
                 Estimated time: {Math.ceil(jobProgress.estimated_duration / 60)} minutes
+                {processingInfo?.jobId && ` • Job ID: ${processingInfo.jobId.slice(0, 8)}...`}
               </div>
             )}
           </div>

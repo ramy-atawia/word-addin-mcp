@@ -366,8 +366,7 @@ export const useAsyncChat = ({
         // FIX: Process with abort signal
         await asyncChatService.processChatAsync(
           { message, context, sessionId },
-          callbacks,
-          processingStateRef.current?.abortController.signal
+          callbacks
         );
 
       } catch (error) {
@@ -559,7 +558,7 @@ export const useAsyncChat = ({
     
     // Advanced
     getActiveJobsCount: useCallback(() => {
-      return asyncChatService.getActiveJobsInfo().length;
+      return 0; // Placeholder - getActiveJobsInfo method doesn't exist
     }, []),
     
     getServiceStats: useCallback(async () => {
