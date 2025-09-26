@@ -41,7 +41,7 @@ export class AsyncChatService {
   private maxPollingInterval: number = 10000; // 10 seconds max
   private maxPollingAttempts: number = 300; // 10 minutes max
   private backoffMultiplier: number = 1.5; // Exponential backoff multiplier
-  private activePollingTimeouts: Set<number> = new Set();
+  private activePollingTimeouts: Set<NodeJS.Timeout> = new Set();
   private isDestroyed: boolean = false;
 
   constructor() {
