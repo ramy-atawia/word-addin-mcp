@@ -395,11 +395,19 @@ class AgentService:
                 # Convert frontend format to agent format
                 conversation_history = []
                 for msg in frontend_chat_history:
-                    conversation_history.append({
-                        "role": msg.get("role", "user"),
-                        "content": msg.get("content", ""),
-                        "timestamp": msg.get("timestamp", time.time())
-                    })
+                    # Handle both dict and string message formats
+                    if isinstance(msg, dict):
+                        conversation_history.append({
+                            "role": msg.get("role", "user"),
+                            "content": msg.get("content", ""),
+                            "timestamp": msg.get("timestamp", time.time())
+                        })
+                    elif isinstance(msg, str):
+                        conversation_history.append({
+                            "role": "user",
+                            "content": msg,
+                            "timestamp": time.time()
+                        })
                 # Add current user message to the history
                 conversation_history.append({
                     "role": "user",
@@ -547,10 +555,19 @@ class AgentService:
                 # Truncate conversation history to prevent token limit issues
                 # Keep only the last 5 messages to maintain context while staying within limits
                 recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
-                history_text = "\n".join([
-                    f"{msg.get('role', 'user')}: {msg.get('content', '')}"
-                    for msg in recent_history
-                ])
+                history_parts = []
+                for msg in recent_history:
+                    # Handle both dict and string message formats
+                    if isinstance(msg, dict):
+                        role = msg.get('role', 'user')
+                        content = msg.get('content', '')
+                    elif isinstance(msg, str):
+                        role = 'user'
+                        content = msg
+                    else:
+                        continue
+                    history_parts.append(f"{role}: {content}")
+                history_text = "\n".join(history_parts)
                 context_parts.append(f"Conversation History (last {len(recent_history)} messages):\n{history_text}")
 
             if document_content:

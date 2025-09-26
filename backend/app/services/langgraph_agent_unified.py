@@ -712,8 +712,16 @@ async def _generate_conversation_response(state: AgentState) -> str:
         recent = conversation_history[-3:]  # Last 3 messages
         history_parts = []
         for msg in recent:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
+            # Handle both dict and string message formats
+            if isinstance(msg, dict):
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+            elif isinstance(msg, str):
+                role = 'user'
+                content = msg
+            else:
+                continue
+                
             if role == 'user':
                 history_parts.append(f"User: {content}")
             elif role == 'assistant':
@@ -837,8 +845,16 @@ async def _generate_workflow_response(state: AgentState) -> str:
         recent = conversation_history[-3:]
         history_parts = []
         for msg in recent:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
+            # Handle both dict and string message formats
+            if isinstance(msg, dict):
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+            elif isinstance(msg, str):
+                role = 'user'
+                content = msg
+            else:
+                continue
+                
             if role == 'user':
                 history_parts.append(f"User: {content}")
             elif role == 'assistant':

@@ -195,13 +195,16 @@ class WebSearchService:
                 # Add additional metadata if available
                 if "pagemap" in item:
                     pagemap = item["pagemap"]
-                    if "metatags" in pagemap:
+                    if "metatags" in pagemap and isinstance(pagemap["metatags"], list) and len(pagemap["metatags"]) > 0:
                         metatags = pagemap["metatags"][0]
-                        result["description"] = metatags.get("og:description", "")
-                        result["image"] = metatags.get("og:image", "")
+                        if isinstance(metatags, dict):
+                            result["description"] = metatags.get("og:description", "")
+                            result["image"] = metatags.get("og:image", "")
                     
-                    if "cse_image" in pagemap:
-                        result["thumbnail"] = pagemap["cse_image"][0].get("src", "")
+                    if "cse_image" in pagemap and isinstance(pagemap["cse_image"], list) and len(pagemap["cse_image"]) > 0:
+                        cse_image = pagemap["cse_image"][0]
+                        if isinstance(cse_image, dict):
+                            result["thumbnail"] = cse_image.get("src", "")
                 
                 # Include abstract if requested and available
                 if include_abstracts and result["snippet"]:
