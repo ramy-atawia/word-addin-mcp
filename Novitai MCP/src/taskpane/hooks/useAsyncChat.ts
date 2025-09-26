@@ -40,15 +40,16 @@ export const useAsyncChat = ({
     setInternalMessages([]);
     
     // Only clean up polling timeouts, don't destroy the service
+    // This allows jobs to complete gracefully
     if (asyncChatServiceRef.current) {
       asyncChatServiceRef.current.cleanup();
     }
   }, []);
 
   const cancelCurrentJob = useCallback(async () => {
-    if (currentJobId) {
+    if (currentJobId && asyncChatServiceRef.current) {
       try {
-        await asyncChatService.cancelJob(currentJobId);
+        await asyncChatServiceRef.current.cancelJob(currentJobId);
         console.log('Job cancelled:', currentJobId);
         resetAsyncState();
       } catch (error) {
@@ -259,8 +260,10 @@ export const useAsyncChat = ({
   // Cleanup on component unmount
   useEffect(() => {
     return () => {
+      // Always just cleanup, never destroy the singleton service
+      // The service will handle its own lifecycle
       if (asyncChatServiceRef.current) {
-        asyncChatServiceRef.current.destroy();
+        asyncChatServiceRef.current.cleanup();
       }
     };
   }, []);

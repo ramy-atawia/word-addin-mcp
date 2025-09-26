@@ -197,10 +197,8 @@ export class AsyncChatService {
     jobId: string,
     callbacks: AsyncChatCallbacks
   ): Promise<void> {
-    if (this.isDestroyed) {
-      callbacks.onError(new Error('Service has been destroyed'));
-      return;
-    }
+    // Don't check isDestroyed here - let the polling handle it gracefully
+    // This prevents race conditions where service is destroyed during polling
 
     let attempts = 0;
     let currentInterval = this.basePollingInterval;
@@ -254,11 +252,14 @@ export class AsyncChatService {
         }
 
         // Continue polling with adaptive interval - track timeout for cleanup
-        const timeoutId = setTimeout(() => {
-          this.activePollingTimeouts.delete(timeoutId);
-          poll();
-        }, Math.round(currentInterval));
-        this.activePollingTimeouts.add(timeoutId);
+        // Check if service is still not destroyed before scheduling next poll
+        if (!this.isDestroyed) {
+          const timeoutId = setTimeout(() => {
+            this.activePollingTimeouts.delete(timeoutId);
+            poll();
+          }, Math.round(currentInterval));
+          this.activePollingTimeouts.add(timeoutId);
+        }
         
       } catch (error) {
         // Check if service was destroyed during error handling
@@ -283,11 +284,14 @@ export class AsyncChatService {
         console.warn(`Polling error (${consecutiveErrors}/${maxConsecutiveErrors}):`, error);
         
         // Continue polling with increased interval - track timeout for cleanup
-        const timeoutId = setTimeout(() => {
-          this.activePollingTimeouts.delete(timeoutId);
-          poll();
-        }, Math.round(currentInterval));
-        this.activePollingTimeouts.add(timeoutId);
+        // Check if service is still not destroyed before scheduling next poll
+        if (!this.isDestroyed) {
+          const timeoutId = setTimeout(() => {
+            this.activePollingTimeouts.delete(timeoutId);
+            poll();
+          }, Math.round(currentInterval));
+          this.activePollingTimeouts.add(timeoutId);
+        }
       }
     };
 
