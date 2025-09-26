@@ -96,12 +96,20 @@ class JobQueue:
             if not job or job.status != JobStatus.COMPLETED:
                 return None
                 
-            return {
-                "job_id": job_id,
-                "status": job.status.value,
-                "result": job.result,
-                "completed_at": job.completed_at.isoformat()
-            }
+            # Return the job result directly with job metadata
+            if job.result:
+                return {
+                    **job.result,  # Spread the agent response fields
+                    "job_id": job_id,
+                    "status": job.status.value,
+                    "completed_at": job.completed_at.isoformat()
+                }
+            else:
+                return {
+                    "job_id": job_id,
+                    "status": job.status.value,
+                    "completed_at": job.completed_at.isoformat()
+                }
     
     async def update_job_progress(self, job_id: str, progress: int, status: JobStatus = None):
         """Update job progress"""

@@ -35,7 +35,13 @@ class JobStatusResponse(BaseModel):
 class JobResultResponse(BaseModel):
     job_id: str
     status: str
-    result: Optional[Dict[str, Any]] = None
+    response: Optional[str] = None
+    intent_type: Optional[str] = None
+    tool_name: Optional[str] = None
+    execution_time: Optional[float] = None
+    success: Optional[bool] = None
+    error: Optional[str] = None
+    workflow_metadata: Optional[Dict[str, Any]] = None
     completed_at: Optional[str] = None
 
 
@@ -120,6 +126,7 @@ async def get_job_result(job_id: str):
         result = await job_queue.get_job_result(job_id)
         
         if result:
+            # Job queue now returns flattened structure with all fields
             return JobResultResponse(**result)
         
         # If not completed, return current status
