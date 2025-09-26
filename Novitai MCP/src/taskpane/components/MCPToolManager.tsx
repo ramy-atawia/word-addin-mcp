@@ -19,7 +19,7 @@ import {
 } from '@fluentui/react-icons';
 
 // Import our new modular components
-import ChatInterface from './ChatInterface/ChatInterface';
+import ChatInterface from './ChatInterface/ChatInterfaceSimplified';
 import ToolLibrary from './ToolLibrary/ToolLibrary';
 import { LoginForm } from './LoginForm';
 import { useAuth } from '../../contexts/AuthContext';
@@ -350,7 +350,6 @@ const MCPToolManager: React.FC = () => {
 
   const renderChatTab = () => (
     <ChatInterface 
-      onToolSelect={handleToolSelect}
       messages={chatMessages}
       onMessage={handleChatMessage}
       loading={chatLoading}

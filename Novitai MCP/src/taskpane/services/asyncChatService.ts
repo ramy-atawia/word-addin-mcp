@@ -254,10 +254,19 @@ export class AsyncChatService {
         }
 
         // Continue polling with adaptive interval - track timeout for cleanup
-        const timeoutId = setTimeout(poll, Math.round(currentInterval));
+        const timeoutId = setTimeout(() => {
+          this.activePollingTimeouts.delete(timeoutId);
+          poll();
+        }, Math.round(currentInterval));
         this.activePollingTimeouts.add(timeoutId);
         
       } catch (error) {
+        // Check if service was destroyed during error handling
+        if (this.isDestroyed) {
+          console.log('AsyncChatService: Polling stopped - service destroyed during error');
+          return;
+        }
+        
         consecutiveErrors++;
         
         if (consecutiveErrors >= maxConsecutiveErrors) {
@@ -274,7 +283,10 @@ export class AsyncChatService {
         console.warn(`Polling error (${consecutiveErrors}/${maxConsecutiveErrors}):`, error);
         
         // Continue polling with increased interval - track timeout for cleanup
-        const timeoutId = setTimeout(poll, Math.round(currentInterval));
+        const timeoutId = setTimeout(() => {
+          this.activePollingTimeouts.delete(timeoutId);
+          poll();
+        }, Math.round(currentInterval));
         this.activePollingTimeouts.add(timeoutId);
       }
     };

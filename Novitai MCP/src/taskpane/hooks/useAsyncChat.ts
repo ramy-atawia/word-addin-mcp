@@ -15,12 +15,6 @@ export interface UseAsyncChatProps {
   onLoadingChange?: (loading: boolean) => void;
 }
 
-export interface AsyncChatState {
-  isProcessing: boolean;
-  currentJobId: string | null;
-  jobProgress: JobStatus | null;
-  useAsyncProcessing: boolean;
-}
 
 export const useAsyncChat = ({ 
   messages: externalMessages = [], 
@@ -30,14 +24,13 @@ export const useAsyncChat = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [jobProgress, setJobProgress] = useState<JobStatus | null>(null);
-  const [useAsyncProcessing, setUseAsyncProcessing] = useState(true); // Default to async
   const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
   
-  const abortControllerRef = useRef<AbortController | null>(null);
   const asyncChatServiceRef = useRef<typeof asyncChatService | null>(null);
 
   // During processing, always use internal messages for real-time updates
   // When not processing, use external messages if available (for persistence across tab switches)
+  // If no external messages and no internal messages, return empty array (parent will handle welcome message)
   const messages = isProcessing ? internalMessages : (externalMessages.length > 0 ? externalMessages : internalMessages);
 
   const resetAsyncState = useCallback(() => {
@@ -256,7 +249,7 @@ export const useAsyncChat = ({
         )
       );
     }
-  }, [isProcessing, onMessage]);
+  }, [isProcessing, onMessage, onLoadingChange]);
 
   const clearMessages = useCallback(() => {
     setInternalMessages([]);
@@ -277,8 +270,6 @@ export const useAsyncChat = ({
     isProcessing,
     currentJobId,
     jobProgress,
-    useAsyncProcessing,
-    setUseAsyncProcessing,
     handleAsyncMessage,
     cancelCurrentJob,
     clearMessages,
