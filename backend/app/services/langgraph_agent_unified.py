@@ -770,6 +770,10 @@ For document drafting requests (like invention disclosures, reports, proposals),
     if not generated_text or len(generated_text.strip()) < 5:
         logger.error(f"LLM generated empty or very short response (response: {response}, generated_text: {generated_text})")
         
+        # Check if this might be a rate limit issue
+        if response.get("success") is False and "rate" in str(response.get("error", "")).lower():
+            logger.warning("Empty response likely due to rate limiting")
+        
         # Environment-specific fallback response
         from app.core.config import settings
         if settings.is_development:

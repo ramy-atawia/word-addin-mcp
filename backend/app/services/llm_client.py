@@ -198,15 +198,22 @@ class LLMClient:
                     # Check for specific Azure OpenAI errors
                     if "rate_limit" in error_msg.lower() or "429" in error_msg:
                         logger.warning(f"Rate limit detected: {error_msg}")
+                        # Use longer backoff for rate limits
+                        backoff_time = min(60, (2 ** attempt) * 5)  # 5s, 10s, 20s, 40s, 60s max
+                        logger.warning(f"Rate limit backoff: {backoff_time}s (attempt {attempt + 1}/{max_retries})")
                     elif "timeout" in error_msg.lower():
                         logger.warning(f"Timeout detected: {error_msg}")
+                        backoff_time = 2 ** attempt  # Standard exponential backoff
                     elif "authentication" in error_msg.lower() or "401" in error_msg:
                         logger.error(f"Authentication error: {error_msg}")
+                        backoff_time = 2 ** attempt  # Standard exponential backoff
                     elif "quota" in error_msg.lower():
                         logger.error(f"Quota exceeded: {error_msg}")
+                        backoff_time = min(300, (2 ** attempt) * 10)  # 10s, 20s, 40s, 80s, 300s max
+                    else:
+                        backoff_time = 2 ** attempt  # Standard exponential backoff
                     
                     if attempt < max_retries - 1:
-                        backoff_time = 2 ** attempt
                         logger.warning(f"Retrying in {backoff_time}s (attempt {attempt + 1}/{max_retries})")
                         import time
                         time.sleep(backoff_time)

@@ -68,7 +68,7 @@ class Settings(BaseSettings):
         if self.is_production:
             return 5  # More retries for production
         else:
-            return 3  # Fewer retries for dev
+            return 8  # More retries for dev to handle rate limits
     
     # Rate limit aliases for middleware
     @property
