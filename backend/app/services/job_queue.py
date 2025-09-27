@@ -118,6 +118,11 @@ class JobQueue:
         with self._lock:
             job = self.jobs.get(job_id)
             if job:
+                # Don't update progress for cancelled jobs
+                if job.status == JobStatus.CANCELLED:
+                    logger.debug(f"Skipping progress update for cancelled job (job_id: {job_id})")
+                    return
+                    
                 job.progress = progress
                 if status:
                     job.status = status
@@ -132,6 +137,11 @@ class JobQueue:
         with self._lock:
             job = self.jobs.get(job_id)
             if job:
+                # Don't set result for cancelled jobs
+                if job.status == JobStatus.CANCELLED:
+                    logger.debug(f"Skipping result setting for cancelled job (job_id: {job_id})")
+                    return
+                    
                 job.result = result
                 job.status = JobStatus.COMPLETED
                 job.completed_at = datetime.utcnow()
@@ -142,6 +152,11 @@ class JobQueue:
         with self._lock:
             job = self.jobs.get(job_id)
             if job:
+                # Don't set error for cancelled jobs
+                if job.status == JobStatus.CANCELLED:
+                    logger.debug(f"Skipping error setting for cancelled job (job_id: {job_id})")
+                    return
+                    
                 job.error = error
                 job.status = JobStatus.FAILED
                 job.completed_at = datetime.utcnow()
@@ -291,8 +306,9 @@ class JobQueue:
                 logger.info(f"Job already in final state: {job.status} (job_id: {job_id})")
                 return False
             
-            # Mark job as cancelled
+            # Mark job as cancelled and reset progress
             job.status = JobStatus.CANCELLED
+            job.progress = 0  # Reset progress to 0 for cancelled jobs
             job.end_time = time.time()
             logger.info(f"Job cancelled successfully (job_id: {job_id})")
             return True

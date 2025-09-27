@@ -217,8 +217,13 @@ async def cancel_job(job_id: str):
                 detail=f"Cannot cancel job with status: {status['status']}"
             )
         
-        # Update job status to cancelled
-        await job_queue.update_job_progress(job_id, 0, JobStatus.CANCELLED)
+        # Cancel the job using the proper method
+        cancelled = await job_queue.cancel_job(job_id)
+        if not cancelled:
+            raise HTTPException(
+                status_code=400,
+                detail="Job could not be cancelled"
+            )
         
         logger.info(f"Job cancelled (job_id: {job_id})")
         
