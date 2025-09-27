@@ -146,7 +146,7 @@ class Settings(BaseSettings):
     environment: str = os.getenv("ENVIRONMENT", "development")
     
     # Debug Configuration
-    debug: bool = os.getenv("DEBUG", "false").lower() == "true"
+    debug: bool = os.getenv("DEBUG", "true").lower() == "true"  # Enable debug by default for dev
     
     # Host Configuration
     allowed_hosts: list = ["localhost", "127.0.0.1", "0.0.0.0", "*.azurewebsites.net"]
@@ -168,13 +168,13 @@ class Settings(BaseSettings):
         "/docs",
         "/redoc", 
         "/openapi.json",
-        "/api/v1/health",
-        "/api/v1/health/",
-        "/api/v1/health/live",
-        "/api/v1/health/ready",
-        "/api/v1/health/detailed",
-        "/api/v1/health/debug/config",
-        "/api/v1/health/metrics",
+        "/api/v1/",                    # Basic health check
+        "/api/v1/llm",                 # LLM health check
+        "/api/v1/detailed",            # Detailed health check
+        "/api/v1/ready",               # Readiness check
+        "/api/v1/live",                # Liveness check
+        "/api/v1/debug/config",        # Debug config
+        "/api/v1/metrics",             # Metrics
         "/api/v1/mcp/agent/chat/stream",  # Temporarily allow streaming without auth for testing
         "/api/v1/mcp/tools",              # Allow MCP tools listing
         "/api/v1/mcp/tools/",             # Allow MCP tools listing (with trailing slash)
@@ -184,8 +184,7 @@ class Settings(BaseSettings):
         "/api/v1/async/chat/result",      # Allow async chat result retrieval
         "/api/v1/async/chat/cancel",      # Allow async chat cancellation
         "/api/v1/async/chat/jobs",        # Allow async chat job listing
-        "/api/v1/async/chat/stats",       # Allow async chat statistics
-        "/api/v1/mcp/tools"               # Temporarily allow MCP tools without auth for testing
+        "/api/v1/async/chat/stats"        # Allow async chat statistics
     ]
 
 # API Configuration
