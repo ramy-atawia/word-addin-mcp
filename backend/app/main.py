@@ -302,31 +302,7 @@ async def root():
     }
 
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    try:
-        # Check MCP Orchestrator status
-        from .services.mcp.orchestrator import mcp_orchestrator
-        orchestrator_status = await mcp_orchestrator.get_server_health()
-        
-        return {
-            "status": "healthy",
-            "timestamp": time.time(),
-            "mcp_orchestrator": orchestrator_status,
-            "version": "1.0.0"
-        }
-        
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "error": str(e),
-                "timestamp": time.time()
-            }
-        )
+# Health check endpoint moved to /api/v1/health/ in health router
 
 
 @app.get("/info")

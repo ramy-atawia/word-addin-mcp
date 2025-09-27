@@ -19,7 +19,7 @@ async def create_session(user_id: Optional[str] = None,
                         metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Create a new chat session."""
     try:
-        session_data = await session_service.create_session(user_id, metadata)
+        session_data = session_service.create_session(user_id, metadata)
         
         logger.info("Session created", 
                    session_id=session_data.session_id, 
@@ -46,7 +46,7 @@ async def create_session(user_id: Optional[str] = None,
 async def get_session(session_id: str) -> Dict[str, Any]:
     """Get session information."""
     try:
-        session_data = await session_service.get_session(session_id)
+        session_data = session_service.get_session(session_id)
         
         if not session_data:
             raise HTTPException(
@@ -80,7 +80,7 @@ async def get_session(session_id: str) -> Dict[str, Any]:
 async def delete_session(session_id: str) -> Dict[str, Any]:
     """Delete a session."""
     try:
-        success = await session_service.deactivate_session(session_id)
+        success = session_service.deactivate_session(session_id)
         
         if not success:
             raise HTTPException(
@@ -113,7 +113,7 @@ async def update_session(session_id: str,
     """Update session information."""
     try:
         # Validate session exists
-        session_data = await session_service.get_session(session_id)
+        session_data = session_service.get_session(session_id)
         if not session_data:
             raise HTTPException(
                 status_code=404,
@@ -121,7 +121,7 @@ async def update_session(session_id: str,
             )
         
         # Update session
-        updated_session = await session_service.update_session(session_id, metadata, is_active)
+        updated_session = session_service.update_session(session_id, metadata, is_active)
         
         if not updated_session:
             raise HTTPException(
@@ -154,7 +154,7 @@ async def get_session_messages(session_id: str, limit: int = 50) -> Dict[str, An
     """Get messages for a session."""
     try:
         # Validate session exists
-        session_data = await session_service.get_session(session_id)
+        session_data = session_service.get_session(session_id)
         if not session_data:
             raise HTTPException(
                 status_code=404,
@@ -205,7 +205,7 @@ async def update_session_activity(session_id: str,
                                 metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Update session activity timestamp."""
     try:
-        await session_service.update_session_activity(session_id, activity_type, metadata)
+        session_service.update_session_activity(session_id, activity_type, metadata)
         
         logger.info("Session activity updated", 
                    session_id=session_id, 
@@ -232,7 +232,7 @@ async def update_session_activity(session_id: str,
 async def get_user_sessions(user_id: str, limit: int = 20) -> Dict[str, Any]:
     """Get all sessions for a user."""
     try:
-        sessions = await session_service.get_user_sessions(user_id)
+        sessions = session_service.get_user_sessions(user_id)
         
         # Convert to response format
         session_list = []
@@ -267,7 +267,7 @@ async def get_user_sessions(user_id: str, limit: int = 20) -> Dict[str, Any]:
 async def get_session_statistics(session_id: str) -> Dict[str, Any]:
     """Get statistics for a specific session."""
     try:
-        stats = await session_service.get_session_statistics(session_id)
+        stats = session_service.get_session_statistics(session_id)
         
         if not stats:
             raise HTTPException(
@@ -291,7 +291,7 @@ async def get_session_statistics(session_id: str) -> Dict[str, Any]:
 async def get_global_statistics() -> Dict[str, Any]:
     """Get global session statistics."""
     try:
-        stats = await session_service.get_global_statistics()
+        stats = session_service.get_global_statistics()
         return stats
         
     except Exception as e:
@@ -306,7 +306,7 @@ async def get_global_statistics() -> Dict[str, Any]:
 async def validate_session(session_id: str) -> Dict[str, Any]:
     """Validate if a session is still valid."""
     try:
-        is_valid = await session_service.validate_session(session_id)
+        is_valid = session_service.validate_session(session_id)
         
         return {
             "session_id": session_id,

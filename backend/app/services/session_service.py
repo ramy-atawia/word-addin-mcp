@@ -21,7 +21,7 @@ class SessionService:
         self.user_sessions: Dict[str, List[str]] = {}  # user_id -> list of session_ids
     
     def create_session(self, user_id: Optional[str] = None, 
-                      metadata: Optional[Dict[str, Any]] = None) -> str:
+                      metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Create a new user session."""
         try:
             session_id = str(uuid.uuid4())
@@ -49,7 +49,7 @@ class SessionService:
                 self.user_sessions[user_id].append(session_id)
             
             logger.info(f"Created session {session_id} for user {user_id}")
-            return session_id
+            return session_data
             
         except Exception as e:
             logger.error(f"Failed to create session: {str(e)}")
@@ -69,7 +69,7 @@ class SessionService:
             logger.error(f"Failed to get session {session_id}: {str(e)}")
             return None
     
-    def update_session_activity(self, session_id: str, activity_type: str = "general") -> bool:
+    def update_session_activity(self, session_id: str, activity_type: str = "general", metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Update session activity and metadata."""
         try:
             session = self.sessions.get(session_id)
