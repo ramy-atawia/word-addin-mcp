@@ -142,7 +142,7 @@ class LLMClient:
 
     def generate_text(self, prompt: str, max_tokens: int = 1000, 
                      system_message: Optional[str] = None, 
-                     max_retries: int = 3) -> Dict[str, Any]:
+                     max_retries: Optional[int] = None) -> Dict[str, Any]:
         """
         Generate text using the LLM.
         
@@ -157,6 +157,11 @@ class LLMClient:
         try:
             if not self.llm_available:
                 return self._create_error_result("LLM not available")
+            
+            # Use environment-specific retries if not specified
+            if max_retries is None:
+                from app.core.config import settings
+                max_retries = settings.azure_openai_max_retries
             
             # Prepare messages
             messages = []
