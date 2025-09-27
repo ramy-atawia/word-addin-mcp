@@ -32,6 +32,7 @@ class Job:
     progress: int = 0
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    error_details: Optional[Dict[str, Any]] = None  # Detailed error information
     request_data: Optional[Dict[str, Any]] = None
     estimated_duration: Optional[int] = None  # seconds
     session_id: Optional[str] = None  # Track user session
@@ -147,8 +148,8 @@ class JobQueue:
                 job.completed_at = datetime.utcnow()
                 job.progress = 100
             
-    async def set_job_error(self, job_id: str, error: str):
-        """Set job error and mark as failed"""
+    async def set_job_error(self, job_id: str, error: str, error_code: str = None, error_details: Dict[str, Any] = None):
+        """Set job error and mark as failed with detailed error information"""
         with self._lock:
             job = self.jobs.get(job_id)
             if job:
@@ -156,8 +157,17 @@ class JobQueue:
                 if job.status == JobStatus.CANCELLED:
                     logger.debug(f"Skipping error setting for cancelled job (job_id: {job_id})")
                     return
+                
+                # Create detailed error information
+                error_info = {
+                    "message": error,
+                    "code": error_code or "UNKNOWN_ERROR",
+                    "details": error_details or {},
+                    "timestamp": datetime.utcnow().isoformat()
+                }
                     
                 job.error = error
+                job.error_details = error_info  # Store detailed error info
                 job.status = JobStatus.FAILED
                 job.completed_at = datetime.utcnow()
     
@@ -265,7 +275,12 @@ class JobQueue:
                         await asyncio.sleep(2 ** retry_count)  # Exponential backoff
                         continue
                     else:
-                        await self.set_job_error(job_id, f"Job timed out after {timeout_seconds} seconds (max retries exceeded)")
+                        await self.set_job_error(
+                            job_id, 
+                            f"Job timed out after {timeout_seconds} seconds (max retries exceeded)",
+                            error_code="TIMEOUT",
+                            error_details={"timeout_seconds": timeout_seconds, "max_retries": max_retries}
+                        )
                         return
                         
                 except Exception as e:
@@ -275,7 +290,12 @@ class JobQueue:
                         await asyncio.sleep(2 ** retry_count)  # Exponential backoff
                         continue
                     else:
-                        await self.set_job_error(job_id, f"Job failed after {max_retries} retries: {str(e)}")
+                        await self.set_job_error(
+                            job_id, 
+                            f"Job failed after {max_retries} retries: {str(e)}",
+                            error_code="MAX_RETRIES_EXCEEDED",
+                            error_details={"max_retries": max_retries, "final_error": str(e)}
+                        )
                         return
                         
             except Exception as e:
@@ -285,7 +305,12 @@ class JobQueue:
                     await asyncio.sleep(2 ** retry_count)  # Exponential backoff
                     continue
                 else:
-                    await self.set_job_error(job_id, f"Job processing failed after {max_retries} retries: {str(e)}")
+                    await self.set_job_error(
+                        job_id, 
+                        f"Job processing failed after {max_retries} retries: {str(e)}",
+                        error_code="PROCESSING_FAILED",
+                        error_details={"max_retries": max_retries, "final_error": str(e)}
+                    )
                     return
     
     def _is_job_cancelled(self, job_id: str) -> bool:

@@ -70,6 +70,8 @@ class JobResultResponse(BaseModel):
     execution_time: Optional[float] = None
     success: Optional[bool] = None
     error: Optional[str] = None
+    error_code: Optional[str] = None
+    error_details: Optional[Dict[str, Any]] = None
     workflow_metadata: Optional[Dict[str, Any]] = None
     completed_at: Optional[str] = None
 
@@ -166,7 +168,18 @@ async def get_job_result(job_id: str):
         
         if result:
             # Job queue now returns flattened structure with all fields
-            return JobResultResponse(**result)
+            # Extract error details if available
+            error_code = None
+            error_details = None
+            if result.get('error_details'):
+                error_code = result['error_details'].get('code')
+                error_details = result['error_details'].get('details', {})
+            
+            return JobResultResponse(
+                **result,
+                error_code=error_code,
+                error_details=error_details
+            )
         
         # If not completed, return current status
         status = await job_queue.get_job_status(job_id)

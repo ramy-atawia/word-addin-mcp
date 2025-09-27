@@ -770,16 +770,40 @@ For document drafting requests (like invention disclosures, reports, proposals),
     if not generated_text or len(generated_text.strip()) < 5:
         logger.error(f"LLM generated empty or very short response (response: {response}, generated_text: {generated_text})")
         
-        # Check if this might be a rate limit issue
-        if response.get("success") is False and "rate" in str(response.get("error", "")).lower():
-            logger.warning("Empty response likely due to rate limiting")
+        # Determine the specific error reason
+        error_reason = "Unknown error"
+        error_code = "EMPTY_RESPONSE"
         
-        # Environment-specific fallback response
+        if response.get("success") is False:
+            error_msg = str(response.get("error", ""))
+            if "rate" in error_msg.lower() or "429" in error_msg:
+                error_reason = "Rate limit exceeded"
+                error_code = "RATE_LIMIT"
+            elif "timeout" in error_msg.lower():
+                error_reason = "Request timeout"
+                error_code = "TIMEOUT"
+            elif "quota" in error_msg.lower():
+                error_reason = "Quota exceeded"
+                error_code = "QUOTA_EXCEEDED"
+            elif "authentication" in error_msg.lower() or "401" in error_msg:
+                error_reason = "Authentication failed"
+                error_code = "AUTH_ERROR"
+            elif "connection" in error_msg.lower():
+                error_reason = "Connection error"
+                error_code = "CONNECTION_ERROR"
+            else:
+                error_reason = f"LLM error: {error_msg}"
+                error_code = "LLM_ERROR"
+        else:
+            error_reason = "Empty response from LLM"
+            error_code = "EMPTY_RESPONSE"
+        
+        # Environment-specific fallback response with detailed error info
         from app.core.config import settings
         if settings.is_development:
-            return f"I apologize, but I'm having trouble generating a proper response right now. This might be due to Azure OpenAI rate limits or connectivity issues in the dev environment. Please try again in a moment or rephrase your question."
+            return f"I apologize, but I'm having trouble generating a proper response right now. Error: {error_code} - {error_reason}. This might be due to Azure OpenAI rate limits or connectivity issues in the dev environment. Please try again in a moment or rephrase your question."
         else:
-            return "I apologize, but I'm having trouble generating a proper response right now. Please try rephrasing your question or ask me something else."
+            return f"I apologize, but I'm having trouble generating a proper response right now. Error: {error_code} - {error_reason}. Please try rephrasing your question or ask me something else."
     
     return generated_text
 
