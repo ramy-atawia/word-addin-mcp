@@ -43,11 +43,24 @@ export interface AsyncChatCallbacks {
 
 export class AsyncChatService {
   private baseURL: string;
-  private basePollingInterval: number = 1000; // 1 second base
-  private maxPollingInterval: number = 10000; // 10 seconds max
-  private maxPollingAttempts: number = 300; // 10 minutes max
-  private backoffMultiplier: number = 1.5; // Exponential backoff multiplier
+  private basePollingInterval: number = 500; // 500ms base for faster initial response
+  private maxPollingInterval: number = 5000; // 5 seconds max
+  private minPollingInterval: number = 200; // 200ms minimum for active processing
+  private maxPollingAttempts: number = 600; // 10 minutes max (600 * 500ms avg)
+  private backoffMultiplier: number = 1.3; // Gentler exponential backoff
   private activePollingTimeouts: Set<NodeJS.Timeout> = new Set();
+  
+  // Polling strategy configuration
+  private pollingStrategies = {
+    // Fast polling for active processing
+    active: { interval: 200, maxInterval: 1000 },
+    // Medium polling for pending jobs
+    pending: { interval: 1000, maxInterval: 3000 },
+    // Slow polling for long-running jobs
+    longRunning: { interval: 2000, maxInterval: 5000 },
+    // Error recovery polling
+    error: { interval: 2000, maxInterval: 5000 }
+  };
   private isDestroyed: boolean = false;
 
   constructor() {
@@ -197,18 +210,18 @@ export class AsyncChatService {
   }
 
   /**
-   * Poll for job completion with adaptive polling and exponential backoff
+   * Poll for job completion with optimized adaptive polling strategy
    */
   async pollJobCompletion(
     jobId: string,
     callbacks: AsyncChatCallbacks
   ): Promise<void> {
-    // Don't check isDestroyed here - let the polling handle it gracefully
-    // This prevents race conditions where service is destroyed during polling
-
     let attempts = 0;
     let currentInterval = this.basePollingInterval;
     let consecutiveErrors = 0;
+    let lastProgress = 0;
+    let lastStatus = 'pending';
+    let jobStartTime = Date.now();
     const maxConsecutiveErrors = 3;
 
     const poll = async () => {
@@ -245,20 +258,63 @@ export class AsyncChatService {
           throw new Error('Job was cancelled');
         }
 
-        // Adaptive polling based on job status and progress
+        // Smart polling strategy based on job state and progress
+        const elapsedTime = Date.now() - jobStartTime;
+        const progressDelta = status.progress - lastProgress;
+        const statusChanged = status.status !== lastStatus;
+
+        // Determine polling strategy
+        let strategy = 'pending';
+        
         if (status.status === 'processing' && status.progress > 0) {
-          // Job is actively processing, poll more frequently
-          currentInterval = Math.max(this.basePollingInterval, currentInterval * 0.8);
+          // Job is actively processing with progress
+          if (progressDelta > 0 || statusChanged) {
+            strategy = 'active'; // Fast polling for active progress
+          } else if (elapsedTime > 30000) { // 30 seconds
+            strategy = 'longRunning'; // Slower polling for long jobs
+          } else {
+            strategy = 'active';
+          }
+        } else if (status.status === 'processing' && elapsedTime > 10000) {
+          // Processing but no progress for 10+ seconds
+          strategy = 'longRunning';
         } else if (status.status === 'pending') {
-          // Job is pending, use exponential backoff
-          currentInterval = Math.min(
-            this.maxPollingInterval,
+          strategy = 'pending';
+        }
+
+        // Calculate next interval based on strategy
+        const strategyConfig = this.pollingStrategies[strategy as keyof typeof this.pollingStrategies];
+        let nextInterval = strategyConfig.interval;
+
+        // Apply adaptive adjustments
+        if (strategy === 'active' && progressDelta > 0) {
+          // Very fast polling when making progress
+          nextInterval = this.minPollingInterval;
+        } else if (strategy === 'pending') {
+          // Exponential backoff for pending jobs
+          nextInterval = Math.min(
+            strategyConfig.maxInterval,
             currentInterval * this.backoffMultiplier
+          );
+        } else if (strategy === 'longRunning') {
+          // Steady polling for long-running jobs
+          nextInterval = Math.min(
+            strategyConfig.maxInterval,
+            Math.max(strategyConfig.interval, currentInterval)
           );
         }
 
-        // Continue polling with adaptive interval - track timeout for cleanup
-        // Check if service is still not destroyed before scheduling next poll
+        // Ensure interval is within bounds
+        currentInterval = Math.max(
+          this.minPollingInterval,
+          Math.min(this.maxPollingInterval, nextInterval)
+        );
+
+        // Update tracking variables
+        lastProgress = status.progress;
+        lastStatus = status.status;
+
+        // Continue polling with optimized interval
         if (!this.isDestroyed) {
           const timeoutId = setTimeout(() => {
             this.activePollingTimeouts.delete(timeoutId);
@@ -281,16 +337,16 @@ export class AsyncChatService {
           return;
         }
         
-        // Exponential backoff on errors
+        // Use error strategy for recovery
+        const errorStrategy = this.pollingStrategies.error;
         currentInterval = Math.min(
-          this.maxPollingInterval,
-          currentInterval * this.backoffMultiplier * 2
+          errorStrategy.maxInterval,
+          currentInterval * this.backoffMultiplier * 1.5
         );
         
         console.warn(`Polling error (${consecutiveErrors}/${maxConsecutiveErrors}):`, error);
         
-        // Continue polling with increased interval - track timeout for cleanup
-        // Check if service is still not destroyed before scheduling next poll
+        // Continue polling with error recovery interval
         if (!this.isDestroyed) {
           const timeoutId = setTimeout(() => {
             this.activePollingTimeouts.delete(timeoutId);
