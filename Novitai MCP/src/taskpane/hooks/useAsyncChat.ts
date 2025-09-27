@@ -250,23 +250,53 @@ export const useAsyncChat = ({
             
             console.log('Job completed:', result);
             
-            // Extract content from result - BACKEND COMPLETELY FIXED!
+            // Extract content from result - IMPROVED EXTRACTION LOGIC
             const extractResponse = (data: any): string => {
+              // Handle empty response case
+              if (!data) return 'No response received';
+              
               // Backend now returns clean flat structure: data.response
-              if (data?.response && typeof data.response === 'string') return data.response;
-              if (data?.content && typeof data.content === 'string') return data.content;
-              if (data?.message && typeof data.message === 'string') return data.message;
+              if (data?.response && typeof data.response === 'string' && data.response.trim()) {
+                return data.response;
+              }
+              if (data?.content && typeof data.content === 'string' && data.content.trim()) {
+                return data.content;
+              }
+              if (data?.message && typeof data.message === 'string' && data.message.trim()) {
+                return data.message;
+              }
               
               // Legacy fallback for old nested structure (backward compatibility)
-              if (data?.result?.response && typeof data.result.response === 'string') return data.result.response;
-              if (data?.result?.content && typeof data.result.content === 'string') return data.result.content;
-              if (data?.result?.message && typeof data.result.message === 'string') return data.result.message;
+              if (data?.result?.response && typeof data.result.response === 'string' && data.result.response.trim()) {
+                return data.result.response;
+              }
+              if (data?.result?.content && typeof data.result.content === 'string' && data.result.content.trim()) {
+                return data.result.content;
+              }
+              if (data?.result?.message && typeof data.result.message === 'string' && data.result.message.trim()) {
+                return data.result.message;
+              }
+              
+              // Check for workflow metadata that might contain the actual result
+              if (data?.workflow_metadata?.patents_found) {
+                return `Prior art search completed successfully. Found ${data.workflow_metadata.patents_found} patents. The detailed analysis is being processed.`;
+              }
+              
+              // Check if this is a successful tool execution with no content
+              if (data?.success === true && data?.tool_name) {
+                return `Tool '${data.tool_name}' executed successfully. ${data?.workflow_metadata?.patents_found ? `Found ${data.workflow_metadata.patents_found} patents.` : 'Processing completed.'}`;
+              }
               
               // String fallback
-              if (typeof data === 'string') return data;
-              if (typeof data?.result === 'string') return data.result;
+              if (typeof data === 'string' && data.trim()) return data;
+              if (typeof data?.result === 'string' && data.result.trim()) return data.result;
               
-              // JSON fallback
+              // If we have a successful response but no content, provide a meaningful message
+              if (data?.success === true) {
+                return 'Request completed successfully. No additional content to display.';
+              }
+              
+              // JSON fallback only as last resort
               return JSON.stringify(data, null, 2);
             };
             
