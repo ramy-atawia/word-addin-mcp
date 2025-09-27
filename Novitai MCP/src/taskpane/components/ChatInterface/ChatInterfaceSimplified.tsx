@@ -7,6 +7,7 @@ import { MCPTool } from '../../services/types';
 import { useChatMessages } from '../../hooks/useChatMessages';
 import { useAsyncChat } from '../../hooks/useAsyncChat';
 import mcpToolService from '../../services/mcpToolService';
+import { documentContextService } from '../../services/documentContextService';
 import ErrorBoundary from '../ErrorBoundary';
 import { useState, useCallback, useEffect } from 'react';
 
@@ -206,8 +207,17 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
       }
       
       // Use async processing only
+      let documentContent = '';
+      try {
+        const documentContext = await documentContextService.buildDocumentContext();
+        documentContent = documentContext.fullContent || '';
+      } catch (error) {
+        console.warn('Failed to get document content:', error);
+        documentContent = '';
+      }
+      
       const context = {
-        document_content: '', // TODO: Get from document service
+        document_content: documentContent,
         chat_history: JSON.stringify(messages.slice(-10)), // Last 10 messages
         available_tools: availableTools.map(t => t.name).join(', ')
       };

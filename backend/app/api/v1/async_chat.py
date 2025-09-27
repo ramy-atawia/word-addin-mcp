@@ -54,12 +54,15 @@ async def submit_async_chat(request: AsyncChatRequest):
         # Determine job type based on message content
         job_type = _determine_job_type(request.message)
         
+        # Parse context from frontend format
+        parsed_context = _parse_context(request.context)
+        
         # Prepare request data
         request_data = {
             "message": request.message,
-            "document_content": request.context.get("document_content", ""),
-            "chat_history": request.context.get("chat_history", []),
-            "available_tools": request.context.get("available_tools", "")
+            "document_content": parsed_context.get("document_content", ""),
+            "chat_history": parsed_context.get("chat_history", []),
+            "available_tools": parsed_context.get("available_tools", [])
         }
         
         # Submit job
@@ -232,6 +235,34 @@ async def get_job_stats():
             status_code=500,
             detail=f"Failed to get job stats: {str(e)}"
         )
+
+
+def _parse_context(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse context from frontend format to backend format."""
+    import json
+    
+    parsed_context = {}
+    
+    # Document content (already string)
+    parsed_context["document_content"] = context.get("document_content", "")
+    
+    # Parse chat history from JSON string
+    chat_history_str = context.get("chat_history", "[]")
+    try:
+        parsed_context["chat_history"] = json.loads(chat_history_str)
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse chat history, using empty list")
+        parsed_context["chat_history"] = []
+    
+    # Parse available tools from comma-separated string
+    tools_str = context.get("available_tools", "")
+    if tools_str:
+        tool_names = [tool.strip() for tool in tools_str.split(",") if tool.strip()]
+        parsed_context["available_tools"] = [{"name": name} for name in tool_names]
+    else:
+        parsed_context["available_tools"] = []
+    
+    return parsed_context
 
 
 def _determine_job_type(message: str) -> str:

@@ -69,6 +69,11 @@ class AgentChatResponse(BaseModel):
         description="Error message if something went wrong"
     )
     
+    workflow_metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Metadata about workflow execution, including step information and tool results"
+    )
+    
     class Config:
         schema_extra = {
             "example": {
