@@ -141,7 +141,6 @@ class ClaimDraftingTool(BaseInternalTool):
                     
             except ImportError:
                 logger.error("ClaimDraftingService not available")
-                raise RuntimeError("ClaimDraftingService not available")
                 execution_time = time.time() - start_time
                 self.update_usage_stats(execution_time)
                 
