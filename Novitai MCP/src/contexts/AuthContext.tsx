@@ -12,6 +12,7 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   refreshFromStorage: () => void;
+  isAuth0Initialized: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +35,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isAuth0Initialized, setIsAuth0Initialized] = useState<boolean>(false);
 
   useEffect(() => {
     // Listen to global auth-tokens event dispatched by dialog/popup
@@ -62,7 +64,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storedAccess = getAccessToken();
         const storedProfile = getUserProfile();
         if (storedAccess) {
+          // Check mounted status before any state updates
           if (!mounted) return;
+          
           setToken(storedAccess);
           try { 
             setUser(storedProfile || null); 
@@ -80,13 +84,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const redirectUri = config.redirectUri || auth0Config.redirectUri;
         const scope = config.scope || auth0Config.scope;
 
+        // Check mounted status before proceeding with Auth0 initialization
         if (!mounted) return;
-        setAuth0Client(null);
-        setIsAuthenticated(false);
+
+        // FIX: Actually initialize Auth0 client instead of setting to null
+        try {
+          const { createAuth0Client } = await import('@auth0/auth0-spa-js');
+          const auth0Client = await createAuth0Client({
+            domain,
+            clientId,
+            authorizationParams: {
+              redirect_uri: redirectUri,
+              scope
+            }
+          });
+          
+          // Check mounted status again after async Auth0 initialization
+          if (!mounted) return;
+          
+          setAuth0Client(auth0Client);
+          setIsAuth0Initialized(true);
+          setIsAuthenticated(false);
+        } catch (auth0Error) {
+          console.error('Auth0 client initialization failed:', auth0Error);
+          // Check mounted status before setting error state
+          if (!mounted) return;
+          setAuth0Client(null);
+          setIsAuth0Initialized(false);
+          setIsAuthenticated(false);
+        }
       } catch (e) {
         console.error('Auth initialization failed', e);
+        // Check mounted status before setting error state
+        if (!mounted) return;
+        setAuth0Client(null);
+        setIsAuth0Initialized(false);
+        setIsAuthenticated(false);
       } finally {
-        setLoading(false);
+        // Check mounted status before final state update
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
     
@@ -101,12 +139,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const loginWithRedirect = async (): Promise<void> => {
-    if (!auth0Client) throw new Error('Auth0 client not initialized');
-    await auth0Client.loginWithRedirect();
+    if (!auth0Client || !isAuth0Initialized) {
+      console.error('Auth0 client not initialized. Please wait for initialization to complete.');
+      throw new Error('Auth0 client not initialized. Please wait for initialization to complete.');
+    }
+    try {
+      await auth0Client.loginWithRedirect();
+    } catch (error) {
+      console.error('Login redirect failed:', error);
+      throw error;
+    }
   };
 
   const handleRedirectCallback = async (): Promise<void> => {
-    if (!auth0Client) throw new Error('Auth0 client not initialized');
+    if (!auth0Client || !isAuth0Initialized) {
+      console.error('Auth0 client not initialized. Please wait for initialization to complete.');
+      throw new Error('Auth0 client not initialized. Please wait for initialization to complete.');
+    }
     setLoading(true);
     try {
       await auth0Client.handleRedirectCallback();
@@ -115,6 +164,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const profile = await auth0Client.getUser();
       setUser(profile || null);
       setIsAuthenticated(true);
+    } catch (error) {
+      console.error('Redirect callback handling failed:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -152,6 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     loading,
     refreshFromStorage,
+    isAuth0Initialized,
   };
 
   return (
