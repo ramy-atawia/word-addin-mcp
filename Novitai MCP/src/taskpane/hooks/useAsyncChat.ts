@@ -291,9 +291,23 @@ export const useAsyncChat = ({
               if (typeof data === 'string' && data.trim()) return data;
               if (typeof data?.result === 'string' && data.result.trim()) return data.result;
               
-              // If we have a successful response but no content, provide a meaningful message
+              // Enhanced empty response handling
               if (data?.success === true) {
+                // Check if there's an error field that might explain the empty response
+                if (data?.error) {
+                  return `Request completed but encountered an issue: ${data.error}`;
+                }
+                // Check if response field exists but is empty
+                if (data?.response !== undefined && data?.response === '') {
+                  return 'Request completed successfully, but no response content was generated. Please try rephrasing your question.';
+                }
+                // Default success message
                 return 'Request completed successfully. No additional content to display.';
+              }
+              
+              // Check for error conditions
+              if (data?.success === false && data?.error) {
+                return `Error: ${data.error}`;
               }
               
               // JSON fallback only as last resort
