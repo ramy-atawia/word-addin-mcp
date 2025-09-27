@@ -52,8 +52,8 @@ export const useAsyncChat = ({
 
   // FIX: Stable message selection with proper synchronization
   const messages = useMemo(() => {
-    // If we're processing or have internal messages, use internal state
-    if (isProcessing || internalMessages.length > 0) {
+    // Only use internal messages if we're currently processing
+    if (isProcessing) {
       return internalMessages;
     }
     
@@ -335,6 +335,7 @@ export const useAsyncChat = ({
             setIsProcessing(false);
             setCurrentJobId(null);
             setJobProgress(null);
+            setInternalMessages([]); // Clear internal messages on completion
             onLoadingChange?.(false);
             
             updateAssistantMessage(finalMessage);
@@ -399,6 +400,7 @@ export const useAsyncChat = ({
             setIsProcessing(false);
             setCurrentJobId(null);
             setJobProgress(null);
+            setInternalMessages([]); // Clear internal messages on error
             setError(error.message);
             onLoadingChange?.(false);
             
@@ -427,6 +429,7 @@ export const useAsyncChat = ({
           setIsProcessing(false);
           setCurrentJobId(null);
           setJobProgress(null);
+          setInternalMessages([]); // Clear internal messages on sync error
           setError(syncErrorMessage);
           onLoadingChange?.(false);
           
