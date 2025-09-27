@@ -768,9 +768,7 @@ For document drafting requests (like invention disclosures, reports, proposals),
     
     # Validate response is not empty
     if not generated_text or len(generated_text.strip()) < 5:
-        logger.error("LLM generated empty or very short response", 
-                    response=response,
-                    generated_text=generated_text)
+        logger.error(f"LLM generated empty or very short response (response: {response}, generated_text: {generated_text})")
         # Return a fallback response instead of empty string
         return "I apologize, but I'm having trouble generating a proper response right now. Please try rephrasing your question or ask me something else."
     
@@ -989,9 +987,7 @@ Create a response that the user will find immediately valuable and actionable ba
     
     # Validate response is not empty
     if not synthesized_response or len(synthesized_response.strip()) < 10:
-        logger.error("LLM generated empty or very short workflow response", 
-                    response=response,
-                    generated_text=synthesized_response)
+        logger.error(f"LLM generated empty or very short workflow response (response: {response}, generated_text: {synthesized_response})")
         # Return a fallback response instead of empty string
         synthesized_response = "I apologize, but I'm having trouble generating a comprehensive response right now. Please try rephrasing your question or ask me something else."
     

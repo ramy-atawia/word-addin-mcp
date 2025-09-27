@@ -103,9 +103,7 @@ class ClaimDraftingService:
             
             # Validate response is not empty
             if not generated_text or len(generated_text.strip()) < 20:
-                logger.error("LLM generated empty or very short claim drafting response", 
-                            response=response_data,
-                            generated_text=generated_text)
+                logger.error(f"LLM generated empty or very short claim drafting response (response: {response_data}, generated_text: {generated_text})")
                 return f"# Patent Claims\n\n**Error**: Unable to generate patent claims. The system encountered an issue processing your request. Please try rephrasing your invention description or contact support if the problem persists.\n\n**Your Invention**: {user_query}"
             
             # Return raw response as markdown
