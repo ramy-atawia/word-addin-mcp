@@ -47,7 +47,7 @@ class LLMClient:
                     api_key=azure_openai_api_key,
                     api_version=azure_openai_api_version or "2024-12-01-preview",
                     azure_endpoint=azure_openai_endpoint,
-                    timeout=300.0
+                    timeout=300.0  # Will be overridden by environment-specific timeout
                 )
                 self.azure_openai_deployment = azure_openai_deployment or "gpt-5-nano"
                 self.azure_deployment = azure_openai_deployment or "gpt-5-nano"
@@ -184,12 +184,30 @@ class LLMClient:
                     break  # Success, exit retry loop
                 except Exception as e:
                     last_error = e
-                    logger.error(f"API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                    error_type = type(e).__name__
+                    error_msg = str(e)
+                    
+                    # Enhanced logging for dev environment debugging
+                    logger.error(f"API call failed (attempt {attempt + 1}/{max_retries}): {error_type}: {error_msg}")
+                    
+                    # Check for specific Azure OpenAI errors
+                    if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                        logger.warning(f"Rate limit detected: {error_msg}")
+                    elif "timeout" in error_msg.lower():
+                        logger.warning(f"Timeout detected: {error_msg}")
+                    elif "authentication" in error_msg.lower() or "401" in error_msg:
+                        logger.error(f"Authentication error: {error_msg}")
+                    elif "quota" in error_msg.lower():
+                        logger.error(f"Quota exceeded: {error_msg}")
+                    
                     if attempt < max_retries - 1:
-                        logger.warning(f"LLM API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
+                        backoff_time = 2 ** attempt
+                        logger.warning(f"Retrying in {backoff_time}s (attempt {attempt + 1}/{max_retries})")
                         import time
-                        time.sleep(2 ** attempt)  # Exponential backoff
+                        time.sleep(backoff_time)
                     else:
+                        # Log final failure with context
+                        logger.error(f"All retries exhausted. Final error: {error_type}: {error_msg}")
                         raise e
             
             # Debug logging

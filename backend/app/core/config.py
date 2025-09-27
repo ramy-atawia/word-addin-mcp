@@ -48,6 +48,28 @@ class Settings(BaseSettings):
     # LangGraph Configuration - Phase 1
     use_langgraph: bool = os.getenv("USE_LANGGRAPH", "false").lower() == "true"
     
+    # Environment Configuration
+    environment: str = os.getenv("ENVIRONMENT", "development")
+    is_production: bool = environment.lower() == "production"
+    is_development: bool = environment.lower() == "development"
+    
+    # Azure OpenAI Configuration for different environments
+    @property
+    def azure_openai_timeout(self) -> float:
+        """Get timeout based on environment"""
+        if self.is_production:
+            return 300.0  # 5 minutes for production
+        else:
+            return 120.0  # 2 minutes for dev
+    
+    @property
+    def azure_openai_max_retries(self) -> int:
+        """Get max retries based on environment"""
+        if self.is_production:
+            return 5  # More retries for production
+        else:
+            return 3  # Fewer retries for dev
+    
     # Rate limit aliases for middleware
     @property
     def RATE_LIMIT_PER_MINUTE(self) -> int:

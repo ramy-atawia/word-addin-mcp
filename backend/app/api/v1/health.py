@@ -31,6 +31,70 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
+@router.get("/llm")
+async def llm_health_check() -> Dict[str, Any]:
+    """
+    LLM health check endpoint for dev environment debugging.
+    
+    Returns:
+        Dict containing LLM service status and configuration
+    """
+    try:
+        from app.services.llm_client import LLMClient
+        
+        # Check configuration
+        config_status = {
+            "api_key_configured": bool(settings.azure_openai_api_key),
+            "endpoint_configured": bool(settings.azure_openai_endpoint),
+            "deployment_configured": bool(settings.azure_openai_deployment),
+            "api_version": settings.azure_openai_api_version,
+            "environment": settings.environment,
+            "timeout": settings.azure_openai_timeout,
+            "max_retries": settings.azure_openai_max_retries
+        }
+        
+        # Test LLM client
+        llm_client = LLMClient(
+            azure_openai_api_key=settings.azure_openai_api_key,
+            azure_openai_endpoint=settings.azure_openai_endpoint,
+            azure_openai_deployment=settings.azure_openai_deployment,
+            azure_openai_api_version=settings.azure_openai_api_version
+        )
+        
+        llm_status = {
+            "client_available": llm_client.llm_available,
+            "deployment_name": llm_client.azure_deployment if llm_client.llm_available else None
+        }
+        
+        # Test simple generation if available
+        if llm_client.llm_available:
+            try:
+                test_result = llm_client.generate_text(
+                    prompt="Health check test",
+                    max_tokens=10
+                )
+                llm_status["test_successful"] = test_result.get("success", False)
+                llm_status["test_error"] = test_result.get("error") if not test_result.get("success") else None
+            except Exception as e:
+                llm_status["test_successful"] = False
+                llm_status["test_error"] = str(e)
+        
+        return {
+            "status": "healthy" if llm_status["client_available"] else "unhealthy",
+            "timestamp": time.time(),
+            "config": config_status,
+            "llm": llm_status
+        }
+        
+    except Exception as e:
+        logger.error(f"LLM health check failed: {e}")
+        return {
+            "status": "unhealthy",
+            "timestamp": time.time(),
+            "error": str(e)
+        }
+
+
 @router.get("/detailed")
 async def detailed_health_check() -> Dict[str, Any]:
     """

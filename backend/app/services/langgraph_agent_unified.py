@@ -769,8 +769,13 @@ For document drafting requests (like invention disclosures, reports, proposals),
     # Validate response is not empty
     if not generated_text or len(generated_text.strip()) < 5:
         logger.error(f"LLM generated empty or very short response (response: {response}, generated_text: {generated_text})")
-        # Return a fallback response instead of empty string
-        return "I apologize, but I'm having trouble generating a proper response right now. Please try rephrasing your question or ask me something else."
+        
+        # Environment-specific fallback response
+        from app.core.config import settings
+        if settings.is_development:
+            return f"I apologize, but I'm having trouble generating a proper response right now. This might be due to Azure OpenAI rate limits or connectivity issues in the dev environment. Please try again in a moment or rephrase your question."
+        else:
+            return "I apologize, but I'm having trouble generating a proper response right now. Please try rephrasing your question or ask me something else."
     
     return generated_text
 
