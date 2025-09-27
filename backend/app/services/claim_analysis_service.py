@@ -111,6 +111,8 @@ Generate analysis strategy considering:
 4. Improvement opportunities
 5. Risk assessment and mitigation strategies
 
+**CRITICAL: Return ONLY valid JSON - no markdown, no code blocks, no explanations, no additional text.**
+
 Return a JSON response with these fields:
 {{
     "analysis_framework": {{
@@ -125,7 +127,7 @@ Return a JSON response with these fields:
     "reasoning": "detailed reasoning for the analysis strategy"
 }}
 
-Focus on creating a comprehensive analysis framework for patent claim evaluation.
+**ONLY output the JSON object above. Do NOT include any other text, explanations, or formatting.**
 """
             
             response_data = self.llm_client.generate_text(
@@ -134,19 +136,13 @@ Focus on creating a comprehensive analysis framework for patent claim evaluation
             )
             response = response_data.get("text", "")
             
-            # Parse the JSON response (handle markdown-wrapped responses)
+            # Direct JSON parsing - prompts now enforce strict JSON responses
             try:
-                # Remove markdown code blocks if present
-                if response.startswith("```json"):
-                    response = response.replace("```json", "").replace("```", "").strip()
-                elif response.startswith("```"):
-                    response = response.replace("```", "").strip()
-                
                 criteria = json.loads(response)
                 logger.info(f"Generated LLM analysis criteria: {criteria.get('reasoning', 'No reasoning provided')}")
                 return criteria
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse LLM response as JSON: {response}")
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse LLM response as JSON: {e}")
                 return self._fallback_analysis_criteria(claims, analysis_type)
                 
         except Exception as e:
@@ -186,16 +182,12 @@ Focus on creating a comprehensive analysis framework for patent claim evaluation
             # Parse response
             response_text = response_data.get("text", "")
             
-            # Try to parse as JSON first (for structured responses)
+            # Direct JSON parsing - prompts now enforce strict JSON responses
             try:
-                if response_text.startswith("```json"):
-                    response_text = response_text.replace("```json", "").replace("```", "").strip()
-                elif response_text.startswith("```"):
-                    response_text = response_text.replace("```", "").strip()
-                
                 result = json.loads(response_text)
-            except json.JSONDecodeError:
-                # If not JSON, parse as natural language analysis
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse LLM response as JSON: {e}")
+                # Fallback to natural language analysis
                 result = self._parse_natural_language_analysis(response_text, claims, analysis_type)
             
             # Validate and clean analysis

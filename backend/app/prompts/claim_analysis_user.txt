@@ -36,4 +36,8 @@ Provide comprehensive analysis covering:
    - Validity challenges
    - Enforcement difficulties
 
+**CRITICAL: Return ONLY valid JSON - no markdown, no code blocks, no explanations, no additional text.**
+
 Focus on providing actionable insights and specific recommendations for improving the claims.
+
+**ONLY output the JSON object. Do NOT include any other text, explanations, or formatting.**

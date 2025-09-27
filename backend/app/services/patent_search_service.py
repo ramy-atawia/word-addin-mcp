@@ -136,7 +136,7 @@ class PatentSearchService:
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Response preview: {text[:200]}...")
 
-        # Simple JSON parsing - LLM should return clean JSON
+        # Direct JSON parsing - prompts now enforce strict JSON responses
         try:
             data = json.loads(text)
         except json.JSONDecodeError as e:

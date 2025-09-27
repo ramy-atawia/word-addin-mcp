@@ -627,6 +627,8 @@ class AgentService:
         4. Always extract the actual content/query from user messages - don't leave parameters empty
         5. For claim drafting, ALWAYS use the document content and conversation context to create relevant, specific claims
 
+        **CRITICAL: Return ONLY valid JSON - no markdown, no code blocks, no explanations, no additional text.**
+
         Respond with JSON in one of two formats:
 
         Tool Call (with extracted parameters):
@@ -644,7 +646,7 @@ class AgentService:
             "response": "Your response text"
         }}}}
 
-        Only output valid JSON.
+        **ONLY output the JSON object above. Do NOT include any other text, explanations, or formatting.**
         '''
 
         user_input = context.split('User Input: ')[1].split('\n\n')[0] if 'User Input: ' in context else "Unknown"
@@ -677,17 +679,13 @@ Choose the most appropriate tool or provide a conversational response."""
                             generated_text=llm_response_text)
                 raise RuntimeError("LLM generated empty tool selection response")
 
-            # Extract JSON from response
-            json_match = re.search(r'```json\s*\n(?P<json_content>.*?)\n\s*```', llm_response_text, re.DOTALL)
-            if json_match:
-                json_str = json_match.group("json_content")
-            else:
-                json_str = llm_response_text
-
+            # Direct JSON parsing - prompts now enforce strict JSON responses
             try:
-                parsed_response = json.loads(json_str)
-            except json.JSONDecodeError:
-                return "conversation", None, {}, f"I had trouble processing that request, but I'm here to help!"
+                parsed_response = json.loads(llm_response_text)
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing failed: {e}")
+                logger.error(f"Raw response: {llm_response_text[:200]}...")
+                return "conversation", None, {}, f"I had trouble processing that request: {str(e)}"
 
             action = parsed_response.get("action")
 
