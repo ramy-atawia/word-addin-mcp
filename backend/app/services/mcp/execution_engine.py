@@ -115,7 +115,7 @@ class ToolExecutionEngine:
         self.request_count += 1
         
         try:
-            logger.info(f"Validating parameters for tool: {tool_name}", parameters=parameters)
+            logger.info(f"Validating parameters for tool: {tool_name} (parameters: {parameters})")
             
             # Get tool schema for validation
             tool_schema = await self._get_tool_schema(tool_name)

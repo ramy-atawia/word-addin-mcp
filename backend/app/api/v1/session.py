@@ -142,7 +142,7 @@ async def update_session(session_id: str,
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to update session", session_id=session_id, error=str(e))
+        logger.error(f"Failed to update session (session_id: {session_id}, error: {str(e)})")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update session: {str(e)}"

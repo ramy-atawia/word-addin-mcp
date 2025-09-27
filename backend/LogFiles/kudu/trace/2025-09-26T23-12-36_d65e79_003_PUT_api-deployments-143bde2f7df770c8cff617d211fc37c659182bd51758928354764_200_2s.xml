@@ -1,0 +1,9 @@
+<step title="Incoming Request" date="2025-09-26T23:12:36.007" instance="d65e79" url="/api/deployments/143bde2f7df770c8cff617d211fc37c659182bd51758928354764" method="PUT" type="request" pid="768,1,15" Host="novitai-word-mcp-backend-dev.scm.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_7ccf1257355081a90363d990b852a7f777fcdf0a3a630d694643cd5616f5b35e" Authorization="Bea..." Content-Type="application/json; charset=utf-8" Content-Length="319" X-ARR-LOG-ID="7b92df4d-da3c-4aaa-ba1f-c7b175f5d92f" CLIENT-IP="64.236.144.100:35872" X-SITE-DEPLOYMENT-ID="novitai-word-mcp-backend-dev" WAS-DEFAULT-HOSTNAME="novitai-word-mcp-backend-dev.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/143bde2f7df770c8cff617d211fc37c659182bd51758928354764" X-Client-IP="64.236.144.100" X-Client-Port="35872" >
+  <step title="Cleanup Xml Logs" date="2025-09-26T23:12:36.014" >
+    <step title="Cleanup Infos" date="2025-09-26T23:12:36.065" totalFiles="648" totalCleanup="488" /><!-- duration: 8ms -->
+  </step><!-- duration: 66ms -->
+  <step title="DeploymentService.Deploy(id)" date="2025-09-26T23:12:36.254" >
+    <step title="DeploymentService.Create(id)" date="2025-09-26T23:12:36.260" /><!-- duration: 1213ms -->
+  </step><!-- duration: 1232ms -->
+  <step title="Outgoing response" date="2025-09-26T23:12:37.508" type="response" statusCode="200" statusText="OK" /><!-- duration: 6ms -->
+</step><!-- duration: 1513ms -->

@@ -222,7 +222,7 @@ class MCPOrchestrator:
         self.request_count += 1
         
         try:
-            logger.info(f"Executing tool: {tool_name}", parameters=parameters)
+            logger.info(f"Executing tool: {tool_name} (parameters: {parameters})")
             
             # Validate parameters
             is_valid, errors = await self.execution_engine.validate_parameters(tool_name, parameters)

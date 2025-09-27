@@ -70,7 +70,7 @@ class JobQueue:
             self.jobs[job_id] = job
             await self.processing_queue.put((job_id, job_type))
         
-        logger.info("Job submitted", job_id=job_id, job_type=job_type)
+        logger.info(f"Job submitted (job_id: {job_id}, job_type: {job_type})")
         return job_id
     
     async def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
@@ -180,7 +180,7 @@ class JobQueue:
                 # No jobs, continue
                 continue
             except Exception as e:
-                logger.error("Job worker error", error=str(e))
+                logger.error(f"Job worker error (error: {str(e)})")
                 await asyncio.sleep(1)
     
     async def stop_worker(self):
@@ -192,7 +192,7 @@ class JobQueue:
         """Process a single job with timeout handling and retry logic"""
         # Check if job was cancelled before starting
         if self._is_job_cancelled(job_id):
-            logger.info("Job cancelled before processing starts", job_id=job_id)
+            logger.info(f"Job cancelled before processing starts (job_id: {job_id})")
             return
             
         max_retries = 3
@@ -208,7 +208,7 @@ class JobQueue:
                 
                 # Check if job was cancelled before processing
                 if self._is_job_cancelled(job_id):
-                    logger.info("Job cancelled before processing", job_id=job_id)
+                    logger.info(f"Job cancelled before processing (job_id: {job_id})")
                     return
                 
                 # Set job timeout based on estimated duration
@@ -230,19 +230,19 @@ class JobQueue:
                     
                     # Check if job was cancelled during execution
                     if self._is_job_cancelled(job_id):
-                        logger.info("Job cancelled during execution", job_id=job_id)
+                        logger.info(f"Job cancelled during execution (job_id: {job_id})")
                         return
                     
                     # Only set result if job wasn't cancelled
                     if result is not None:
                         await self.set_job_result(job_id, result)
-                        logger.info("Job completed successfully", job_id=job_id, retry_count=retry_count)
+                        logger.info(f"Job completed successfully (job_id: {job_id}, retry_count: {retry_count})")
                     else:
-                        logger.info("Job execution returned None (likely cancelled)", job_id=job_id)
+                        logger.info(f"Job execution returned None (likely cancelled) (job_id: {job_id})")
                     return  # Success, exit retry loop
                     
                 except asyncio.TimeoutError:
-                    logger.error("Job timed out", job_id=job_id, timeout=timeout_seconds, retry_count=retry_count)
+                    logger.error(f"Job timed out (job_id: {job_id}, timeout: {timeout_seconds}, retry_count: {retry_count})")
                     if retry_count < max_retries - 1:
                         retry_count += 1
                         await asyncio.sleep(2 ** retry_count)  # Exponential backoff
@@ -252,7 +252,7 @@ class JobQueue:
                         return
                         
                 except Exception as e:
-                    logger.error("Job execution failed", job_id=job_id, error=str(e), retry_count=retry_count)
+                    logger.error(f"Job execution failed (job_id: {job_id}, error: {str(e)}, retry_count: {retry_count})")
                     if retry_count < max_retries - 1:
                         retry_count += 1
                         await asyncio.sleep(2 ** retry_count)  # Exponential backoff
@@ -262,7 +262,7 @@ class JobQueue:
                         return
                         
             except Exception as e:
-                logger.error("Job processing failed", job_id=job_id, error=str(e), retry_count=retry_count)
+                logger.error(f"Job processing failed (job_id: {job_id}, error: {str(e)}, retry_count: {retry_count})")
                 if retry_count < max_retries - 1:
                     retry_count += 1
                     await asyncio.sleep(2 ** retry_count)  # Exponential backoff
@@ -286,13 +286,13 @@ class JobQueue:
                 return False
             
             if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
-                logger.info(f"Job already in final state: {job.status}", job_id=job_id)
+                logger.info(f"Job already in final state: {job.status} (job_id: {job_id})")
                 return False
             
             # Mark job as cancelled
             job.status = JobStatus.CANCELLED
             job.end_time = time.time()
-            logger.info(f"Job cancelled successfully", job_id=job_id)
+            logger.info(f"Job cancelled successfully (job_id: {job_id})")
             return True
     
     def stop(self):
@@ -305,7 +305,7 @@ class JobQueue:
         """Execute job based on type"""
         # Check cancellation before execution
         if self._is_job_cancelled(job.id):
-            logger.info("Job cancelled before execution", job_id=job.id)
+            logger.info(f"Job cancelled before execution (job_id: {job.id})")
             return None
             
         if job_type == "prior_art_search":
@@ -324,7 +324,7 @@ class JobQueue:
         try:
             # Check cancellation before starting
             if self._is_job_cancelled(job.id):
-                logger.info("Job cancelled during prior art search", job_id=job.id)
+                logger.info(f"Job cancelled during prior art search (job_id: {job.id})")
                 return None
                 
             # Progress: Starting query generation
@@ -368,7 +368,7 @@ class JobQueue:
             }
             
         except Exception as e:
-            logger.error("Prior art search failed", job_id=job.id, error=str(e))
+            logger.error(f"Prior art search failed (job_id: {job.id}, error: {str(e)})")
             raise
     
     async def _process_claim_drafting(self, job: Job, agent_service, mcp_orchestrator):
@@ -441,7 +441,7 @@ class JobQueue:
             return result
             
         except Exception as e:
-            logger.error("General chat processing failed", job_id=job.id, error=str(e))
+            logger.error(f"General chat processing failed (job_id: {job.id}, error: {str(e)})")
             raise
     
     async def _execute_with_progress(self, job_id: str, func, *args, progress_start: int = 0, progress_end: int = 100, **kwargs):
@@ -452,7 +452,7 @@ class JobQueue:
         
         # Check cancellation before starting
         if self._is_job_cancelled(job_id):
-            logger.info("Job cancelled before execution with progress", job_id=job_id)
+            logger.info(f"Job cancelled before execution with progress (job_id: {job_id})")
             return None
         
         # Create a progress tracking wrapper
@@ -469,7 +469,7 @@ class JobQueue:
             async def update_progress(self, progress: int):
                 # Check cancellation before updating progress
                 if self.job_queue._is_job_cancelled(self.job_id):
-                    logger.info("Job cancelled during progress update", job_id=self.job_id)
+                    logger.info(f"Job cancelled during progress update (job_id: {self.job_id})")
                     return
                     
                 current_time = time.time()
@@ -490,7 +490,7 @@ class JobQueue:
         
         # Check cancellation after execution
         if self._is_job_cancelled(job_id):
-            logger.info("Job cancelled after execution", job_id=job_id)
+            logger.info(f"Job cancelled after execution (job_id: {job_id})")
             return None
         
         # Final progress update
@@ -529,7 +529,7 @@ class JobQueue:
             for job_id in expired_jobs:
                 if job_id in self.jobs:  # Double-check job still exists
                     del self.jobs[job_id]
-                    logger.info("Cleaned up expired job", job_id=job_id)
+                    logger.info(f"Cleaned up expired job (job_id: {job_id})")
             
             # If still too many jobs, remove oldest completed jobs
             if len(self.jobs) > self.max_jobs:
@@ -548,7 +548,7 @@ class JobQueue:
                 for job_id, _ in completed_jobs[:jobs_to_remove]:
                     if job_id in self.jobs:  # Double-check job still exists
                         del self.jobs[job_id]
-                        logger.info("Cleaned up old completed job", job_id=job_id)
+                        logger.info(f"Cleaned up old completed job (job_id: {job_id})")
         
         logger.info("Job cleanup completed", 
                    total_jobs=len(self.jobs), 

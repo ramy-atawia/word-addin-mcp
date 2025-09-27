@@ -65,7 +65,7 @@ class AgentState(TypedDict):
 
 async def detect_intent_node(state: AgentState) -> AgentState:
     """Detect whether this is a conversation or tool workflow using LLM."""
-    logger.info("Starting intent detection", user_input=state["user_input"][:100])
+    logger.info(f"Starting intent detection (user_input: {state['user_input'][:100]})")
     
     try:
         # Use LLM for all intent detection - no keyword logic
@@ -85,7 +85,7 @@ async def detect_intent_node(state: AgentState) -> AgentState:
         }
     
     except Exception as e:
-        logger.error("Intent detection failed", error=str(e))
+        logger.error(f"Intent detection failed (error: {str(e)})")
         # Fallback to conversation mode on intent detection failure
         return {
             **state,
@@ -328,7 +328,7 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
 
 def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
     """Parse LLM intent detection response with strict validation."""
-    logger.debug("Parsing LLM intent response", response_preview=response_text[:200])
+    logger.debug(f"Parsing LLM intent response (response_preview: {response_text[:200]})")
     
     lines = response_text.strip().split('\n')
     intent_type = "conversation"
@@ -343,7 +343,7 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
             elif type_value == "CONVERSATION":
                 intent_type = "conversation"
             else:
-                logger.warning("Invalid intent type from LLM", type_value=type_value)
+                logger.warning(f"Invalid intent type from LLM (type_value: {type_value})")
                 raise RuntimeError(f"Invalid intent type from LLM: {type_value}")
                 
         elif line.startswith("PLAN:"):
@@ -355,7 +355,7 @@ def _parse_llm_intent(response_text: str) -> tuple[str, List[Dict]]:
                     workflow_plan = json.loads(plan_text)
                     if not isinstance(workflow_plan, list):
                         raise RuntimeError("Workflow plan must be a JSON array")
-                    logger.info("Parsed workflow plan", plan=workflow_plan)
+                    logger.info(f"Parsed workflow plan (plan: {workflow_plan})")
                 except json.JSONDecodeError as e:
                     logger.error("Invalid JSON in workflow plan", 
                                error=str(e), plan_text=plan_text[:200])
@@ -379,7 +379,7 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
                total_steps=len(workflow_plan))
     
     if current_step >= len(workflow_plan):
-        logger.info("Workflow completed", total_steps=len(workflow_plan))
+        logger.info(f"Workflow completed (total_steps: {len(workflow_plan)})")
         # Mark workflow as completed and continue to response generation
         return {
             **state,
@@ -417,7 +417,7 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
                    enhanced_params=enhanced_params)
         
         # Execute tool
-        logger.info(f"Executing {tool_name}", params=enhanced_params)
+        logger.info(f"Executing {tool_name} (params: {enhanced_params})")
         result = await orchestrator.execute_tool(tool_name, enhanced_params)
         
         logger.info("Tool execution completed", 
@@ -428,7 +428,7 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
         # ENHANCED VALIDATION: Check if result is meaningful
         if not _validate_tool_result(result, tool_name):
             error_msg = f"Tool {tool_name} returned invalid or empty result"
-            logger.error(error_msg, result=result)
+            logger.error(f"{error_msg} (result: {result})")
             workflow_errors.append(error_msg)
             
             # For critical tools like web_search, this should be a blocking error
@@ -465,7 +465,7 @@ async def execute_workflow_node(state: AgentState) -> AgentState:
         
         # CRITICAL DECISION: For essential steps, halt workflow
         if current_step == 0 or step.get('tool') in ['web_search_tool', 'prior_art_search_tool']:
-            logger.error("Critical step failed, halting workflow", step=current_step)
+            logger.error(f"Critical step failed, halting workflow (step: {current_step})")
             return {
                 **state,
                 "workflow_errors": workflow_errors,
@@ -623,7 +623,7 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any],
     # Also handle the existing {key} placeholder substitution for backward compatibility
     for key, value in enhanced_params.items():
         if isinstance(value, str) and "{" in value and "}" in value:
-            logger.info(f"Processing parameter {key} with placeholders", value=value)
+            logger.info(f"Processing parameter {key} with placeholders (value: {value})")
             
             # Process all placeholders in this value
             processed_value = value
@@ -648,12 +648,12 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any],
             enhanced_params[key] = processed_value
             
             if substitutions_made:
-                logger.info(f"Made substitutions for {key}", substitutions=substitutions_made)
+                logger.info(f"Made substitutions for {key} (substitutions: {substitutions_made})")
         else:
                 logger.warning(f"No substitutions made for {key} despite placeholders", 
                              value=value, available_keys=list(step_results.keys()))
     
-    logger.info("Context enhancement completed", enhanced_params=enhanced_params)
+    logger.info(f"Context enhancement completed (enhanced_params: {enhanced_params})")
     return enhanced_params
 
 
@@ -683,7 +683,7 @@ async def generate_response_node(state: AgentState) -> AgentState:
         }
         
     except Exception as e:
-        logger.error("Response generation failed", error=str(e))
+        logger.error(f"Response generation failed (error: {str(e)})")
         error_response = f"Failed to generate response: {str(e)}"
         if workflow_errors:
             error_response += f"\n\nWorkflow errors: {'; '.join(workflow_errors)}"
@@ -833,14 +833,14 @@ async def _generate_workflow_response(state: AgentState) -> str:
             else:
                 error_msg = result.get("error", "Unknown error") if isinstance(result, dict) else str(result)
                 tool_outputs.append(f"**{tool_name} (Failed):** {error_msg}")
-                logger.warning(f"Failed result from {tool_name}", error=error_msg)
+                logger.warning(f"Failed result from {tool_name} (error: {error_msg})")
         else:
             # Handle missing results
             error_key = f"step_{step.get('step', 0)-1}_error"
             if error_key in step_results:
                 error_msg = step_results[error_key]
                 tool_outputs.append(f"**{tool_name} (Error):** {error_msg}")
-                logger.warning(f"Error in {tool_name}", error=error_msg)
+                logger.warning(f"Error in {tool_name} (error: {error_msg})")
             else:
                 tool_outputs.append(f"**{tool_name}:** No results available")
                 logger.warning(f"No results for {tool_name}")
@@ -1109,7 +1109,7 @@ def create_agent_graph(dependencies: AgentGraphDependencies):
     
     # Create a wrapper that injects dependencies
     async def execute_with_dependencies(initial_state):
-        logger.info("Starting workflow execution", user_input=initial_state.get("user_input", "")[:100])
+        logger.info(f"Starting workflow execution (user_input: {initial_state.get('user_input', '')[:100]})")
         state_with_deps = {**initial_state, "dependencies": dependencies}
         
         try:
@@ -1117,7 +1117,7 @@ def create_agent_graph(dependencies: AgentGraphDependencies):
             logger.info("Workflow execution completed successfully")
             return result
         except Exception as e:
-            logger.error("Workflow execution failed", error=str(e))
+            logger.error(f"Workflow execution failed (error: {str(e)})")
             # Return error state instead of raising
             return {
                 **state_with_deps,

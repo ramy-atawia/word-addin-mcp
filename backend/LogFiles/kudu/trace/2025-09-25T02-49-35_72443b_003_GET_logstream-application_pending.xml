@@ -1,0 +1,5 @@
+<step title="Incoming Request" date="2025-09-25T02:49:35.996" instance="72443b" url="/logstream/application" method="GET" type="request" pid="768,1,15" Host="novitai-word-mcp-backend-dev.scm.azurewebsites.net" User-Agent="AZURECLI/2.75.0 (HOMEBREW)" Accept-Encoding="identity" Authorization="Bas..." x-ms-client-request-id="240d87c4-99ba-11f0-a6f6-bee5e14eede1" X-ARR-LOG-ID="240d87c4-99ba-11f0-a6f6-bee5e14eede1" CLIENT-IP="174.113.19.144:58357" X-SITE-DEPLOYMENT-ID="novitai-word-mcp-backend-dev" WAS-DEFAULT-HOSTNAME="novitai-word-mcp-backend-dev.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream/application" X-Client-IP="174.113.19.144" X-Client-Port="58357" >
+  <step title="Cleanup Xml Logs" date="2025-09-25T02:49:36.005" >
+    <step title="Cleanup Infos" date="2025-09-25T02:49:36.081" totalFiles="570" totalCleanup="410" /><!-- duration: 16ms -->
+  </step><!-- duration: 134ms -->
+  <step title="LogStreamHandlerMiddleware.Invoke" date="2025-09-25T02:49:36.157" /><!-- duration: 1970ms -->

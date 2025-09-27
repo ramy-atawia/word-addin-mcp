@@ -114,7 +114,7 @@ async def submit_async_chat(request: AsyncChatRequest):
         }
         
     except Exception as e:
-        logger.error("Failed to submit async chat job", error=str(e))
+        logger.error(f"Failed to submit async chat job (error: {str(e)})")
         raise create_error_response(
             error="Job Submission Failed",
             message=f"Failed to submit job: {str(e)}",
@@ -146,7 +146,7 @@ async def get_job_status(job_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to get job status", job_id=job_id, error=str(e))
+        logger.error(f"Failed to get job status (job_id: {job_id}, error: {str(e)})")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get job status: {str(e)}"
@@ -187,7 +187,7 @@ async def get_job_result(job_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to get job result", job_id=job_id, error=str(e))
+        logger.error(f"Failed to get job result (job_id: {job_id}, error: {str(e)})")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get job result: {str(e)}"
@@ -220,7 +220,7 @@ async def cancel_job(job_id: str):
         # Update job status to cancelled
         await job_queue.update_job_progress(job_id, 0, JobStatus.CANCELLED)
         
-        logger.info("Job cancelled", job_id=job_id)
+        logger.info(f"Job cancelled (job_id: {job_id})")
         
         return {
             "job_id": job_id,
@@ -231,7 +231,7 @@ async def cancel_job(job_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to cancel job", job_id=job_id, error=str(e))
+        logger.error(f"Failed to cancel job (job_id: {job_id}, error: {str(e)})")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to cancel job: {str(e)}"
@@ -249,7 +249,7 @@ async def list_jobs(limit: int = 10, status: Optional[str] = None):
         return await job_queue.list_jobs(limit=limit, status_filter=status)
         
     except Exception as e:
-        logger.error("Failed to list jobs", error=str(e))
+        logger.error(f"Failed to list jobs (error: {str(e)})")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to list jobs: {str(e)}"
@@ -268,7 +268,7 @@ async def get_job_stats():
         return stats
         
     except Exception as e:
-        logger.error("Failed to get job stats", error=str(e))
+        logger.error(f"Failed to get job stats (error: {str(e)})")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get job stats: {str(e)}"
