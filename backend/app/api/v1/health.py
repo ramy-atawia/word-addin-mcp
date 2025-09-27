@@ -22,13 +22,21 @@ async def health_check() -> Dict[str, Any]:
     Returns:
         Dict containing health status and basic information
     """
-    return {
-        "status": "healthy",
-        "timestamp": time.time(),
-        "version": settings.app_version,
-        "environment": settings.environment,
-        "service": "Word Add-in MCP API"
-    }
+    try:
+        return {
+            "status": "healthy",
+            "timestamp": time.time(),
+            "version": settings.app_version,
+            "environment": settings.environment,
+            "service": "Word Add-in MCP API"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "timestamp": time.time(),
+            "error": str(e),
+            "service": "Word Add-in MCP API"
+        }
 
 
 @router.get("/llm")
@@ -130,11 +138,17 @@ async def detailed_health_check() -> Dict[str, Any]:
         }
         health_status["status"] = "degraded"
     
-    # Check MCP server health
+    # Check MCP server health (non-blocking)
     try:
-        # Get actual MCP orchestrator health status
+        # Get actual MCP orchestrator health status with timeout
+        import asyncio
         from app.services.mcp.orchestrator import mcp_orchestrator
-        mcp_health = await mcp_orchestrator.get_server_health()
+        
+        # Use asyncio.wait_for to prevent hanging
+        mcp_health = await asyncio.wait_for(
+            mcp_orchestrator.get_server_health(),
+            timeout=5.0  # 5 second timeout
+        )
         
         # Extract response time from MCP health metrics
         response_time = 0.001  # Default fallback
@@ -153,6 +167,13 @@ async def detailed_health_check() -> Dict[str, Any]:
         if mcp_health.get("status") != "healthy":
             health_status["status"] = "degraded"
             
+    except asyncio.TimeoutError:
+        health_status["dependencies"]["mcp_server"] = {
+            "status": "timeout",
+            "error": "MCP orchestrator health check timed out",
+            "details": "MCP server health check took longer than 5 seconds"
+        }
+        health_status["status"] = "degraded"
     except Exception as e:
         health_status["dependencies"]["mcp_server"] = {
             "status": "unhealthy",
