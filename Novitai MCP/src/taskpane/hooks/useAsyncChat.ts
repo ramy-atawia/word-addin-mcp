@@ -52,9 +52,10 @@ export const useAsyncChat = ({
 
   // FIX: Stable message selection with proper synchronization
   const messages = useMemo(() => {
-    // Only use internal messages if we're currently processing
+    // If we're processing, combine previous external messages with current internal messages
     if (isProcessing) {
-      return internalMessages;
+      // Use external messages as base (previous completed messages) + current internal messages
+      return [...externalMessages, ...internalMessages];
     }
     
     // Check if external messages changed while not processing
