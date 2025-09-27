@@ -85,7 +85,7 @@ class ClaimDraftingService:
                 document_reference=document_reference or ""
             )
             
-            # Call LLM
+            # Call LLM (not async)
             response_data = self.llm_client.generate_text(
                 prompt=formatted_user_prompt,
                 system_message=system_prompt,
@@ -102,7 +102,7 @@ class ClaimDraftingService:
     def _load_system_prompt(self) -> str:
         """Load system prompt for claim drafting."""
         try:
-            with open("backend/app/prompts/claim_drafting_system.txt", "r") as f:
+            with open("app/prompts/claim_drafting_system.txt", "r") as f:
                 return f.read()
         except FileNotFoundError:
             logger.warning("System prompt file not found, using default")
@@ -135,7 +135,7 @@ RULES:
     def _load_user_prompt(self) -> str:
         """Load user prompt for claim drafting."""
         try:
-            with open("backend/app/prompts/claim_drafting_user.txt", "r") as f:
+            with open("app/prompts/claim_drafting_user.txt", "r") as f:
                 return f.read()
         except FileNotFoundError:
             logger.warning("User prompt file not found, using default")
