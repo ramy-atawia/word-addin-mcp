@@ -255,6 +255,7 @@ export class AsyncChatService {
         }
 
         if (status.status === 'cancelled') {
+          console.log('Job cancelled detected in polling', jobId);
           throw new Error('Job was cancelled');
         }
 
@@ -327,6 +328,13 @@ export class AsyncChatService {
         // Check if service was destroyed during error handling
         if (this.isDestroyed) {
           console.log('AsyncChatService: Polling stopped - service destroyed during error');
+          return;
+        }
+        
+        // Handle cancellation differently from other errors
+        if (error instanceof Error && error.message === 'Job was cancelled') {
+          console.log('Job cancellation detected, stopping polling');
+          callbacks.onError(error);
           return;
         }
         

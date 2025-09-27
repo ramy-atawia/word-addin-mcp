@@ -2,6 +2,7 @@
 Asynchronous Job Queue System for Long-Running Tasks
 """
 import asyncio
+import time
 import uuid
 from datetime import datetime, timedelta
 from enum import Enum
@@ -189,6 +190,11 @@ class JobQueue:
     
     async def _process_job(self, job_id: str, job_type: str):
         """Process a single job with timeout handling and retry logic"""
+        # Check if job was cancelled before starting
+        if self._is_job_cancelled(job_id):
+            logger.info("Job cancelled before processing starts", job_id=job_id)
+            return
+            
         max_retries = 3
         retry_count = 0
         
@@ -198,6 +204,11 @@ class JobQueue:
                 
                 job = self.jobs.get(job_id)
                 if not job:
+                    return
+                
+                # Check if job was cancelled before processing
+                if self._is_job_cancelled(job_id):
+                    logger.info("Job cancelled before processing", job_id=job_id)
                     return
                 
                 # Set job timeout based on estimated duration
@@ -217,8 +228,17 @@ class JobQueue:
                         timeout=timeout_seconds
                     )
                     
-                    await self.set_job_result(job_id, result)
-                    logger.info("Job completed successfully", job_id=job_id, retry_count=retry_count)
+                    # Check if job was cancelled during execution
+                    if self._is_job_cancelled(job_id):
+                        logger.info("Job cancelled during execution", job_id=job_id)
+                        return
+                    
+                    # Only set result if job wasn't cancelled
+                    if result is not None:
+                        await self.set_job_result(job_id, result)
+                        logger.info("Job completed successfully", job_id=job_id, retry_count=retry_count)
+                    else:
+                        logger.info("Job execution returned None (likely cancelled)", job_id=job_id)
                     return  # Success, exit retry loop
                     
                 except asyncio.TimeoutError:
@@ -251,8 +271,43 @@ class JobQueue:
                     await self.set_job_error(job_id, f"Job processing failed after {max_retries} retries: {str(e)}")
                     return
     
+    def _is_job_cancelled(self, job_id: str) -> bool:
+        """Check if job was cancelled"""
+        with self._lock:
+            job = self.jobs.get(job_id)
+            return job is not None and job.status == JobStatus.CANCELLED
+    
+    async def cancel_job(self, job_id: str) -> bool:
+        """Cancel a job if it's not already completed"""
+        with self._lock:
+            job = self.jobs.get(job_id)
+            if not job:
+                logger.warning(f"Job not found for cancellation: {job_id}")
+                return False
+            
+            if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
+                logger.info(f"Job already in final state: {job.status}", job_id=job_id)
+                return False
+            
+            # Mark job as cancelled
+            job.status = JobStatus.CANCELLED
+            job.end_time = time.time()
+            logger.info(f"Job cancelled successfully", job_id=job_id)
+            return True
+    
+    def stop(self):
+        """Stop the job queue and cleanup resources"""
+        logger.info("Stopping job queue...")
+        # The job queue will stop when the event loop stops
+        # This is mainly for cleanup purposes
+
     async def _execute_job_by_type(self, job: Job, job_type: str, agent_service, mcp_orchestrator):
         """Execute job based on type"""
+        # Check cancellation before execution
+        if self._is_job_cancelled(job.id):
+            logger.info("Job cancelled before execution", job_id=job.id)
+            return None
+            
         if job_type == "prior_art_search":
             return await self._process_prior_art_search(job, agent_service, mcp_orchestrator)
         elif job_type == "claim_drafting":
@@ -267,6 +322,11 @@ class JobQueue:
         request_data = job.request_data
         
         try:
+            # Check cancellation before starting
+            if self._is_job_cancelled(job.id):
+                logger.info("Job cancelled during prior art search", job_id=job.id)
+                return None
+                
             # Progress: Starting query generation
             await self.update_job_progress(job.id, 10)
             
@@ -390,6 +450,11 @@ class JobQueue:
         import threading
         import time
         
+        # Check cancellation before starting
+        if self._is_job_cancelled(job_id):
+            logger.info("Job cancelled before execution with progress", job_id=job_id)
+            return None
+        
         # Create a progress tracking wrapper
         class ProgressTracker:
             def __init__(self, job_id, job_queue, start_progress, end_progress):
@@ -402,6 +467,11 @@ class JobQueue:
                 self.update_interval = 2.0  # Update every 2 seconds
                 
             async def update_progress(self, progress: int):
+                # Check cancellation before updating progress
+                if self.job_queue._is_job_cancelled(self.job_id):
+                    logger.info("Job cancelled during progress update", job_id=self.job_id)
+                    return
+                    
                 current_time = time.time()
                 if current_time - self.last_update >= self.update_interval:
                     self.current_progress = self.start_progress + int((progress / 100) * (self.end_progress - self.start_progress))
@@ -417,6 +487,11 @@ class JobQueue:
             # For sync functions, run in thread pool
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, func, *args, **kwargs)
+        
+        # Check cancellation after execution
+        if self._is_job_cancelled(job_id):
+            logger.info("Job cancelled after execution", job_id=job_id)
+            return None
         
         # Final progress update
         await self.update_job_progress(job_id, progress_end)

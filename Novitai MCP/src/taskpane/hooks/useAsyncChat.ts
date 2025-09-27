@@ -456,6 +456,9 @@ export const useAsyncChat = ({
     if (currentState) {
       console.log('Cancelling current job...');
       
+      // Set loading state to show cancellation in progress
+      onLoadingChange?.(true);
+      
       // Abort processing
       currentState.abortController.abort();
       
@@ -464,15 +467,44 @@ export const useAsyncChat = ({
         try {
           await asyncChatService.cancelJob(currentState.jobId);
           console.log('Job cancelled on server:', currentState.jobId);
+          
+          // Show cancellation message
+          const cancellationMessage: ChatMessage = {
+            id: `cancelled-${Date.now()}`,
+            type: 'assistant',
+            content: 'Operation cancelled by user.',
+            timestamp: new Date(),
+            metadata: { 
+              isProcessing: false,
+              cancelled: 'true'
+            }
+          };
+          
+          onMessage?.(cancellationMessage);
+          
         } catch (error) {
           console.error('Failed to cancel job on server:', error);
+          
+          // Show error message
+          const errorMessage: ChatMessage = {
+            id: `cancel-error-${Date.now()}`,
+            type: 'assistant',
+            content: 'Failed to cancel operation. Please try again.',
+            timestamp: new Date(),
+            metadata: { 
+              isProcessing: false,
+              error: 'true'
+            }
+          };
+          
+          onMessage?.(errorMessage);
         }
       }
       
       // Reset state
       resetAsyncState();
     }
-  }, [resetAsyncState]);
+  }, [resetAsyncState, onLoadingChange, onMessage]);
 
   // FIX: Clear messages with proper cleanup
   const clearMessages = useCallback(() => {
