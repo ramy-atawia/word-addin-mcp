@@ -5,12 +5,43 @@ from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Union
 
 from app.services.job_queue import job_queue, JobStatus
 import structlog
 
 logger = structlog.get_logger()
 router = APIRouter()
+
+
+class StandardErrorResponse(BaseModel):
+    """Standardized error response format"""
+    error: str
+    message: str
+    status_code: int
+    timestamp: float
+    details: Optional[Dict[str, Any]] = None
+
+
+def create_error_response(
+    error: str, 
+    message: str, 
+    status_code: int, 
+    details: Optional[Dict[str, Any]] = None
+) -> HTTPException:
+    """Create a standardized error response"""
+    import time
+    error_data = StandardErrorResponse(
+        error=error,
+        message=message,
+        status_code=status_code,
+        timestamp=time.time(),
+        details=details
+    )
+    return HTTPException(
+        status_code=status_code,
+        detail=error_data.dict()
+    )
 
 
 class AsyncChatRequest(BaseModel):
@@ -57,6 +88,9 @@ async def submit_async_chat(request: AsyncChatRequest):
         # Parse context from frontend format
         parsed_context = _parse_context(request.context)
         
+        # Extract session_id from context (sent by frontend)
+        session_id = parsed_context.get("session_id")
+        
         # Prepare request data
         request_data = {
             "message": request.message,
@@ -65,8 +99,8 @@ async def submit_async_chat(request: AsyncChatRequest):
             "available_tools": parsed_context.get("available_tools", [])
         }
         
-        # Submit job
-        job_id = await job_queue.submit_job(job_type, request_data)
+        # Submit job with session tracking
+        job_id = await job_queue.submit_job(job_type, request_data, session_id)
         
         logger.info("Async chat job submitted", 
                    job_id=job_id, 
@@ -81,9 +115,11 @@ async def submit_async_chat(request: AsyncChatRequest):
         
     except Exception as e:
         logger.error("Failed to submit async chat job", error=str(e))
-        raise HTTPException(
+        raise create_error_response(
+            error="Job Submission Failed",
+            message=f"Failed to submit job: {str(e)}",
             status_code=500,
-            detail=f"Failed to submit job: {str(e)}"
+            details={"job_type": job_type, "message_length": len(request.message)}
         )
 
 
@@ -98,9 +134,11 @@ async def get_job_status(job_id: str):
         status = await job_queue.get_job_status(job_id)
         
         if not status:
-            raise HTTPException(
+            raise create_error_response(
+                error="Job Not Found",
+                message="Job not found",
                 status_code=404,
-                detail="Job not found"
+                details={"job_id": job_id}
             )
         
         return JobStatusResponse(**status)
@@ -261,6 +299,9 @@ def _parse_context(context: Dict[str, Any]) -> Dict[str, Any]:
         parsed_context["available_tools"] = [{"name": name} for name in tool_names]
     else:
         parsed_context["available_tools"] = []
+    
+    # Extract session_id if provided
+    parsed_context["session_id"] = context.get("session_id")
     
     return parsed_context
 

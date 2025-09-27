@@ -216,13 +216,15 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
         documentContent = '';
       }
       
+      const sessionId = `session-${Date.now()}`;
       const context = {
         document_content: documentContent,
         chat_history: JSON.stringify(messages.slice(-10)), // Last 10 messages
-        available_tools: availableTools.map(t => t.name).join(', ')
+        available_tools: availableTools.map(t => t.name).join(', '),
+        session_id: sessionId
       };
       
-      await handleAsyncMessage(trimmedContent, context, `session-${Date.now()}`);
+      await handleAsyncMessage(trimmedContent, context, sessionId);
     } catch (error) {
       console.error('Error handling user message:', error);
       const errorMessage: ChatMessage = {

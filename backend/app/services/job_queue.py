@@ -33,6 +33,7 @@ class Job:
     error: Optional[str] = None
     request_data: Optional[Dict[str, Any]] = None
     estimated_duration: Optional[int] = None  # seconds
+    session_id: Optional[str] = None  # Track user session
 
 
 class JobQueue:
@@ -48,7 +49,7 @@ class JobQueue:
         self.last_cleanup = datetime.utcnow()
         self._lock = threading.RLock()  # Reentrant lock for thread safety
         
-    async def submit_job(self, job_type: str, request_data: Dict[str, Any]) -> str:
+    async def submit_job(self, job_type: str, request_data: Dict[str, Any], session_id: Optional[str] = None) -> str:
         """Submit a new job and return job ID"""
         # Cleanup old jobs before submitting new one
         await self._cleanup_old_jobs()
@@ -60,7 +61,8 @@ class JobQueue:
             status=JobStatus.PENDING,
             created_at=datetime.utcnow(),
             request_data=request_data,
-            estimated_duration=self._estimate_duration(job_type)
+            estimated_duration=self._estimate_duration(job_type),
+            session_id=session_id
         )
         
         with self._lock:
