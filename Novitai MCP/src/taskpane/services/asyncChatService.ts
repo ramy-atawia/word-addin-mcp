@@ -25,7 +25,13 @@ export interface JobStatus {
 export interface JobResult {
   job_id: string;
   status: string;
-  result?: any;
+  response?: string;
+  intent_type?: string;
+  tool_name?: string;
+  execution_time?: number;
+  success?: boolean;
+  error?: string;
+  workflow_metadata?: any;
   completed_at?: string;
 }
 
