@@ -902,16 +902,19 @@ const MCPToolManager: React.FC = () => {
       </div>
 
       <div className={styles.tabContent}>
-        {selectedTab === 'chat' && (
-          <div style={{ 
-            height: '100%', 
-            overflow: 'hidden' // Let ChatInterface handle its own scrolling
-          }}>
-            {renderChatTab()}
-          </div>
-        )}
-        {/* Tools Library moved to Settings tab */}
-        {selectedTab === 'history' && (
+        {/* Always render ChatInterface to prevent unmounting during tab switches */}
+        <div style={{ 
+          height: '100%', 
+          overflow: 'hidden', // Let ChatInterface handle its own scrolling
+          display: selectedTab === 'chat' ? 'block' : 'none' // Show/hide instead of mount/unmount
+        }}>
+          {renderChatTab()}
+        </div>
+        {/* History tab - always rendered to prevent state loss */}
+        <div style={{ 
+          display: selectedTab === 'history' ? 'block' : 'none',
+          height: '100%'
+        }}>
           <div className={styles.historyContainer}>
             <div className={styles.statsBar}>
               <div className={styles.statItem}>
@@ -944,18 +947,18 @@ const MCPToolManager: React.FC = () => {
               {renderHistoryTab()}
             </div>
           </div>
-        )}
+        </div>
 
-        {selectedTab === 'settings' && (
-          <div style={{ 
-            height: '100%', 
-            overflowY: 'auto', 
-            padding: '16px',
-            paddingRight: '8px' // Space for scrollbar
-          }}>
-            {renderSettingsTab()}
-          </div>
-        )}
+        {/* Settings tab - always rendered to prevent state loss */}
+        <div style={{ 
+          display: selectedTab === 'settings' ? 'block' : 'none',
+          height: '100%', 
+          overflowY: 'auto', 
+          padding: '16px',
+          paddingRight: '8px' // Space for scrollbar
+        }}>
+          {renderSettingsTab()}
+        </div>
       </div>
     </div>
   );
