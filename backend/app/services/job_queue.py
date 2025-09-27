@@ -181,7 +181,9 @@ class JobQueue:
                 continue
             except Exception as e:
                 logger.error(f"Job worker error (error: {str(e)})")
+                # Reset worker state and continue
                 await asyncio.sleep(1)
+                # Continue processing - don't let one bad job stop the worker
     
     async def stop_worker(self):
         """Stop the job processing worker"""
@@ -480,13 +482,46 @@ class JobQueue:
         
         tracker = ProgressTracker(job_id, self, progress_start, progress_end)
         
-        # Execute the function with progress tracking
+        # Execute the function with progress tracking and cancellation checks
         if asyncio.iscoroutinefunction(func):
-            result = await func(*args, **kwargs)
+            # For async functions, we need to wrap with cancellation checks
+            async def cancellable_func():
+                # Check cancellation before execution
+                if self._is_job_cancelled(job_id):
+                    logger.info(f"Job cancelled before function execution (job_id: {job_id})")
+                    return None
+                
+                # Execute the function
+                result = await func(*args, **kwargs)
+                
+                # Check cancellation after execution
+                if self._is_job_cancelled(job_id):
+                    logger.info(f"Job cancelled after function execution (job_id: {job_id})")
+                    return None
+                
+                return result
+            
+            result = await cancellable_func()
         else:
-            # For sync functions, run in thread pool
+            # For sync functions, run in thread pool with cancellation checks
+            def cancellable_sync_func():
+                # Check cancellation before execution
+                if self._is_job_cancelled(job_id):
+                    logger.info(f"Job cancelled before sync function execution (job_id: {job_id})")
+                    return None
+                
+                # Execute the function
+                result = func(*args, **kwargs)
+                
+                # Check cancellation after execution
+                if self._is_job_cancelled(job_id):
+                    logger.info(f"Job cancelled after sync function execution (job_id: {job_id})")
+                    return None
+                
+                return result
+            
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, func, *args, **kwargs)
+            result = await loop.run_in_executor(None, cancellable_sync_func)
         
         # Check cancellation after execution
         if self._is_job_cancelled(job_id):
