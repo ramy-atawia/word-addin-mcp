@@ -210,7 +210,7 @@ class PatentSearchService:
         payload = {
             "q": search_query,
             "f": ["patent_id", "patent_title", "patent_abstract", "patent_date", 
-                  "inventors", "assignees", "cpc_current"],
+                  "cpc_current"],
             "s": [{"patent_date": "desc"}],
             "o": {"size": 20}  # Increased from 10 to 20 per query for more diverse results
         }
@@ -476,8 +476,6 @@ Format as concise markdown.
                 "abstract": patent.get("patent_abstract", "No abstract"),
                 "claims_count": len(patent.get("claims", [])),
                 "claims_info": claims_info,  # Just claim numbers/types, not full text
-                "inventor": self._extract_inventor(patent.get("inventors", [])),
-                "assignee": self._extract_assignee(patent.get("assignees", [])),
                 "cpc_codes": patent.get("cpc_current", []),
                 "is_top_patent": True,
                 "rank": i + 1
@@ -518,19 +516,3 @@ Format as concise markdown.
         logger.info(f"Report generation completed successfully. Response length: {len(response['text'])} chars")
         return response["text"]
     
-    def _extract_inventor(self, inventors: List[Dict]) -> str:
-        """Extract first inventor name."""
-        if not inventors:
-            return "Unknown"
-        
-        first = inventors[0]
-        first_name = first.get("inventor_name_first", "")
-        last_name = first.get("inventor_name_last", "")
-        return f"{first_name} {last_name}".strip() or "Unknown"
-    
-    def _extract_assignee(self, assignees: List[Dict]) -> str:
-        """Extract first assignee organization."""
-        if not assignees:
-            return "Unknown"
-        
-        return assignees[0].get("assignee_organization", "Unknown")
