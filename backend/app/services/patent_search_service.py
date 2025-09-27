@@ -116,11 +116,15 @@ class PatentSearchService:
                                     context="",
                                     conversation_history="")
         
+        try:
             response = self.llm_client.generate_text(
                 prompt=prompt,
                 system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
                 max_tokens=16384  # Official Azure max for gpt-5-nano
             )
+        except Exception as e:
+            logger.error(f"LLM query generation failed: {str(e)}")
+            raise ValueError(f"Failed to generate search queries: {str(e)}")
         
         if not response.get("success"):
             raise ValueError(f"LLM failed to generate queries: {response.get('error')}")
@@ -214,7 +218,9 @@ class PatentSearchService:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
-            logger.debug(f"Using PatentsView API key: {self.api_key[:10]}...")
+            # Safe logging of API key
+            api_key_preview = self.api_key[:10] + "..." if len(self.api_key) >= 10 else "***"
+            logger.debug(f"Using PatentsView API key: {api_key_preview}")
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             logger.debug(f"Making PatentsView search API request for: {search_query}")
@@ -395,7 +401,9 @@ Format as concise markdown.
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["X-Api-Key"] = self.api_key
-            logger.debug(f"Using PatentsView API key for claims: {self.api_key[:10]}...")
+            # Safe logging of API key
+            api_key_preview = self.api_key[:10] + "..." if len(self.api_key) >= 10 else "***"
+            logger.debug(f"Using PatentsView API key for claims: {api_key_preview}")
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             logger.debug(f"Making PatentsView claims API request for patent {patent_id}")
