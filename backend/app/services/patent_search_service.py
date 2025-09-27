@@ -119,7 +119,7 @@ class PatentSearchService:
         try:
             response = self.llm_client.generate_text(
                 prompt=prompt,
-                system_message="You are a patent search expert. Think like a domain expert and analyze query specificity iteratively.",
+                system_message="You are a patent search expert. Return ONLY valid JSON - no markdown, no code blocks, no explanations.",
                 max_tokens=16384  # Official Azure max for gpt-5-nano
             )
         except Exception as e:
@@ -136,34 +136,13 @@ class PatentSearchService:
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"Response preview: {text[:200]}...")
 
-        # Clean JSON markers
-        if text.startswith("```json"):
-            text = text[7:-3]
-        elif text.startswith("```"):
-            text = text[3:-3]
-
-        # Log cleaned text for debugging
-        logger.debug(f"Cleaned JSON text (length: {len(text)})")
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Cleaned text preview: {text[:300]}...")
-
+        # Simple JSON parsing - LLM should return clean JSON
         try:
             data = json.loads(text)
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing failed at position {e.pos}: {e}")
-            logger.debug("Attempting to fix JSON...")
-            # Try to fix common JSON issues
-            if text.startswith("```"):
-                text = text[3:-3]
-            text = text.strip()
-            if text.startswith("json"):
-                text = text[4:].strip()
-            try:
-                data = json.loads(text)
-                logger.debug("JSON fixed successfully")
-            except json.JSONDecodeError:
-                logger.error(f"Failed to fix JSON. Raw response: {text}")
-                raise ValueError(f"LLM returned invalid JSON at position {e.pos}: {e}. Raw response: {text[:500]}")
+            logger.error(f"JSON parsing failed: {e}")
+            logger.error(f"Raw response: {text[:500]}")
+            raise ValueError(f"LLM returned invalid JSON: {e}. Response: {text[:200]}...")
         
         queries = data.get("search_queries")
         if not queries:

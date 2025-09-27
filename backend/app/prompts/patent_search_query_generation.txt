@@ -63,38 +63,28 @@ You are a patent search expert. Think like a domain expert and analyze query spe
 **Nested arrays**: `{{"patent_abstract": ["5G", "handover", "AI"]}}`
 **Old syntax**: `{{"_contains": {{"patent_abstract": "spectrum management"}}}}` (use _text_all instead)
 
-## **Response Format** (JSON only):
-```json
+## **Response Format** (JSON only - NO markdown, NO code blocks):
+Return ONLY valid JSON in this exact format:
+
 {{
-  "analysis": {{
-    "generic_terms": ["term1", "term2"],
-    "specific_terms": ["term3", "term4"],
-    "balanced_terms": ["term5", "term6"],
-    "reasoning": "Explanation of how terms were balanced"
-  }},
   "search_queries": [
     {{
       "search_query": {{"_text_all": {{"patent_abstract": "balanced_term"}}}},
-      "reasoning": "Why this query is balanced and will return 50-200 patents",
-      "expected_results": "50-200 patents"
+      "reasoning": "Why this query is balanced and will return 50-200 patents"
     }},
     {{
       "search_query": {{"_or": [{{"_text_all": {{"patent_abstract": "term1"}}}}, {{"_text_all": {{"patent_title": "term1"}}}}]}},
-      "reasoning": "Search both abstract and title for broader coverage",
-      "expected_results": "100-300 patents"
+      "reasoning": "Search both abstract and title for broader coverage"
     }},
     {{
       "search_query": {{"_and": [{{"_text_all": {{"patent_abstract": "term1"}}}}, {{"_text_all": {{"patent_abstract": "term2"}}}}]}},
-      "reasoning": "Search for term1 AND term2 for focused results",
-      "expected_results": "50-150 patents"
+      "reasoning": "Search for term1 AND term2 for focused results"
     }},
     {{
       "search_query": {{"_text_phrase": {{"patent_abstract": "exact phrase"}}}},
-      "reasoning": "Search for exact phrase for most specific results",
-      "expected_results": "10-50 patents"
+      "reasoning": "Search for exact phrase for most specific results"
     }}
   ]
 }}
-```
 
-**Generate 3-5 balanced queries that will find relevant patents.**
+**CRITICAL: Return ONLY the JSON object above. Do NOT include markdown code blocks, explanations, or any other text.**
