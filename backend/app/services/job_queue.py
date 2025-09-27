@@ -361,6 +361,22 @@ class JobQueue:
             # Progress: Finalizing
             await self.update_job_progress(job.id, 95)
             
+            # Validate result has meaningful content
+            if not result or not result.get("response") or len(result.get("response", "").strip()) < 5:
+                logger.error("Job completed with empty or invalid response", 
+                           job_id=job.id, 
+                           result=result)
+                # Provide fallback response
+                result = {
+                    "response": "I apologize, but I'm having trouble processing your request right now. Please try again or rephrase your question.",
+                    "intent_type": "error",
+                    "tool_name": None,
+                    "execution_time": result.get("execution_time", 0) if result else 0,
+                    "success": False,
+                    "error": "Empty response generated",
+                    "workflow_metadata": result.get("workflow_metadata", {}) if result else {}
+                }
+            
             # Return the result directly instead of wrapping it
             return result
             

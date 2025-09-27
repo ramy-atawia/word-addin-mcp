@@ -92,8 +92,26 @@ class ClaimDraftingService:
                 max_tokens=4000
             )
             
+            if not response_data.get("success"):
+                logger.error(f"LLM claim drafting failed: {response_data.get('error')}")
+                return f"# Patent Claims\n\nError generating claims: {response_data.get('error')}"
+            
+            generated_text = response_data.get("text", "")
+            
+            # Enhanced validation and logging
+            logger.info(f"LLM claim drafting response generated", 
+                       response_length=len(generated_text),
+                       response_preview=generated_text[:100] if generated_text else "EMPTY")
+            
+            # Validate response is not empty
+            if not generated_text or len(generated_text.strip()) < 20:
+                logger.error("LLM generated empty or very short claim drafting response", 
+                            response=response_data,
+                            generated_text=generated_text)
+                return f"# Patent Claims\n\n**Error**: Unable to generate patent claims. The system encountered an issue processing your request. Please try rephrasing your invention description or contact support if the problem persists.\n\n**Your Invention**: {user_query}"
+            
             # Return raw response as markdown
-            return response_data.get("text", "Error: No response from LLM")
+            return generated_text
             
         except Exception as e:
             logger.error(f"Simple LLM claim drafting failed: {e}")

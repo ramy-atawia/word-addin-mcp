@@ -335,6 +335,19 @@ Format as concise markdown.
                 raise ValueError(f"Failed to summarize claims for patent {patent_id}: {response.get('error')}")
             
             summary = response["text"]
+            
+            # Enhanced validation and logging
+            logger.info(f"Patent {patent_id}: LLM claims analysis response generated", 
+                       response_length=len(summary),
+                       response_preview=summary[:100] if summary else "EMPTY")
+            
+            # Validate response is not empty
+            if not summary or len(summary.strip()) < 10:
+                logger.error(f"Patent {patent_id}: LLM generated empty or very short claims analysis", 
+                            response=response,
+                            generated_text=summary)
+                summary = f"Claims analysis for patent {patent_id} is not available. The patent data may be incomplete or the analysis failed."
+            
             logger.info(f"Patent {patent_id}: Claims analysis completed successfully (response length: {len(summary)} chars)")
             logger.debug(f"Patent {patent_id}: Claims analysis response preview: {summary[:200]}...")
             return f"**Patent {patent_id}: {patent_title}**\n{summary}\n"
@@ -492,6 +505,20 @@ Format as concise markdown.
             logger.error(f"Report generation failed: {response.get('error')}")
             raise ValueError(f"Failed to generate report: {response.get('error')}")
         
-        logger.info(f"Report generation completed successfully. Response length: {len(response['text'])} chars")
-        return response["text"]
+        generated_report = response["text"]
+        
+        # Enhanced validation and logging
+        logger.info(f"LLM report generation response generated", 
+                   response_length=len(generated_report),
+                   response_preview=generated_report[:100] if generated_report else "EMPTY")
+        
+        # Validate response is not empty
+        if not generated_report or len(generated_report.strip()) < 50:
+            logger.error("LLM generated empty or very short report", 
+                        response=response,
+                        generated_text=generated_report)
+            generated_report = f"# Prior Art Search Report\n\n**Query**: {query}\n\n**Status**: Report generation failed. Please try again or contact support if the issue persists.\n\n**Patents Found**: {len(patent_summaries)} patents were identified but detailed analysis could not be completed."
+        
+        logger.info(f"Report generation completed successfully. Response length: {len(generated_report)} chars")
+        return generated_report
     

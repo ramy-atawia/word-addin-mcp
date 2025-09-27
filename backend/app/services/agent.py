@@ -330,8 +330,15 @@ class AgentService:
                             system_message="You are a helpful AI assistant. Provide a brief, helpful response to the user's request."
                         )
                         if fallback_response.get("success"):
-                            response_text = fallback_response.get("text", "I'm here to help! How can I assist you?")
+                            generated_text = fallback_response.get("text", "")
+                            # Validate response is not empty
+                            if generated_text and len(generated_text.strip()) > 5:
+                                response_text = generated_text
+                            else:
+                                logger.warning("LLM generated empty fallback response")
+                                response_text = "I'm here to help! How can I assist you?"
                         else:
+                            logger.error(f"LLM fallback response failed: {fallback_response.get('error')}")
                             response_text = "I'm here to help! How can I assist you?"
                     else:
                         response_text = "I'm here to help! How can I assist you?"
@@ -654,10 +661,23 @@ Choose the most appropriate tool or provide a conversational response."""
                 system_message=system_prompt
             )
 
-            if isinstance(raw_llm_response, dict) and "text" in raw_llm_response:
-                llm_response_text = raw_llm_response["text"]
-            else:
-                llm_response_text = str(raw_llm_response)
+            if not raw_llm_response.get("success"):
+                logger.error(f"LLM tool selection failed: {raw_llm_response.get('error')}")
+                raise RuntimeError(f"LLM tool selection failed: {raw_llm_response.get('error')}")
+
+            llm_response_text = raw_llm_response.get("text", "")
+            
+            # Enhanced validation and logging
+            logger.info(f"LLM tool selection response generated", 
+                       response_length=len(llm_response_text),
+                       response_preview=llm_response_text[:100] if llm_response_text else "EMPTY")
+            
+            # Validate response is not empty
+            if not llm_response_text or len(llm_response_text.strip()) < 10:
+                logger.error("LLM generated empty tool selection response", 
+                            response=raw_llm_response,
+                            generated_text=llm_response_text)
+                raise RuntimeError("LLM generated empty tool selection response")
 
             # Extract JSON from response
             json_match = re.search(r'```json\s*\n(?P<json_content>.*?)\n\s*```', llm_response_text, re.DOTALL)
@@ -781,11 +801,25 @@ Provide a well-formatted markdown response that directly answers the user's ques
                 system_message=system_prompt
             )
             
-            if result.get("success") and result.get("text"):
-                return result["text"]
-            else:
+            if not result.get("success"):
                 logger.error(f"LLM formatting failed: {result.get('error', 'Unknown error')}")
                 return str(tool_output)
+            
+            generated_text = result.get("text", "")
+            
+            # Enhanced validation and logging
+            logger.info(f"LLM formatting response generated", 
+                       response_length=len(generated_text),
+                       response_preview=generated_text[:100] if generated_text else "EMPTY")
+            
+            # Validate response is not empty
+            if not generated_text or len(generated_text.strip()) < 10:
+                logger.error("LLM generated empty formatting response", 
+                            response=result,
+                            generated_text=generated_text)
+                return str(tool_output)
+            
+            return generated_text
                 
         except Exception as e:
             logger.error(f"LLM formatting error: {str(e)}")

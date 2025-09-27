@@ -762,7 +762,22 @@ For document drafting requests (like invention disclosures, reports, proposals),
     if not response.get("success"):
         raise RuntimeError(f"LLM conversation generation failed: {response.get('error', 'Unknown error')}")
     
-    return response.get("text", "")
+    generated_text = response.get("text", "")
+    
+    # Enhanced logging and validation
+    logger.info(f"LLM conversation response generated", 
+               response_length=len(generated_text),
+               response_preview=generated_text[:100] if generated_text else "EMPTY")
+    
+    # Validate response is not empty
+    if not generated_text or len(generated_text.strip()) < 5:
+        logger.error("LLM generated empty or very short response", 
+                    response=response,
+                    generated_text=generated_text)
+        # Return a fallback response instead of empty string
+        return "I apologize, but I'm having trouble generating a proper response right now. Please try rephrasing your question or ask me something else."
+    
+    return generated_text
 
 
 async def _generate_workflow_response(state: AgentState) -> str:
@@ -965,9 +980,25 @@ Create a response that the user will find immediately valuable and actionable ba
     )
     
     if not response.get("success"):
+        logger.error("LLM workflow response synthesis failed", 
+                   error=response.get('error', 'Unknown error'),
+                   prompt_length=len(prompt))
         raise RuntimeError(f"LLM response synthesis failed: {response.get('error', 'Unknown error')}")
     
     synthesized_response = response.get("text", "")
+    
+    # Enhanced logging and validation
+    logger.info(f"LLM workflow response generated", 
+               response_length=len(synthesized_response),
+               response_preview=synthesized_response[:100] if synthesized_response else "EMPTY")
+    
+    # Validate response is not empty
+    if not synthesized_response or len(synthesized_response.strip()) < 10:
+        logger.error("LLM generated empty or very short workflow response", 
+                    response=response,
+                    generated_text=synthesized_response)
+        # Return a fallback response instead of empty string
+        synthesized_response = "I apologize, but I'm having trouble generating a comprehensive response right now. Please try rephrasing your question or ask me something else."
     
     # VALIDATION: Check if the response actually uses the tool outputs
     if not _validate_synthesis_uses_research(synthesized_response, step_results, user_input):
