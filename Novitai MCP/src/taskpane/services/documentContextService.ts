@@ -42,6 +42,13 @@ export class DocumentContextService {
         }
       }
 
+      // Wait for Office.js to be ready before building context
+      const isOfficeReady = await officeIntegrationService.checkOfficeReady();
+      if (!isOfficeReady) {
+        console.warn('Office.js not ready, returning default context');
+        return this.getDefaultContext();
+      }
+
       // Build fresh context
       const [content, selectedText, metadata, stats] = await Promise.all([
         officeIntegrationService.getDocumentContent(),

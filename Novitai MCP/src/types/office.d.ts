@@ -67,8 +67,38 @@ declare namespace Office {
   }
 }
 
+declare namespace Word {
+  interface RequestContext {
+    document: Document;
+    sync(): Promise<void>;
+  }
+
+  interface Document {
+    body: Body;
+    getSelection(): Range;
+  }
+
+  interface Body {
+    text: string;
+    load(propertyNames: string): void;
+    insertText(text: string, insertLocation: string): void;
+    insertParagraph(text: string, insertLocation: string): void;
+    insertHtml(html: string, insertLocation: string): void;
+  }
+
+  interface Range {
+    text: string;
+    load(propertyNames: string): void;
+    insertText(text: string, insertLocation: string): void;
+    insertHtml(html: string, insertLocation: string): void;
+  }
+
+  function run<T>(callback: (context: RequestContext) => Promise<T>): Promise<T>;
+}
+
 declare global {
   interface Window {
     Office: typeof Office;
+    Word: typeof Word;
   }
 }

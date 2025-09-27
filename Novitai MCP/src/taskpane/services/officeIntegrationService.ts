@@ -30,9 +30,10 @@ export interface InsertionOptions {
 
 export class OfficeIntegrationService {
   private isOfficeReady: boolean = false;
+  private initializationPromise: Promise<void>;
 
   constructor() {
-    this.initializeOffice();
+    this.initializationPromise = this.initializeOffice();
   }
 
   /**
@@ -40,8 +41,10 @@ export class OfficeIntegrationService {
    */
   private async initializeOffice(): Promise<void> {
     try {
-      // Check if Office.js is available
-      if (typeof Office !== 'undefined') {
+      // Wait for Office.js to be available
+      await this.waitForOffice();
+      
+      if (typeof Office !== 'undefined' && Office.context && Office.context.document) {
         this.isOfficeReady = true;
         console.log('Office.js integration ready');
       } else {
@@ -55,9 +58,34 @@ export class OfficeIntegrationService {
   }
 
   /**
+   * Wait for Office.js to be available
+   */
+  private async waitForOffice(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
+      const maxAttempts = 50; // 5 seconds max
+      
+      const checkOffice = () => {
+        attempts++;
+        
+        if (typeof Office !== 'undefined' && Office.context) {
+          resolve();
+        } else if (attempts >= maxAttempts) {
+          reject(new Error('Office.js not available after 5 seconds'));
+        } else {
+          setTimeout(checkOffice, 100);
+        }
+      };
+      
+      checkOffice();
+    });
+  }
+
+  /**
    * Check if Office.js is ready for use
    */
   async checkOfficeReady(): Promise<boolean> {
+    await this.initializationPromise;
     return this.isOfficeReady;
   }
 
@@ -81,6 +109,8 @@ export class OfficeIntegrationService {
    * Extract full document content
    */
   async getDocumentContent(): Promise<string> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       console.warn('Office.js not available, returning empty content');
       return '';
@@ -104,6 +134,8 @@ export class OfficeIntegrationService {
    * Get currently selected text
    */
   async getSelectedText(): Promise<string> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       console.warn('Office.js not available, returning empty selection');
       return '';
@@ -127,6 +159,8 @@ export class OfficeIntegrationService {
    * Insert text at specified location
    */
   async insertText(text: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       console.warn('Office.js not available, cannot insert text');
       return;
@@ -185,6 +219,8 @@ export class OfficeIntegrationService {
    * Insert formatted markdown content at specified location
    */
   async insertFormattedMarkdown(markdown: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       console.warn('Office.js not available, cannot insert formatted content');
       return;
@@ -258,6 +294,8 @@ export class OfficeIntegrationService {
    * Insert HTML content at specified location
    */
   async insertHTML(htmlContent: string, options: InsertionOptions = { location: 'cursor' }): Promise<void> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       console.warn('Office.js not available, cannot insert HTML content');
       return;
@@ -305,6 +343,8 @@ export class OfficeIntegrationService {
    * Get document metadata and statistics
    */
   async getDocumentMetadata(): Promise<DocumentMetadata> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       return {
         title: 'Standalone Mode',
@@ -348,6 +388,8 @@ export class OfficeIntegrationService {
    * Get document statistics
    */
   async getDocumentStatistics(): Promise<DocumentStats> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       return {
         wordCount: 0,
@@ -394,6 +436,8 @@ export class OfficeIntegrationService {
    * Check if text is currently selected
    */
   async hasSelection(): Promise<boolean> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       return false;
     }
@@ -411,6 +455,8 @@ export class OfficeIntegrationService {
    * Get selection context (surrounding text)
    */
   async getSelectionContext(beforeWords: number = 10, afterWords: number = 10): Promise<string> {
+    await this.initializationPromise;
+    
     if (!this.isOfficeReady) {
       return '';
     }
