@@ -163,17 +163,22 @@ class Settings(BaseSettings):
     # Auth0 Excluded Paths (paths that don't require authentication)
     auth0_excluded_paths: List[str] = [
         "/health",
+        "/health/",
         "/",
         "/docs",
         "/redoc", 
         "/openapi.json",
         "/api/v1/health",
+        "/api/v1/health/",
         "/api/v1/health/live",
         "/api/v1/health/ready",
         "/api/v1/health/detailed",
         "/api/v1/health/debug/config",
         "/api/v1/health/metrics",
         "/api/v1/mcp/agent/chat/stream",  # Temporarily allow streaming without auth for testing
+        "/api/v1/mcp/tools",              # Allow MCP tools listing
+        "/api/v1/mcp/tools/",             # Allow MCP tools listing (with trailing slash)
+        "/api/v1/mcp/external/servers",   # Allow external servers listing
         "/api/v1/async/chat/submit",      # Allow async chat submission
         "/api/v1/async/chat/status",      # Allow async chat status checks
         "/api/v1/async/chat/result",      # Allow async chat result retrieval
