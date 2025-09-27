@@ -48,9 +48,7 @@ async def llm_health_check() -> Dict[str, Any]:
         Dict containing LLM service status and configuration
     """
     try:
-        from app.services.llm_client import LLMClient
-        
-        # Check configuration
+        # Check configuration without creating LLM client (to avoid hanging)
         config_status = {
             "api_key_configured": bool(settings.azure_openai_api_key),
             "endpoint_configured": bool(settings.azure_openai_endpoint),
@@ -61,37 +59,22 @@ async def llm_health_check() -> Dict[str, Any]:
             "max_retries": settings.azure_openai_max_retries
         }
         
-        # Test LLM client
-        llm_client = LLMClient(
-            azure_openai_api_key=settings.azure_openai_api_key,
-            azure_openai_endpoint=settings.azure_openai_endpoint,
-            azure_openai_deployment=settings.azure_openai_deployment,
-            azure_openai_api_version=settings.azure_openai_api_version
-        )
-        
-        llm_status = {
-            "client_available": llm_client.llm_available,
-            "deployment_name": llm_client.azure_deployment if llm_client.llm_available else None
-        }
-        
-        # Test simple generation if available
-        if llm_client.llm_available:
-            try:
-                test_result = llm_client.generate_text(
-                    prompt="Health check test",
-                    max_tokens=10
-                )
-                llm_status["test_successful"] = test_result.get("success", False)
-                llm_status["test_error"] = test_result.get("error") if not test_result.get("success") else None
-            except Exception as e:
-                llm_status["test_successful"] = False
-                llm_status["test_error"] = str(e)
+        # Simple configuration check without actual LLM call
+        is_configured = all([
+            settings.azure_openai_api_key,
+            settings.azure_openai_endpoint,
+            settings.azure_openai_deployment
+        ])
         
         return {
-            "status": "healthy" if llm_status["client_available"] else "unhealthy",
+            "status": "healthy" if is_configured else "unhealthy",
             "timestamp": time.time(),
             "config": config_status,
-            "llm": llm_status
+            "llm": {
+                "configured": is_configured,
+                "test_successful": None,  # Not tested to avoid hanging
+                "test_error": None
+            }
         }
         
     except Exception as e:
@@ -258,41 +241,16 @@ async def debug_config() -> Dict[str, Any]:
         Dict containing configuration values for debugging
     """
     try:
-        # Test basic settings access
-        basic_info = {
+        return {
             "timestamp": time.time(),
-            "test": "debug endpoint working"
+            "test": "debug endpoint working",
+            "environment": settings.environment,
+            "version": settings.app_version,
+            "azure_openai_configured": bool(settings.azure_openai_api_key and settings.azure_openai_endpoint),
+            "google_api_configured": bool(settings.google_search_api_key),
+            "auth0_configured": bool(getattr(settings, 'auth0_domain', None)),
+            "service": "Word Add-in MCP API"
         }
-        
-        # Test environment setting
-        try:
-            basic_info["environment"] = settings.environment
-        except Exception as e:
-            basic_info["environment_error"] = str(e)
-        
-        # Test other settings safely
-        try:
-            basic_info["google_search_api_key"] = "***" if settings.google_search_api_key else None
-        except Exception as e:
-            basic_info["google_api_error"] = str(e)
-            
-        try:
-            basic_info["google_search_engine_id"] = settings.google_search_engine_id
-        except Exception as e:
-            basic_info["google_engine_error"] = str(e)
-            
-        try:
-            basic_info["azure_openai_configured"] = bool(settings.azure_openai_api_key and settings.azure_openai_endpoint)
-        except Exception as e:
-            basic_info["azure_error"] = str(e)
-            
-        try:
-            basic_info["auth0_domain"] = getattr(settings, 'AUTH0_DOMAIN', None)
-            basic_info["auth0_audience"] = getattr(settings, 'AUTH0_AUDIENCE', None)
-        except Exception as e:
-            basic_info["auth0_error"] = str(e)
-        
-        return basic_info
         
     except Exception as e:
         return {

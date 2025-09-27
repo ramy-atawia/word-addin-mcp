@@ -1,8 +1,7 @@
 """
-MCP API endpoints for tool discovery and execution.
+MCP API endpoints for tool discovery and execution - CLEANED VERSION.
 
-This module provides REST API endpoints for MCP tools using the compliant
-MCP hub implementation.
+This module provides only the REST API endpoints actually used by the frontend.
 """
 
 import json
@@ -14,26 +13,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ...services.mcp.orchestrator import get_initialized_mcp_orchestrator
-# Removed old MCP schema imports - using official MCP types now
 from ...schemas.agent import AgentChatRequest, AgentChatResponse
 from ...services.agent import agent_service
 from ...schemas.mcp import ExternalServerRequest
 
 logger = logging.getLogger(__name__)
 
-# Authentication is now handled by Azure API Management
-
 router = APIRouter(prefix="/mcp", tags=["mcp"])
-
-@router.get("/test-auth")
-async def test_auth():
-    """Test endpoint - authentication handled by APIM"""
-    import time
-    return {
-        "message": "Endpoint accessible - authentication handled by Azure API Management",
-        "timestamp": time.time(),
-        "status": "ready"
-    }
 
 
 @router.post("/agent/chat", response_model=AgentChatResponse)
@@ -73,179 +59,59 @@ async def agent_chat(request: AgentChatRequest):
         parsed_chat_history = []
         if chat_history:
             try:
-                parsed_chat_history = json.loads(chat_history)
-                logger.debug(f"Parsed {len(parsed_chat_history)} messages from frontend chat history")
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse chat history: {str(e)}")
+                parsed_chat_history = json.loads(chat_history) if isinstance(chat_history, str) else chat_history
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse chat history, using empty list")
                 parsed_chat_history = []
         
-        # Get available tools from MCP orchestrator (backend handles this dynamically)
+        # Parse available tools from frontend
         available_tools = []
-        try:
-            mcp_orchestrator = get_initialized_mcp_orchestrator()
-            tools_data = await mcp_orchestrator.list_all_tools()
-            available_tools = tools_data.get("tools", [])
-            logger.debug(f"Retrieved {len(available_tools)} available tools")
-        except Exception as e:
-            logger.warning(f"Failed to get available tools: {str(e)}")
+        if available_tools_string:
+            try:
+                available_tools = json.loads(available_tools_string) if isinstance(available_tools_string, str) else available_tools_string
+            except json.JSONDecodeError:
+                # Fallback: split by comma if not JSON
+                available_tools = [tool.strip() for tool in available_tools_string.split(",") if tool.strip()]
         
-        # Process message through agent service with frontend chat history
-        # Use unified LangGraph for all workflows or original method
-        from app.core.config import settings
+        # Prepare context for agent service
+        agent_context = {
+            "document_content": document_content,
+            "chat_history": parsed_chat_history,
+            "available_tools": available_tools
+        }
         
-        try:
-            if settings.use_langgraph:
-                logger.debug("Using unified LangGraph for workflow processing")
-                response = await agent_service.process_user_message_unified_langgraph(
-                    user_message=request.message,
-                    document_content=document_content,
-                    available_tools=available_tools,
-                    frontend_chat_history=parsed_chat_history
-                )
-            else:
-                logger.debug("Using original agent processing method")
-                response = await agent_service.process_user_message(
-                    user_message=request.message,
-                    document_content=document_content,
-                    available_tools=available_tools,
-                    frontend_chat_history=parsed_chat_history
-                )
-        except Exception as e:
-            logger.error(f"Agent processing failed: {str(e)}")
-            # Create a fallback response
-            response = {
-                "response": f"Error processing request: {str(e)}",
-                "intent_type": "error",
-                "tool_name": None,
-                "execution_time": 0.0,
-                "success": False,
-                "error": str(e)
-            }
-
-        logger.info(f"Chat processed - intent: {response.get('intent_type')}, tool: {response.get('tool_name')}, time: {response.get('execution_time', 0):.2f}s")
-        logger.debug(f"DEBUG: Agent response type: {type(response)}")
-        logger.debug(f"DEBUG: Agent response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
-        logger.debug(f"DEBUG: Agent response['response'] type: {type(response.get('response')) if isinstance(response, dict) else 'Not accessible'}")
-        logger.debug(f"DEBUG: Agent response['response'] length: {len(response.get('response', '')) if isinstance(response, dict) and response.get('response') else 'None or empty'}")
-        
-        agent_chat_response = AgentChatResponse(**response)
-        logger.debug(f"DEBUG: AgentChatResponse created successfully")
-        
-        return agent_chat_response
-        
-    except Exception as e:
-        logger.error(f"Agent chat request failed: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Internal Server Error",
-                "message": f"Failed to process agent chat request: {str(e)}"
-            }
+        # Process through agent service
+        start_time = time.time()
+        response = await agent_service.process_message(
+            message=request.message,
+            context=agent_context
         )
-
-
-@router.post("/agent/chat/stream")
-async def agent_chat_stream(request: AgentChatRequest):
-    """
-    Stream agent responses in real-time using Server-Sent Events.
-    
-    This endpoint provides real-time updates during workflow execution:
-    - Intent detection progress
-    - Tool execution status
-    - LLM token streaming
-    - Workflow completion
-    
-    Args:
-        request: Agent chat request with message and context
+        processing_time = time.time() - start_time
         
-    Returns:
-        Server-Sent Events stream with real-time updates
-    """
-    try:
-        logger.info(f"Processing streaming chat request: '{request.message[:50]}...' ({len(request.message)} chars)")
-
-        # Extract context information (same as regular endpoint)
-        document_content = request.context.get("document_content", "")
-        chat_history = request.context.get("chat_history", "")
-        available_tools_string = request.context.get("available_tools", "")
+        logger.info(f"Agent processing completed in {processing_time:.2f}s")
         
-        # Parse chat history from frontend
-        parsed_chat_history = []
-        if chat_history:
-            try:
-                parsed_chat_history = json.loads(chat_history)
-                logger.debug(f"Parsed {len(parsed_chat_history)} messages from frontend chat history")
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse chat history: {str(e)}")
-                parsed_chat_history = []
-        
-        # Get available tools from MCP orchestrator
-        available_tools = []
-        try:
-            mcp_orchestrator = get_initialized_mcp_orchestrator()
-            tools_data = await mcp_orchestrator.list_all_tools()
-            available_tools = tools_data.get("tools", [])
-            logger.debug(f"Retrieved {len(available_tools)} available tools")
-        except Exception as e:
-            logger.warning(f"Failed to get available tools: {str(e)}")
-        
-        async def generate_stream():
-            """Generate Server-Sent Events stream."""
-            try:
-                # Use streaming agent service
-                async for event in agent_service.process_user_message_streaming(
-                    user_message=request.message,
-                    document_content=document_content,
-                    available_tools=available_tools,
-                    frontend_chat_history=parsed_chat_history
-                ):
-                    # Format as Server-Sent Event
-                    yield f"data: {json.dumps(event, default=str)}\n\n"
-                    
-            except Exception as e:
-                logger.error(f"Streaming error: {str(e)}")
-                # Send error event
-                error_event = {
-                    "event_type": "stream_error",
-                    "data": {
-                        "message": f"Streaming failed: {str(e)}",
-                        "error": str(e)
-                    },
-                    "timestamp": time.time()
-                }
-                yield f"data: {json.dumps(error_event, default=str)}\n\n"
-        
-        return StreamingResponse(
-            generate_stream(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Content-Type": "text/event-stream",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Cache-Control"
-            }
+        return AgentChatResponse(
+            response=response.get("response", ""),
+            intent_type=response.get("intent_type", "conversation"),
+            tool_name=response.get("tool_name"),
+            execution_result=response.get("execution_result"),
+            processing_time=processing_time,
+            success=response.get("success", True),
+            error=response.get("error")
         )
         
     except Exception as e:
-        logger.error(f"Agent chat stream request failed: {str(e)}")
+        logger.error(f"Agent chat processing failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
-                "error": "Internal Server Error",
-                "message": f"Failed to process agent chat stream request: {str(e)}"
+                "error": "Agent Processing Failed",
+                "message": str(e)
             }
         )
-
-
-class ToolExecutionRequest(BaseModel):
-    """Request model for tool execution."""
-    parameters: Dict[str, Any]
-    server_id: Optional[str] = None
 
 
 class ToolListResponse(BaseModel):
-    """Response model for tool listing."""
     tools: List[Dict[str, Any]]
     total_count: int
     built_in_count: int
@@ -293,16 +159,16 @@ async def list_available_tools():
 @router.get("/tools/{tool_name}")
 async def get_mcp_tool_info(tool_name: str):
     """
-    Get information about a specific MCP tool.
+    Get detailed information about a specific MCP tool.
     
     Args:
-        tool_name: Name of the tool
+        tool_name: Name of the tool to get information for
         
     Returns:
-        Tool information
+        Detailed tool information including schema and metadata
     """
     try:
-        logger.info(f"Getting MCP tool info for: {tool_name}")
+        logger.info(f"Getting tool info for: {tool_name}")
         
         mcp_orchestrator = get_initialized_mcp_orchestrator()
         tool_info = await mcp_orchestrator.get_tool_info(tool_name)
@@ -313,16 +179,12 @@ async def get_mcp_tool_info(tool_name: str):
                 detail=f"Tool '{tool_name}' not found"
             )
         
-        logger.info(f"Retrieved tool info for: {tool_name}")
-        return {
-            "status": "success",
-            "tool": tool_info
-        }
+        return tool_info
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get tool info for '{tool_name}': {str(e)}")
+        logger.error(f"Failed to get tool info for {tool_name}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -330,186 +192,72 @@ async def get_mcp_tool_info(tool_name: str):
                 "message": str(e)
             }
         )
+
+
+class ToolExecutionRequest(BaseModel):
+    parameters: Dict[str, Any]
 
 
 @router.post("/tools/{tool_name}/execute")
 async def execute_mcp_tool(tool_name: str, request: ToolExecutionRequest):
     """
-    Execute an MCP tool.
+    Execute a specific MCP tool with the provided parameters.
     
     Args:
         tool_name: Name of the tool to execute
-        request: Tool execution request
+        request: Tool execution request with parameters
         
     Returns:
         Tool execution result
     """
     try:
-        logger.info(f"Executing MCP tool '{tool_name}' with parameters: {request.parameters}")
-        
-        # Execute tool using the hub
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        result = await mcp_orchestrator.execute_tool(
-            tool_name=tool_name,
-            parameters=request.parameters
-        )
-        
-        logger.info(f"Tool '{tool_name}' executed successfully")
-        return result
-        
-    except Exception as e:
-        logger.error(f"Failed to execute tool '{tool_name}': {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Tool Execution Error",
-                "message": str(e),
-                "tool_name": tool_name
-            }
-        )
-
-
-@router.post("/proxy")
-async def mcp_proxy(request: Request):
-    """
-    Proxy MCP requests to the internal MCP server.
-    
-    This endpoint allows external MCP clients to connect to the internal
-    MCP server through the main backend, making it accessible from Azure.
-    
-    Args:
-        request: Raw MCP JSON-RPC request
-        
-    Returns:
-        MCP JSON-RPC response from internal server
-    """
-    try:
-        import aiohttp
-        
-        # Get the request body
-        body = await request.body()
-        
-        # Forward the request to the internal MCP server
-        internal_mcp_url = "http://localhost:8001/mcp"
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                internal_mcp_url,
-                data=body,
-                headers={"Content-Type": "application/json"}
-            ) as response:
-                response_data = await response.read()
-                
-                # Parse and return the response
-                if response_data:
-                    try:
-                        response_json = json.loads(response_data.decode())
-                        return JSONResponse(
-                            content=response_json,
-                            status_code=response.status
-                        )
-                    except json.JSONDecodeError:
-                        return JSONResponse(
-                            content={"error": "Invalid JSON response from internal server"},
-                            status_code=500
-                        )
-                else:
-                    return JSONResponse(
-                        content={},
-                        status_code=response.status
-                    )
-                
-    except Exception as e:
-        logger.error(f"MCP proxy error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "jsonrpc": "2.0",
-                "error": {
-                    "code": -32603,
-                    "message": "Internal error",
-                    "data": str(e)
-                }
-            }
-        )
-
-
-@router.get("/status")
-async def get_mcp_orchestrator_status():
-    """
-    Get overall MCP orchestrator status and statistics.
-    
-    Returns:
-        Orchestrator status and statistics
-    """
-    try:
-        logger.info("Getting MCP hub status")
+        logger.info(f"Executing tool: {tool_name} with parameters: {request.parameters}")
         
         mcp_orchestrator = get_initialized_mcp_orchestrator()
-        orchestrator_status = await mcp_orchestrator.get_server_health()
+        result = await mcp_orchestrator.execute_tool(tool_name, request.parameters)
         
-        logger.info(f"MCP orchestrator status: {orchestrator_status['status']}")
-        return orchestrator_status
+        logger.info(f"Tool execution completed for: {tool_name}")
         
-    except Exception as e:
-        logger.error(f"Failed to get MCP hub status: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Internal Server Error",
-                "message": str(e)
-            }
-        )
-
-
-@router.get("/health")
-async def get_health():
-    """
-    Get basic health status of the MCP service.
-    
-    Returns:
-        Health status information
-    """
-    try:
-        import time
         return {
-            "status": "healthy",
-            "service": "MCP Service",
+            "tool_name": tool_name,
+            "result": result,
+            "success": True,
             "timestamp": time.time()
         }
+        
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
+        logger.error(f"Tool execution failed for {tool_name}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
-                "error": "Health Check Error",
+                "error": "Tool Execution Failed",
                 "message": str(e)
             }
         )
+
 
 @router.get("/external/servers")
 async def get_external_servers():
     """
-    Get list of external MCP servers.
+    List all external MCP servers.
     
     Returns:
-        List of external server information
+        List of external MCP servers with their status
     """
     try:
-        logger.info("Getting external MCP servers list")
+        logger.info("Listing external MCP servers")
         
         mcp_orchestrator = get_initialized_mcp_orchestrator()
-        servers = await mcp_orchestrator.get_external_servers()
+        servers = await mcp_orchestrator.list_external_servers()
         
-        logger.info(f"Retrieved {len(servers)} external MCP servers")
         return {
-            "status": "success",
             "servers": servers,
-            "total_count": len(servers)
+            "total_count": len(servers),
+            "timestamp": time.time()
         }
         
     except Exception as e:
-        logger.error(f"Failed to get external MCP servers: {str(e)}")
+        logger.error(f"Failed to list external servers: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -517,162 +265,3 @@ async def get_external_servers():
                 "message": str(e)
             }
         )
-
-
-@router.get("/external/servers/health")
-async def get_external_servers_health():
-    """
-    Get health status of all external MCP servers.
-    
-    Returns:
-        Health status of all external servers
-    """
-    try:
-        logger.info("Getting external MCP servers health status")
-        
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        health_status = await mcp_orchestrator.get_external_server_health()
-        
-        logger.info(f"Retrieved health status for {len(health_status)} external MCP servers")
-        return {
-            "status": "success",
-            "servers": health_status,
-            "total_count": len(health_status)
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get external MCP servers health: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Internal Server Error",
-                "message": str(e)
-            }
-        )
-
-
-@router.post("/external/servers")
-async def add_external_server(request: ExternalServerRequest):
-    """
-    Add a new external MCP server.
-    
-    Args:
-        request: External server request with frontend payload structure
-        
-    Returns:
-        Server addition result
-    """
-    try:
-        logger.info(f"Adding external MCP server: {request.name}")
-        
-        # Convert frontend payload to backend expected format
-        config = request.to_backend_config()
-        logger.info(f"Converted config: {config}")
-        
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        server_id = await mcp_orchestrator.add_external_server(config)
-        
-        logger.info(f"External MCP server added successfully with ID: {server_id}")
-        return {
-            "status": "success",
-            "message": "External MCP server added successfully",
-            "server_id": server_id
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to add external MCP server: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Internal Server Error",
-                "message": f"Failed to add server: {str(e)}"
-            }
-        )
-
-
-@router.delete("/external/servers/{server_id}")
-async def remove_external_server(server_id: str):
-    """
-    Remove an external MCP server.
-    
-    Args:
-        server_id: ID of the server to remove
-        
-    Returns:
-        Removal result
-    """
-    try:
-        logger.info(f"Removing external MCP server: {server_id}")
-        
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        success = await mcp_orchestrator.remove_external_server(server_id)
-        
-        if success:
-            logger.info(f"External MCP server {server_id} removed successfully")
-            return {
-                "status": "success",
-                "message": f"External MCP server {server_id} removed successfully"
-            }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to remove external MCP server {server_id}"
-            )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to remove external MCP server {server_id}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Internal Server Error",
-                "message": str(e)
-            }
-        )
-
-
-@router.post("/external/servers/{server_id}/test-connection")
-async def test_external_server_connection(server_id: str):
-    """
-    Test connection to an external MCP server.
-    
-    Args:
-        server_id: ID of the server to test
-        
-    Returns:
-        Connection test result
-    """
-    try:
-        logger.info(f"Testing connection to external MCP server: {server_id}")
-        
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        success = await mcp_orchestrator.test_external_server_connection(server_id)
-        
-        if success:
-            logger.info(f"Connection test successful for external MCP server {server_id}")
-            return {
-                "status": "success",
-                "message": "Connection test successful",
-                "server_id": server_id,
-                "connected": True
-            }
-        else:
-            logger.warning(f"Connection test failed for external MCP server {server_id}")
-            return {
-                "status": "error",
-                "message": "Connection test failed",
-                "server_id": server_id,
-                "connected": False
-            }
-        
-    except Exception as e:
-        logger.error(f"Failed to test connection to external MCP server {server_id}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "Internal Server Error",
-                "message": str(e)
-            }
-        )
-
