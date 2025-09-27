@@ -668,9 +668,7 @@ Choose the most appropriate tool or provide a conversational response."""
             llm_response_text = raw_llm_response.get("text", "")
             
             # Enhanced validation and logging
-            logger.info(f"LLM tool selection response generated", 
-                       response_length=len(llm_response_text),
-                       response_preview=llm_response_text[:100] if llm_response_text else "EMPTY")
+            logger.info(f"LLM tool selection response generated (length: {len(llm_response_text)}, preview: {llm_response_text[:100] if llm_response_text else 'EMPTY'})")
             
             # Validate response is not empty
             if not llm_response_text or len(llm_response_text.strip()) < 10:
@@ -808,9 +806,7 @@ Provide a well-formatted markdown response that directly answers the user's ques
             generated_text = result.get("text", "")
             
             # Enhanced validation and logging
-            logger.info(f"LLM formatting response generated", 
-                       response_length=len(generated_text),
-                       response_preview=generated_text[:100] if generated_text else "EMPTY")
+            logger.info(f"LLM formatting response generated (length: {len(generated_text)}, preview: {generated_text[:100] if generated_text else 'EMPTY'})")
             
             # Validate response is not empty
             if not generated_text or len(generated_text.strip()) < 10:

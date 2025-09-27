@@ -337,9 +337,7 @@ Format as concise markdown.
             summary = response["text"]
             
             # Enhanced validation and logging
-            logger.info(f"Patent {patent_id}: LLM claims analysis response generated", 
-                       response_length=len(summary),
-                       response_preview=summary[:100] if summary else "EMPTY")
+            logger.info(f"Patent {patent_id}: LLM claims analysis response generated (length: {len(summary)}, preview: {summary[:100] if summary else 'EMPTY'})")
             
             # Validate response is not empty
             if not summary or len(summary.strip()) < 10:
@@ -508,9 +506,7 @@ Format as concise markdown.
         generated_report = response["text"]
         
         # Enhanced validation and logging
-        logger.info(f"LLM report generation response generated", 
-                   response_length=len(generated_report),
-                   response_preview=generated_report[:100] if generated_report else "EMPTY")
+        logger.info(f"LLM report generation response generated (length: {len(generated_report)}, preview: {generated_report[:100] if generated_report else 'EMPTY'})")
         
         # Validate response is not empty
         if not generated_report or len(generated_report.strip()) < 50:

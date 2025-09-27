@@ -99,9 +99,7 @@ class ClaimDraftingService:
             generated_text = response_data.get("text", "")
             
             # Enhanced validation and logging
-            logger.info(f"LLM claim drafting response generated", 
-                       response_length=len(generated_text),
-                       response_preview=generated_text[:100] if generated_text else "EMPTY")
+            logger.info(f"LLM claim drafting response generated (length: {len(generated_text)}, preview: {generated_text[:100] if generated_text else 'EMPTY'})")
             
             # Validate response is not empty
             if not generated_text or len(generated_text.strip()) < 20:

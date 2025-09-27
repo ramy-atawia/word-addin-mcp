@@ -675,8 +675,7 @@ async def generate_response_node(state: AgentState) -> AgentState:
         else:
             final_response = await _generate_workflow_response(state)
 
-        logger.info("Response generation completed", 
-                   response_length=len(final_response) if final_response else 0)
+        logger.info(f"Response generation completed (length: {len(final_response) if final_response else 0})")
 
         return {
             **state,
@@ -765,9 +764,7 @@ For document drafting requests (like invention disclosures, reports, proposals),
     generated_text = response.get("text", "")
     
     # Enhanced logging and validation
-    logger.info(f"LLM conversation response generated", 
-               response_length=len(generated_text),
-               response_preview=generated_text[:100] if generated_text else "EMPTY")
+    logger.info(f"LLM conversation response generated (length: {len(generated_text)}, preview: {generated_text[:100] if generated_text else 'EMPTY'})")
     
     # Validate response is not empty
     if not generated_text or len(generated_text.strip()) < 5:
@@ -988,9 +985,7 @@ Create a response that the user will find immediately valuable and actionable ba
     synthesized_response = response.get("text", "")
     
     # Enhanced logging and validation
-    logger.info(f"LLM workflow response generated", 
-               response_length=len(synthesized_response),
-               response_preview=synthesized_response[:100] if synthesized_response else "EMPTY")
+    logger.info(f"LLM workflow response generated (length: {len(synthesized_response)}, preview: {synthesized_response[:100] if synthesized_response else 'EMPTY'})")
     
     # Validate response is not empty
     if not synthesized_response or len(synthesized_response.strip()) < 10:
