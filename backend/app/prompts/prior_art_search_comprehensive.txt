@@ -47,8 +47,6 @@ For each patent, provide:
 #### Patent 1: [Title]
 - **Patent ID**: [id]
 - **Publication Date**: [date]
-- **Assignee**: [assignee]
-- **Inventors**: [inventor names]
 - **Abstract**: [full abstract]
 
 **Innovation Summary**: [Comprehensive 4-5 sentence summary including: key technical features, novel aspects, how it relates to the search query, patent scope and limitations, and technical implementation details]
