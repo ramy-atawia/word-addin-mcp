@@ -125,9 +125,10 @@ async def detailed_health_check() -> Dict[str, Any]:
     try:
         # Get actual MCP orchestrator health status with timeout
         import asyncio
-        from app.services.mcp.orchestrator import mcp_orchestrator
+        from app.services.mcp.orchestrator import get_initialized_mcp_orchestrator
         
         # Use asyncio.wait_for to prevent hanging
+        mcp_orchestrator = get_initialized_mcp_orchestrator()
         mcp_health = await asyncio.wait_for(
             mcp_orchestrator.get_server_health(),
             timeout=5.0  # 5 second timeout
@@ -157,6 +158,21 @@ async def detailed_health_check() -> Dict[str, Any]:
             "details": "MCP server health check took longer than 5 seconds"
         }
         health_status["status"] = "degraded"
+    except RuntimeError as e:
+        if "not yet initialized" in str(e):
+            health_status["dependencies"]["mcp_server"] = {
+                "status": "initializing",
+                "error": "MCP orchestrator not yet initialized",
+                "details": "MCP server is still initializing"
+            }
+            health_status["status"] = "degraded"
+        else:
+            health_status["dependencies"]["mcp_server"] = {
+                "status": "unhealthy",
+                "error": str(e),
+                "details": "MCP server connection failed"
+            }
+            health_status["status"] = "degraded"
     except Exception as e:
         health_status["dependencies"]["mcp_server"] = {
             "status": "unhealthy",

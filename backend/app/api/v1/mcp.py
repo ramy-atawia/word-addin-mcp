@@ -19,10 +19,10 @@ from ...schemas.mcp import ExternalServerRequest
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/mcp", tags=["mcp"])
+router = APIRouter(tags=["mcp"])
 
 
-@router.post("/agent/chat", response_model=AgentChatResponse)
+@router.post("/mcp/agent/chat", response_model=AgentChatResponse)
 async def agent_chat(request: AgentChatRequest):
     """
     Process user message through the intelligent agent.
@@ -119,7 +119,7 @@ class ToolListResponse(BaseModel):
     timestamp: float
 
 
-@router.get("/tools", response_model=ToolListResponse)
+@router.get("/mcp/tools", response_model=ToolListResponse)
 async def list_available_tools():
     """
     List all available MCP tools from both built-in and external servers.
@@ -130,8 +130,20 @@ async def list_available_tools():
     try:
         logger.info("Listing all available MCP tools")
         
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        tools_data = await mcp_orchestrator.list_all_tools()
+        try:
+            mcp_orchestrator = get_initialized_mcp_orchestrator()
+            tools_data = await mcp_orchestrator.list_all_tools()
+        except RuntimeError as e:
+            if "not yet initialized" in str(e):
+                logger.warning("MCP Orchestrator not initialized, returning empty tools list")
+                return ToolListResponse(
+                    tools=[],
+                    total_count=0,
+                    built_in_count=0,
+                    external_count=0,
+                    timestamp=time.time()
+                )
+            raise
         
         logger.info(f"Retrieved {tools_data['total_count']} total tools "
                    f"(built-in: {tools_data['built_in_count']}, "
@@ -156,7 +168,7 @@ async def list_available_tools():
         )
 
 
-@router.get("/tools/{tool_name}")
+@router.get("/mcp/tools/{tool_name}")
 async def get_mcp_tool_info(tool_name: str):
     """
     Get detailed information about a specific MCP tool.
@@ -170,8 +182,16 @@ async def get_mcp_tool_info(tool_name: str):
     try:
         logger.info(f"Getting tool info for: {tool_name}")
         
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        tool_info = await mcp_orchestrator.get_tool_info(tool_name)
+        try:
+            mcp_orchestrator = get_initialized_mcp_orchestrator()
+            tool_info = await mcp_orchestrator.get_tool_info(tool_name)
+        except RuntimeError as e:
+            if "not yet initialized" in str(e):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="MCP service not yet initialized"
+                )
+            raise
         
         if not tool_info:
             raise HTTPException(
@@ -198,7 +218,7 @@ class ToolExecutionRequest(BaseModel):
     parameters: Dict[str, Any]
 
 
-@router.post("/tools/{tool_name}/execute")
+@router.post("/mcp/tools/{tool_name}/execute")
 async def execute_mcp_tool(tool_name: str, request: ToolExecutionRequest):
     """
     Execute a specific MCP tool with the provided parameters.
@@ -213,8 +233,16 @@ async def execute_mcp_tool(tool_name: str, request: ToolExecutionRequest):
     try:
         logger.info(f"Executing tool: {tool_name} with parameters: {request.parameters}")
         
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        result = await mcp_orchestrator.execute_tool(tool_name, request.parameters)
+        try:
+            mcp_orchestrator = get_initialized_mcp_orchestrator()
+            result = await mcp_orchestrator.execute_tool(tool_name, request.parameters)
+        except RuntimeError as e:
+            if "not yet initialized" in str(e):
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="MCP service not yet initialized"
+                )
+            raise
         
         logger.info(f"Tool execution completed for: {tool_name}")
         
@@ -236,7 +264,7 @@ async def execute_mcp_tool(tool_name: str, request: ToolExecutionRequest):
         )
 
 
-@router.get("/external/servers")
+@router.get("/mcp/external/servers")
 async def get_external_servers():
     """
     List all external MCP servers.
@@ -247,8 +275,18 @@ async def get_external_servers():
     try:
         logger.info("Listing external MCP servers")
         
-        mcp_orchestrator = get_initialized_mcp_orchestrator()
-        servers = await mcp_orchestrator.list_external_servers()
+        try:
+            mcp_orchestrator = get_initialized_mcp_orchestrator()
+            servers = await mcp_orchestrator.list_external_servers()
+        except RuntimeError as e:
+            if "not yet initialized" in str(e):
+                logger.warning("MCP Orchestrator not initialized, returning empty servers list")
+                return {
+                    "servers": [],
+                    "total_count": 0,
+                    "timestamp": time.time()
+                }
+            raise
         
         return {
             "servers": servers,
