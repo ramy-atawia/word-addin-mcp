@@ -311,7 +311,7 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     
     response = await llm_client.generate_text(
         prompt=prompt,
-        max_tokens=4000
+        max_tokens=16000
     )
     
     if not response.get("success"):
@@ -755,7 +755,7 @@ For document drafting requests (like invention disclosures, reports, proposals),
     
     response = await llm_client.generate_text(
         prompt=prompt,
-        max_tokens=2000
+        max_tokens=16000
     )
     
     if not response.get("success"):
@@ -1004,7 +1004,7 @@ Create a response that the user will find immediately valuable and actionable ba
 
     response = await llm_client.generate_text(
         prompt=prompt,
-        max_tokens=32000  # Increased limit for comprehensive analysis
+        max_tokens=16000  # Standardized limit for comprehensive analysis
     )
     
     if not response.get("success"):

@@ -343,9 +343,9 @@ class LLMClient:
                 prompt += f"\n\nPlease keep the summary under {max_length} words."
             
             # Generate summary
-            result = self.generate_text(
+            result = await self.generate_text(
                 prompt=prompt,
-                max_tokens=2000,
+                max_tokens=16000,
                 system_message="You are an expert at summarizing text. Provide clear, accurate summaries."
             )
             
@@ -390,9 +390,9 @@ class LLMClient:
             Keywords:
             """
             
-            result = self.generate_text(
+            result = await self.generate_text(
                 prompt=prompt,
-                max_tokens=1000,
+                max_tokens=16000,
                 system_message="You are an expert at keyword extraction. Return only the keywords, separated by commas."
             )
             
@@ -445,9 +445,9 @@ class LLMClient:
             Confidence: [confidence level]
             """
             
-            result = self.generate_text(
+            result = await self.generate_text(
                 prompt=prompt,
-                max_tokens=1000,
+                max_tokens=16000,
                 system_message="You are an expert at sentiment analysis. Provide structured, accurate analysis."
             )
             
@@ -495,9 +495,9 @@ class LLMClient:
             Suggestions: [improvement suggestions]
             """
             
-            result = self.generate_text(
+            result = await self.generate_text(
                 prompt=prompt,
-                max_tokens=1000,
+                max_tokens=16000,
                 system_message="You are an expert at readability analysis. Provide structured, accurate analysis."
             )
             
@@ -566,9 +566,9 @@ class LLMClient:
                 Text 2: {text2[:1000]}...
                 """
             
-            result = self.generate_text(
+            result = await self.generate_text(
                 prompt=prompt,
-                max_tokens=2000,
+                max_tokens=16000,
                 system_message="You are an expert at text comparison. Provide structured, accurate analysis."
             )
             
@@ -608,9 +608,9 @@ class LLMClient:
             else:
                 prompt = f"Translate the following text to {target_language}:\n\n{text}"
             
-            result = self.generate_text(
+            result = await self.generate_text(
                 prompt=prompt,
-                max_tokens=len(text) * 2,  # Allow for longer translations
+                max_tokens=16000,  # Standardized limit for translations
                 system_message=f"You are an expert translator. Provide accurate translation to {target_language}."
             )
             

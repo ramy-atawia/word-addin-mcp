@@ -89,7 +89,7 @@ class ClaimDraftingService:
             response_data = await self.llm_client.generate_text(
                 prompt=formatted_user_prompt,
                 system_message=system_prompt,
-                max_tokens=4000
+                max_tokens=16000
             )
             
             if not response_data.get("success"):

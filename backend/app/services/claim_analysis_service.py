@@ -132,7 +132,7 @@ Return a JSON response with these fields:
             
             response_data = await self.llm_client.generate_text(
                 prompt=prompt,
-                max_tokens=800
+                max_tokens=16000
             )
             response = response_data.get("text", "")
             
@@ -176,7 +176,7 @@ Return a JSON response with these fields:
             response_data = await self.llm_client.generate_text(
                 prompt=user_prompt,
                 system_message=system_prompt,
-                max_tokens=4000
+                max_tokens=16000
             )
             
             # Parse response
