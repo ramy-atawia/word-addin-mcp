@@ -162,7 +162,7 @@ class Settings(BaseSettings):
     
     # Auth0 Excluded Paths (paths that don't require authentication)
     auth0_excluded_paths: List[str] = [
-        "/health",
+        "/health",                    # Root health endpoint for deployment probes
         "/health/",
         "/",
         "/docs",
