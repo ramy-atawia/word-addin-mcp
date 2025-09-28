@@ -324,7 +324,7 @@ class AgentService:
                 try:
                     llm_client = self._get_llm_client()
                     if llm_client and llm_client.llm_available:
-                        fallback_response = llm_client.generate_text(
+                        fallback_response = await llm_client.generate_text(
                             prompt=f"User asked: {user_message}\n\nPlease provide a helpful response.",
                             max_tokens=2000,
                             system_message="You are a helpful AI assistant. Provide a brief, helpful response to the user's request."
@@ -657,7 +657,7 @@ User said: "{user_input}"
 Choose the most appropriate tool or provide a conversational response."""
 
         try:
-            raw_llm_response = llm_client.generate_text(
+            raw_llm_response = await llm_client.generate_text(
                 prompt=user_prompt,
                 max_tokens=4000,
                 system_message=system_prompt
@@ -791,7 +791,7 @@ Provide a well-formatted markdown response that directly answers the user's ques
 
         try:
             # Get formatted response from LLM
-            result = llm_client.generate_text(
+            result = await llm_client.generate_text(
                 prompt=user_prompt,
                 max_tokens=32000,  # Increased limit for comprehensive analysis
                 system_message=system_prompt

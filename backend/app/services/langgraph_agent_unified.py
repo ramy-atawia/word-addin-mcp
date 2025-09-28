@@ -309,7 +309,7 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     
     prompt = "\n".join(prompt_parts)
     
-    response = llm_client.generate_text(
+    response = await llm_client.generate_text(
         prompt=prompt,
         max_tokens=4000
     )
@@ -753,7 +753,7 @@ Provide helpful, natural responses. Be concise but complete. Use context appropr
 
 For document drafting requests (like invention disclosures, reports, proposals), offer structured guidance and suggest using available tools for research and content generation when appropriate."""
     
-    response = llm_client.generate_text(
+    response = await llm_client.generate_text(
         prompt=prompt,
         max_tokens=2000
     )
@@ -1002,7 +1002,7 @@ Structure your response with clear sections and professional formatting. Use mar
 
 Create a response that the user will find immediately valuable and actionable based on the real research performed."""
 
-    response = llm_client.generate_text(
+    response = await llm_client.generate_text(
         prompt=prompt,
         max_tokens=32000  # Increased limit for comprehensive analysis
     )
