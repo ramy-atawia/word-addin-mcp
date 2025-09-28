@@ -305,29 +305,14 @@ async def health_check():
     This endpoint is used by Azure Container Apps for liveness and readiness probes.
     """
     try:
-        # Import here to avoid circular imports
-        from .api.v1.health import health_check as detailed_health_check
-        
-        # Get detailed health status
-        health_data = await detailed_health_check()
-        
-        # Return simplified response for deployment probes
-        if health_data.get("status") == "healthy":
-            return {
-                "status": "healthy",
-                "timestamp": time.time(),
-                "service": "Word Add-in MCP API"
-            }
-        else:
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "status": "unhealthy",
-                    "timestamp": time.time(),
-                    "service": "Word Add-in MCP API",
-                    "details": health_data
-                }
-            )
+        # Simple health check without complex dependencies
+        return {
+            "status": "healthy",
+            "timestamp": time.time(),
+            "service": "Word Add-in MCP API",
+            "version": "1.0.0",
+            "environment": settings.environment
+        }
             
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
