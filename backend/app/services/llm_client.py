@@ -66,7 +66,7 @@ class LLMClient:
             self.llm_available = False
             logger.warning("Azure OpenAI not configured - LLM features disabled")
     
-    def generate_text_stream(self, prompt: str, max_tokens: int = 1000, 
+    def generate_text_stream(self, prompt: str, max_tokens: int = 2000, 
                            system_message: Optional[str] = None, 
                            max_retries: int = 3):
         """
@@ -95,11 +95,13 @@ class LLMClient:
             last_error = None
             for attempt in range(max_retries):
                 try:
-                    # GPT-5-nano only supports default temperature
+                    # GPT-5-nano chat mode parameters
                     api_params = {
                         "model": self.azure_deployment,
                         "messages": messages,
                         "max_completion_tokens": max_tokens,
+                        "temperature": 0.7,  # Add temperature for better responses
+                        "top_p": 0.9,  # Add top_p for response diversity
                         "stream": True
                     }
                     
@@ -159,7 +161,7 @@ class LLMClient:
             logger.error(f"LLM streaming error: {str(e)}")
             yield self._create_error_result(f"LLM streaming error: {str(e)}")
 
-    def generate_text(self, prompt: str, max_tokens: int = 1000, 
+    def generate_text(self, prompt: str, max_tokens: int = 2000, 
                      system_message: Optional[str] = None, 
                      max_retries: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -196,7 +198,9 @@ class LLMClient:
                     api_params = {
                         "model": self.azure_openai_deployment,
                         "messages": messages,
-                        "max_completion_tokens": max_tokens
+                        "max_completion_tokens": max_tokens,
+                        "temperature": 0.7,  # Add temperature for better responses
+                        "top_p": 0.9  # Add top_p for response diversity
                     }
 
                     # Log token limits for debugging
@@ -247,8 +251,34 @@ class LLMClient:
             logger.info(f"First choice message content type: {type(response.choices[0].message.content)}")
             logger.info(f"First choice message content: {response.choices[0].message.content}")
             
-            # Extract response
-            generated_text = response.choices[0].message.content
+            # Validate response before extraction
+            if not response.choices:
+                logger.warning("No choices in LLM response")
+                return {
+                    "success": False,
+                    "error": "No response choices from LLM",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            if not response.choices[0].message.content:
+                logger.warning("Empty content in LLM response")
+                return {
+                    "success": False,
+                    "error": "Empty response content from LLM",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Extract response with validation
+            generated_text = response.choices[0].message.content.strip()
+            
+            # Additional validation for very short responses
+            if len(generated_text) < 10:
+                logger.warning(f"Very short response from LLM: '{generated_text}'")
+                return {
+                    "success": False,
+                    "error": f"Response too short: '{generated_text}'",
+                    "timestamp": datetime.now().isoformat()
+                }
             usage = response.usage
             
             # Track LLM call with Langfuse (minimal integration)
