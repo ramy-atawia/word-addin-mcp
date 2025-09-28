@@ -12,6 +12,7 @@ from datetime import datetime
 import openai
 from openai import AzureOpenAI
 import json
+from langfuse import Langfuse
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,9 @@ class LLMClient:
         self.azure_openai_deployment = azure_openai_deployment
         self.azure_openai_api_version = azure_openai_api_version
         self.model_name = model_name
+        
+        # Initialize Langfuse for LLM call tracking
+        self.langfuse = Langfuse() if os.getenv("LANGFUSE_PUBLIC_KEY") else None
         
         # Initialize Azure OpenAI client
         if azure_openai_api_key and azure_openai_endpoint:
@@ -125,6 +129,21 @@ class LLMClient:
                             "is_streaming": True,
                             "timestamp": datetime.now().isoformat()
                         }
+            
+            # Track streaming LLM call with Langfuse (minimal integration)
+            if self.langfuse:
+                try:
+                    generation = self.langfuse.start_generation(
+                        name="llm_stream_generation",
+                        input={"prompt": prompt, "system_message": system_message},
+                        metadata={"model": self.azure_openai_deployment, "max_tokens": max_tokens, "streaming": True}
+                    )
+                    generation.update(
+                        output={"text": full_content}
+                    )
+                    generation.end()
+                except Exception as e:
+                    logger.warning(f"Langfuse streaming tracking failed: {e}")
             
             # Send final completion event
             yield {
@@ -231,6 +250,25 @@ class LLMClient:
             # Extract response
             generated_text = response.choices[0].message.content
             usage = response.usage
+            
+            # Track LLM call with Langfuse (minimal integration)
+            if self.langfuse:
+                try:
+                    logger.info("Starting Langfuse tracking for LLM call")
+                    generation = self.langfuse.start_generation(
+                        name="llm_generation",
+                        input={"prompt": prompt, "system_message": system_message},
+                        metadata={"model": self.azure_openai_deployment, "max_tokens": max_tokens}
+                    )
+                    generation.update(
+                        output={"text": generated_text, "usage": usage.__dict__}
+                    )
+                    generation.end()
+                    logger.info("Langfuse tracking completed successfully")
+                except Exception as e:
+                    logger.warning(f"Langfuse tracking failed: {e}")
+            else:
+                logger.warning("Langfuse client not initialized - tracking disabled")
             
             return {
                 "success": True,

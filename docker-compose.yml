@@ -62,6 +62,11 @@ services:
       - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
       - PATENTSVIEW_API_KEY=${PATENTSVIEW_API_KEY}
       
+      # Langfuse Configuration
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      
       # LangGraph Configuration
       - USE_LANGGRAPH=${USE_LANGGRAPH:-true}
     ports:
