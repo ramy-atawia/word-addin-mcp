@@ -164,6 +164,12 @@ class Settings(BaseSettings):
     auth0_excluded_paths: List[str] = [
         "/health",                    # Root health endpoint for deployment probes
         "/health/",
+        "/health/llm",                # LLM health check
+        "/health/detailed",           # Detailed health check
+        "/health/ready",              # Readiness check
+        "/health/live",               # Liveness check
+        "/health/debug",              # Debug config
+        "/health/metrics",            # Metrics
         "/",
         "/docs",
         "/redoc", 

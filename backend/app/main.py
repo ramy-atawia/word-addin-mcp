@@ -258,15 +258,14 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 
-# Register root-level health endpoint first (for deployment probes)
+# Register root-level health endpoints (for deployment probes and direct access)
 @app.get("/health")
 async def health_check():
     """
-    Health check endpoint for deployment probes.
+    Basic health check endpoint for deployment probes.
     This endpoint is used by Azure Container Apps for liveness and readiness probes.
     """
     try:
-        # Simple health check without complex dependencies
         return {
             "status": "healthy",
             "timestamp": time.time(),
@@ -274,9 +273,140 @@ async def health_check():
             "version": "1.0.0",
             "environment": settings.environment
         }
-            
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "Word Add-in MCP API",
+                "error": str(e)
+            }
+        )
+
+
+@app.get("/health/llm")
+async def llm_health_check():
+    """
+    LLM health check endpoint for debugging.
+    """
+    try:
+        # Import here to avoid circular imports
+        from .api.v1.health import llm_health_check as detailed_llm_check
+        return await detailed_llm_check()
+    except Exception as e:
+        logger.error(f"LLM health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "Word Add-in MCP API",
+                "error": str(e)
+            }
+        )
+
+
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """
+    Detailed health check endpoint.
+    """
+    try:
+        # Import here to avoid circular imports
+        from .api.v1.health import detailed_health_check as detailed_check
+        return await detailed_check()
+    except Exception as e:
+        logger.error(f"Detailed health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "Word Add-in MCP API",
+                "error": str(e)
+            }
+        )
+
+
+@app.get("/health/ready")
+async def readiness_check():
+    """
+    Readiness check endpoint.
+    """
+    try:
+        # Import here to avoid circular imports
+        from .api.v1.health import readiness_check as detailed_readiness
+        return await detailed_readiness()
+    except Exception as e:
+        logger.error(f"Readiness check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "Word Add-in MCP API",
+                "error": str(e)
+            }
+        )
+
+
+@app.get("/health/live")
+async def liveness_check():
+    """
+    Liveness check endpoint.
+    """
+    try:
+        # Import here to avoid circular imports
+        from .api.v1.health import liveness_check as detailed_liveness
+        return await detailed_liveness()
+    except Exception as e:
+        logger.error(f"Liveness check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "Word Add-in MCP API",
+                "error": str(e)
+            }
+        )
+
+
+@app.get("/health/debug")
+async def debug_config():
+    """
+    Debug configuration endpoint.
+    """
+    try:
+        # Import here to avoid circular imports
+        from .api.v1.health import debug_config as detailed_debug
+        return await detailed_debug()
+    except Exception as e:
+        logger.error(f"Debug config failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "Word Add-in MCP API",
+                "error": str(e)
+            }
+        )
+
+
+@app.get("/health/metrics")
+async def metrics():
+    """
+    Metrics endpoint.
+    """
+    try:
+        # Import here to avoid circular imports
+        from .api.v1.health import metrics as detailed_metrics
+        return await detailed_metrics()
+    except Exception as e:
+        logger.error(f"Metrics failed: {str(e)}")
         return JSONResponse(
             status_code=503,
             content={
