@@ -66,7 +66,7 @@ class LLMClient:
             self.llm_available = False
             logger.warning("Azure OpenAI not configured - LLM features disabled")
     
-    def generate_text_stream(self, prompt: str, max_tokens: int = 4000, 
+    def generate_text_stream(self, prompt: str, max_tokens: int = 16000, 
                            system_message: Optional[str] = None, 
                            max_retries: int = 3):
         """
@@ -159,7 +159,7 @@ class LLMClient:
             logger.error(f"LLM streaming error: {str(e)}")
             yield self._create_error_result(f"LLM streaming error: {str(e)}")
 
-    def generate_text(self, prompt: str, max_tokens: int = 4000, 
+    def generate_text(self, prompt: str, max_tokens: int = 16000, 
                      system_message: Optional[str] = None, 
                      max_retries: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -346,7 +346,7 @@ class LLMClient:
             # Generate summary
             result = self.generate_text(
                 prompt=prompt,
-                max_tokens=1000,
+                max_tokens=2000,
                 system_message="You are an expert at summarizing text. Provide clear, accurate summaries."
             )
             
@@ -393,7 +393,7 @@ class LLMClient:
             
             result = self.generate_text(
                 prompt=prompt,
-                max_tokens=500,
+                max_tokens=1000,
                 system_message="You are an expert at keyword extraction. Return only the keywords, separated by commas."
             )
             
@@ -448,7 +448,7 @@ class LLMClient:
             
             result = self.generate_text(
                 prompt=prompt,
-                max_tokens=500,
+                max_tokens=1000,
                 system_message="You are an expert at sentiment analysis. Provide structured, accurate analysis."
             )
             
@@ -498,7 +498,7 @@ class LLMClient:
             
             result = self.generate_text(
                 prompt=prompt,
-                max_tokens=500,
+                max_tokens=1000,
                 system_message="You are an expert at readability analysis. Provide structured, accurate analysis."
             )
             
@@ -569,7 +569,7 @@ class LLMClient:
             
             result = self.generate_text(
                 prompt=prompt,
-                max_tokens=1000,
+                max_tokens=2000,
                 system_message="You are an expert at text comparison. Provide structured, accurate analysis."
             )
             
