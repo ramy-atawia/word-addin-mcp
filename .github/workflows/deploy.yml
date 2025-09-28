@@ -261,6 +261,9 @@ jobs:
           AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
           AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
           AZURE_OPENAI_DEPLOYMENT=gpt-5-nano \
+          LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }} \
+          LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }} \
+          LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }} \
           AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-nano \
           AZURE_OPENAI_API_VERSION=2024-02-15-preview \
           AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
@@ -621,6 +624,9 @@ jobs:
           AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} \
           AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} \
           AZURE_OPENAI_DEPLOYMENT=gpt-5-nano \
+          LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }} \
+          LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }} \
+          LANGFUSE_HOST=${{ secrets.LANGFUSE_HOST }} \
           AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5-nano \
           AZURE_OPENAI_API_VERSION=2024-02-15-preview \
           AUTH0_DOMAIN=dev-bktskx5kbc655wcl.us.auth0.com \
