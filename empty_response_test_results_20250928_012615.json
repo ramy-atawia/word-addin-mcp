@@ -1,0 +1,583 @@
+{
+  "test_summary": {
+    "total_tests": 60,
+    "successful_responses": 30,
+    "empty_responses": 30,
+    "errors": 0,
+    "empty_response_rate": 50.0,
+    "success_rate": 50.0,
+    "timestamp": "2025-09-28T01:26:15.541882"
+  },
+  "detailed_results": [
+    {
+      "test_number": 1,
+      "input": "Hello",
+      "status": "completed",
+      "error": null,
+      "response": "Hello! Nice to meet you. How can I help today? I can assist with drafting documents (reports, proposals, invention disclosures), do research, brainstorm ideas, help with code, or answer questions. Tell me what you\u2019re working on and any constraints or preferences, and we\u2019ll take it from there. What would you like to start with?",
+      "is_empty": false,
+      "response_length": 328,
+      "execution_time": 5.305650472640991
+    },
+    {
+      "test_number": 2,
+      "input": "Hi there",
+      "status": "completed",
+      "error": null,
+      "response": "Hi there! How can I help today? I can:\n\n- Answer questions or explain concepts\n- Draft or edit documents (emails, reports, proposals, resumes)\n- Brainstorm ideas or outline a plan\n- Summarize articles or research\n- Help with research or data gathering\n\nIf you have a specific project, tell me the goal, audience, and any constraints (tone, length, deadline), and I\u2019ll tailor it.",
+      "is_empty": false,
+      "response_length": 378,
+      "execution_time": 4.322697639465332
+    },
+    {
+      "test_number": 3,
+      "input": "Good morning",
+      "status": "completed",
+      "error": null,
+      "response": "Good morning! How\u2019s your day going? What would you like help with today\u2014quick answers, planning, drafting a document, brainstorming ideas, or just a chat? If you need a document drafted, I can help with outlines, sections, and wording.",
+      "is_empty": false,
+      "response_length": 235,
+      "execution_time": 3.358100652694702
+    },
+    {
+      "test_number": 4,
+      "input": "Good evening",
+      "status": "completed",
+      "error": null,
+      "response": "Good evening! How can I help you today? If you\u2019re looking to draft something (like a report, proposal, or email), tell me the purpose, audience, and key points, and I\u2019ll outline or draft it. Or we can chat about something else you have in mind.",
+      "is_empty": false,
+      "response_length": 244,
+      "execution_time": 6.589328050613403
+    },
+    {
+      "test_number": 5,
+      "input": "Hey",
+      "status": "completed",
+      "error": null,
+      "response": "Hey there! How can I help today? We can chat about anything you\u2019re curious about, brainstorm ideas, or I can help draft a document (report, proposal, email, etc.). If you have a project in mind, tell me the goal and any constraints and we\u2019ll get started.",
+      "is_empty": false,
+      "response_length": 254,
+      "execution_time": 3.179445505142212
+    },
+    {
+      "test_number": 6,
+      "input": "web search ramy atawia",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 7,
+      "input": "prior art search 5g",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 8,
+      "input": "patent search AI",
+      "status": "timeout",
+      "error": "Request timed out",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 9,
+      "input": "Draft 3 system claims",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 10,
+      "input": "patent analysis machine learning",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 11,
+      "input": "web search mohamed salah",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 12,
+      "input": "prior art search blockchain",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 13,
+      "input": "patent search quantum computing",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 14,
+      "input": "Draft 5 method claims",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 15,
+      "input": "What is artificial intelligence?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 16,
+      "input": "Explain machine learning",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 17,
+      "input": "How does blockchain work?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 18,
+      "input": "What is quantum computing?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 19,
+      "input": "Explain neural networks",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 20,
+      "input": "What is deep learning?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 21,
+      "input": "How does 5G work?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 22,
+      "input": "What is cloud computing?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 23,
+      "input": "Create a technical report",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 24,
+      "input": "Write a summary",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 25,
+      "input": "Generate documentation",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 26,
+      "input": "Draft a proposal",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 27,
+      "input": "Create a presentation",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 28,
+      "input": "Write an analysis",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM\n\nWorkflow errors: Intent detection failed: LLM intent detection failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 200,
+      "execution_time": 10.222746849060059
+    },
+    {
+      "test_number": 29,
+      "input": "Generate a report",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 5.931320428848267
+    },
+    {
+      "test_number": 30,
+      "input": "Create a document",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 7.3803791999816895
+    },
+    {
+      "test_number": 31,
+      "input": "Write a brief",
+      "status": "completed",
+      "error": null,
+      "response": "Happy to help. Could you tell me more about the brief you need?\n\nPlease share:\n- Topic or subject\n- Audience (who will read it)\n- Purpose (inform, persuade, request action)\n- Length/format (pages or word count)\n- Tone (formal, neutral, concise, etc.)\n- Any key points, data, or deadlines\n\nIf you\u2019re unsure, I can draft a generic one-page options:\n\n1) Executive Brief (1 page)\n- Title\n- Objective\n- Context/Background\n- Key Findings\n- Recommendations\n- Next Steps\n\n2) Briefing Note (1 page)\n- Issue\n- Background\n- Analysis/Options\n- Recommendation\n- Risks\n- Action Items\n\nTell me which you prefer and the topic, and I\u2019ll draft it.",
+      "is_empty": false,
+      "response_length": 629,
+      "execution_time": 7.573647737503052
+    },
+    {
+      "test_number": 32,
+      "input": "?",
+      "status": "completed",
+      "error": null,
+      "response": "Hi there! How can I help today?\n\nIf you\u2019re looking to draft something, tell me:\n- What type of document (e.g., invention disclosure, report, proposal, email, memo)\n- Purpose and intended audience\n- Key topics or requirements to cover\n- Desired length or deadline\n- Any sources or references you want included\n\nIf you\u2019re not sure, I can start with a generic outline or a ready-to-use template. For example:\n- Invention disclosure: title, field, problem, summary of invention, embodiments, advantages, drawings, prior art, inventors, assignee.\n- Report: executive summary, background, methods, results, discussion, conclusion, references.\n- Proposal: problem, objectives, approach, milestones, budget, risk, team.\n\nTell me which direction you\u2019d like, and I\u2019ll tailor it.",
+      "is_empty": false,
+      "response_length": 768,
+      "execution_time": 5.935336589813232
+    },
+    {
+      "test_number": 33,
+      "input": "!",
+      "status": "completed",
+      "error": null,
+      "response": "Nice to hear from you! How can I help today?\n\nIf you\u2019re working on a document, tell me:\n- Type (report, proposal, email, patent disclosure, etc.)\n- Purpose and audience\n- Key points or data to include\n- Desired length and tone\n- Any deadlines\n\nI can provide an outline, a draft, or a polished version, plus a step-by-step drafting checklist. For example, a quick drafting workflow:\n1) Define objective and audience\n2) Gather key points and sources\n3) Create an outline\n4) Draft sections\n5) Revise for clarity and tone\n6) Finalize formatting and references\n\nWhat would you like to start with?",
+      "is_empty": false,
+      "response_length": 591,
+      "execution_time": 5.1189124584198
+    },
+    {
+      "test_number": 34,
+      "input": "...",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 6.355300188064575
+    },
+    {
+      "test_number": 35,
+      "input": "ok",
+      "status": "completed",
+      "error": null,
+      "response": "Nice. What would you like to do next? If you\u2019re working on a document, tell me:\n\n- type (e.g., invention disclosure, report, proposal, email)\n- purpose and audience\n- key points or data to include\n- desired length and tone\n- any deadline\n\nI can draft an outline, a full draft, or help with editing and polishing. If you\u2019d rather, I can also gather sources or generate research notes to kick things off.",
+      "is_empty": false,
+      "response_length": 402,
+      "execution_time": 4.914162635803223
+    },
+    {
+      "test_number": 36,
+      "input": "yes",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 5.602654457092285
+    },
+    {
+      "test_number": 37,
+      "input": "no",
+      "status": "completed",
+      "error": null,
+      "response": "Thanks for the update. What would you like help with? If you\u2019re not sure, here are quick options:\n\n- Draft or edit a document (e.g., invention disclosure, report, proposal): share topic, audience, length, and any deadlines.\n- Answer a question or explain a topic.\n- Brainstorm ideas or outline a plan.\n- Do research and summarize key points.\n\nTell me your goal and any details (tone, format, length, any constraints), and I\u2019ll help.",
+      "is_empty": false,
+      "response_length": 432,
+      "execution_time": 7.294124364852905
+    },
+    {
+      "test_number": 38,
+      "input": "test",
+      "status": "completed",
+      "error": null,
+      "response": "Got it\u2014test received. How can I help today? I can draft or edit documents, answer questions, brainstorm ideas, summarize text, or help with code/data tasks. If you want, give me a topic and I\u2019ll draft a quick paragraph or outline to start.",
+      "is_empty": false,
+      "response_length": 239,
+      "execution_time": 4.609290361404419
+    },
+    {
+      "test_number": 39,
+      "input": "help",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 8.202374458312988
+    },
+    {
+      "test_number": 40,
+      "input": "info",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 5.50548791885376
+    },
+    {
+      "test_number": 41,
+      "input": "",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 7.575149297714233
+    },
+    {
+      "test_number": 42,
+      "input": "   ",
+      "status": "completed",
+      "error": null,
+      "response": "It looks like your message didn\u2019t come through. How can I help?\n\nHere are some options:\n- Draft or edit a document (reports, proposals, letters, invention disclosures)\n- Create outlines or templates\n- Research and summarize information\n- Brainstorm ideas or structure\n- Improve clarity, tone, or formatting\n\nIf you have a specific task, share details like audience, purpose, length, key points, and deadline. I can start with a draft or a structured outline right away.",
+      "is_empty": false,
+      "response_length": 469,
+      "execution_time": 4.607129335403442
+    },
+    {
+      "test_number": 43,
+      "input": "\n",
+      "status": "completed",
+      "error": null,
+      "response": "It looks like your message didn\u2019t come through. How can I help today?\n\nIf you\u2019re drafting or editing a document, share:\n- Type: email, memo, proposal, report, resume, etc.\n- Purpose and audience\n- Key points or data to include\n- Desired tone and length\n\nI can provide an outline, a full draft, or a polished revision, plus formatting and citations if needed. If you\u2019d like, I can also start with a ready-made template you can customize.",
+      "is_empty": false,
+      "response_length": 436,
+      "execution_time": 4.606773614883423
+    },
+    {
+      "test_number": 44,
+      "input": "\t",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 9.113112449645996
+    },
+    {
+      "test_number": 45,
+      "input": "a",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 6.807373046875
+    },
+    {
+      "test_number": 46,
+      "input": "1",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 5.682197570800781
+    },
+    {
+      "test_number": 47,
+      "input": "123",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 5.527819633483887
+    },
+    {
+      "test_number": 48,
+      "input": "abc",
+      "status": "completed",
+      "error": null,
+      "response": "Could you tell me what you\u2019d like to do with \"abc\"? It can mean a lot of things. Here are a few quick options\u2014pick one or tell me your goal and I\u2019ll tailor it:\n\n- Explain common meanings (e.g., American Broadcasting Company, Activity-Based Costing, Air/Body/Circulation in first aid, abc as the alphabet sequence).\n- Create an acronym expansion or a short description for a project titled \"ABC\".\n- Use \"abc\" as placeholder text in a document and help fill in sections.\n- Generate a few example sentences or a paragraph that use \"abc\" in context.\n- If you\u2019re drafting something (proposal, report, etc.), I can draft a structured outline or glossary around the acronym ABC.",
+      "is_empty": false,
+      "response_length": 671,
+      "execution_time": 5.52928900718689
+    },
+    {
+      "test_number": 49,
+      "input": "xyz",
+      "status": "completed",
+      "error": null,
+      "response": "Could you share a bit more about what you want with \"xyz\"? Here are a few options I can help with:\n\n- Define or explain \"xyz\" in a specific context (math, science, business, etc.)\n- Draft a document or content centered on \"xyz\" (outline, full draft, edits)\n- Brainstorm ideas or use \"xyz\" as a seed for a project or story\n- Help with code or data where \"xyz\" is a placeholder\n\nIf you have a target audience, length, tone, or key points, tell me and I\u2019ll tailor it. If you meant something else, please go ahead and describe.",
+      "is_empty": false,
+      "response_length": 523,
+      "execution_time": 5.328386068344116
+    },
+    {
+      "test_number": 50,
+      "input": "Analyze the patent landscape for autonomous vehicles and provide recommendations",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM\n\nWorkflow errors: Intent detection failed: LLM intent detection failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 200,
+      "execution_time": 10.142008543014526
+    },
+    {
+      "test_number": 51,
+      "input": "Create a comprehensive technical specification for a mobile application",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM\n\nWorkflow errors: Intent detection failed: LLM intent detection failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 200,
+      "execution_time": 9.895758152008057
+    },
+    {
+      "test_number": 52,
+      "input": "Generate a detailed market analysis report for renewable energy technologies",
+      "status": "completed",
+      "error": null,
+      "response": "Failed to generate response: LLM conversation generation failed: Empty response content from LLM",
+      "is_empty": false,
+      "response_length": 96,
+      "execution_time": 9.246809720993042
+    },
+    {
+      "test_number": 53,
+      "input": "Draft a patent application for a novel machine learning algorithm",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 54,
+      "input": "Write a technical white paper on quantum cryptography implementation",
+      "status": "timeout",
+      "error": "Request timed out",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 55,
+      "input": "Hello! Can you help me with patent research?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 56,
+      "input": "Hi, I need technical writing assistance",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 57,
+      "input": "Good morning! Please analyze this data",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 58,
+      "input": "Hey there, create a report for me",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 59,
+      "input": "Hello, can you draft some claims?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 60,
+      "input": "Hi, I need help with documentation",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    }
+  ]
+}

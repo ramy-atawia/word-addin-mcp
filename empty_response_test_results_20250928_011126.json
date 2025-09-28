@@ -1,0 +1,558 @@
+{
+  "test_summary": {
+    "total_tests": 60,
+    "successful_responses": 5,
+    "empty_responses": 55,
+    "errors": 0,
+    "empty_response_rate": 91.66666666666666,
+    "success_rate": 8.333333333333332,
+    "timestamp": "2025-09-28T01:11:26.712400"
+  },
+  "detailed_results": [
+    {
+      "test_number": 1,
+      "input": "Hello",
+      "status": "completed",
+      "error": null,
+      "response": "Hello! How can I help today?\n\nI can:\n- answer questions or explain topics\n- brainstorm ideas\n- summarize or research\n- draft or edit documents (reports, proposals, invention disclosures, emails, etc.)\n\nIf you\u2019re working on a document, tell me the goal, audience, length, tone, and key points, and I can give you an outline and a first draft. What would you like to start with?",
+      "is_empty": false,
+      "response_length": 376,
+      "execution_time": 4.791060209274292
+    },
+    {
+      "test_number": 2,
+      "input": "Hi there",
+      "status": "completed",
+      "error": null,
+      "response": "Hi there! How can I help today? \n\nIf you\u2019re not sure yet, you can tell me:\n- a topic you\u2019re curious about,\n- something you want drafted or edited (email, report, proposal, etc.),\n- or a problem you\u2019d like to solve.\n\nWhat would you like to do?",
+      "is_empty": false,
+      "response_length": 242,
+      "execution_time": 5.8545897006988525
+    },
+    {
+      "test_number": 3,
+      "input": "Good morning",
+      "status": "completed",
+      "error": null,
+      "response": "Good morning! How can I help you today? If you\u2019re working on something specific\u2014drafts, questions, planning\u2014tell me and I\u2019ll assist.",
+      "is_empty": false,
+      "response_length": 132,
+      "execution_time": 4.655902624130249
+    },
+    {
+      "test_number": 4,
+      "input": "Good evening",
+      "status": "completed",
+      "error": null,
+      "response": "Good evening! How can I help you today? If you\u2019re working on something specific\u2014like a document, proposal, report, or brainstorming ideas\u2014tell me what you need and I\u2019ll assist.",
+      "is_empty": false,
+      "response_length": 176,
+      "execution_time": 3.2605173587799072
+    },
+    {
+      "test_number": 5,
+      "input": "Hey",
+      "status": "completed",
+      "error": null,
+      "response": "Hey there! How's it going? What would you like help with today\u2014chat, brainstorming, drafting something, or finding information?",
+      "is_empty": false,
+      "response_length": 127,
+      "execution_time": 3.843353748321533
+    },
+    {
+      "test_number": 6,
+      "input": "web search ramy atawia",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 7,
+      "input": "prior art search 5g",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 8,
+      "input": "patent search AI",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 9,
+      "input": "Draft 3 system claims",
+      "status": "timeout",
+      "error": "Request timed out",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 10,
+      "input": "patent analysis machine learning",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 11,
+      "input": "web search mohamed salah",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 12,
+      "input": "prior art search blockchain",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 13,
+      "input": "patent search quantum computing",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 14,
+      "input": "Draft 5 method claims",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 15,
+      "input": "What is artificial intelligence?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 16,
+      "input": "Explain machine learning",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 17,
+      "input": "How does blockchain work?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 18,
+      "input": "What is quantum computing?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 19,
+      "input": "Explain neural networks",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 20,
+      "input": "What is deep learning?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 21,
+      "input": "How does 5G work?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 22,
+      "input": "What is cloud computing?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 23,
+      "input": "Create a technical report",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 24,
+      "input": "Write a summary",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 25,
+      "input": "Generate documentation",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 26,
+      "input": "Draft a proposal",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 27,
+      "input": "Create a presentation",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 28,
+      "input": "Write an analysis",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 29,
+      "input": "Generate a report",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 30,
+      "input": "Create a document",
+      "status": "timeout",
+      "error": "Request timed out",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 31,
+      "input": "Write a brief",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 32,
+      "input": "?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 33,
+      "input": "!",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 34,
+      "input": "...",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 35,
+      "input": "ok",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 36,
+      "input": "yes",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 37,
+      "input": "no",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 38,
+      "input": "test",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 39,
+      "input": "help",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 40,
+      "input": "info",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 41,
+      "input": "",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 42,
+      "input": "   ",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 43,
+      "input": "\n",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 44,
+      "input": "\t",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 45,
+      "input": "a",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 46,
+      "input": "1",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 47,
+      "input": "123",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 48,
+      "input": "abc",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 49,
+      "input": "xyz",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 50,
+      "input": "Analyze the patent landscape for autonomous vehicles and provide recommendations",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 51,
+      "input": "Create a comprehensive technical specification for a mobile application",
+      "status": "timeout",
+      "error": "Request timed out",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 52,
+      "input": "Generate a detailed market analysis report for renewable energy technologies",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 53,
+      "input": "Draft a patent application for a novel machine learning algorithm",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 54,
+      "input": "Write a technical white paper on quantum cryptography implementation",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 55,
+      "input": "Hello! Can you help me with patent research?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 56,
+      "input": "Hi, I need technical writing assistance",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 57,
+      "input": "Good morning! Please analyze this data",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 58,
+      "input": "Hey there, create a report for me",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 59,
+      "input": "Hello, can you draft some claims?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 60,
+      "input": "Hi, I need help with documentation",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=10)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    }
+  ]
+}

@@ -1,0 +1,553 @@
+{
+  "test_summary": {
+    "total_tests": 60,
+    "successful_responses": 0,
+    "empty_responses": 60,
+    "errors": 0,
+    "empty_response_rate": 100.0,
+    "success_rate": 0.0,
+    "timestamp": "2025-09-28T01:32:28.525741"
+  },
+  "detailed_results": [
+    {
+      "test_number": 1,
+      "input": "Hello",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 2,
+      "input": "Hi there",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 3,
+      "input": "Good morning",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 4,
+      "input": "Good evening",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 5,
+      "input": "Hey",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 6,
+      "input": "How are you?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 7,
+      "input": "What's up?",
+      "status": "timeout",
+      "error": "Request timed out",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 8,
+      "input": "Nice to meet you",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=5)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 9,
+      "input": "Thank you",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 10,
+      "input": "You're welcome",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 11,
+      "input": "Yes",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 12,
+      "input": "No",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 13,
+      "input": "Maybe",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 14,
+      "input": "Sure",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 15,
+      "input": "Of course",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 16,
+      "input": "Help me",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 17,
+      "input": "Can you help?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 18,
+      "input": "I need assistance",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 19,
+      "input": "What can you do?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Read timed out. (read timeout=15)",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 20,
+      "input": "Tell me about yourself",
+      "status": "exception",
+      "error": "('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 21,
+      "input": "What is AI?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105139b80>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 22,
+      "input": "Explain technology",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051140a0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 23,
+      "input": "How does this work?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a42b0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 24,
+      "input": "What should I know?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4be0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 25,
+      "input": "Give me advice",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051140d0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 26,
+      "input": "Write a sentence",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4610>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 27,
+      "input": "Create a list",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4340>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 28,
+      "input": "Make a summary",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105139130>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 29,
+      "input": "Generate text",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105139b20>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 30,
+      "input": "Produce content",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a1af0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 31,
+      "input": "Hello world",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051395e0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 32,
+      "input": "Test message",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1037c4eb0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 33,
+      "input": "Sample input",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4460>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 34,
+      "input": "Basic query",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105114df0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 35,
+      "input": "Simple request",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a1400>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 36,
+      "input": "Tell me a joke",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105114e50>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 37,
+      "input": "Share a fact",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4f70>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 38,
+      "input": "Give an example",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a41f0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 39,
+      "input": "Show me something",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105187880>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 40,
+      "input": "Demonstrate this",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105139310>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 41,
+      "input": "I'm confused",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a1f40>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 42,
+      "input": "I don't understand",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105139d30>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 43,
+      "input": "Can you clarify?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1037c4eb0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 44,
+      "input": "What do you mean?",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a48e0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 45,
+      "input": "Please explain",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105114fd0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 46,
+      "input": "That's interesting",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105187100>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 47,
+      "input": "I agree",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105114c70>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 48,
+      "input": "I disagree",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4fd0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 49,
+      "input": "Good point",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4a30>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 50,
+      "input": "Well said",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051397c0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 51,
+      "input": "Keep going",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051399a0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 52,
+      "input": "Continue",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105187910>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 53,
+      "input": "More please",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105139d60>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 54,
+      "input": "Tell me more",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105139820>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 55,
+      "input": "Elaborate",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4ee0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 56,
+      "input": "Stop",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4940>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 57,
+      "input": "Enough",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105187430>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 58,
+      "input": "That's all",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x105114bb0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 59,
+      "input": "No more",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1051a4970>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    },
+    {
+      "test_number": 60,
+      "input": "Thank you",
+      "status": "exception",
+      "error": "HTTPConnectionPool(host='localhost', port=9000): Max retries exceeded with url: /api/v1/async/chat/submit (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x1037a45b0>: Failed to establish a new connection: [Errno 61] Connection refused'))",
+      "response": null,
+      "is_empty": true,
+      "response_length": 0
+    }
+  ]
+}
