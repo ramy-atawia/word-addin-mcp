@@ -277,7 +277,7 @@ async def get_external_servers():
         
         try:
             mcp_orchestrator = get_initialized_mcp_orchestrator()
-            servers = await mcp_orchestrator.list_external_servers()
+            servers = await mcp_orchestrator.get_external_servers()
         except RuntimeError as e:
             if "not yet initialized" in str(e):
                 logger.warning("MCP Orchestrator not initialized, returning empty servers list")
