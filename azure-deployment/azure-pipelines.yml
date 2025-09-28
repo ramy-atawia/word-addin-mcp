@@ -178,6 +178,16 @@ stages:
                     --name $(BackendAppName) \
                     --settings ENVIRONMENT="production" LOG_LEVEL="INFO"
                 fi
+                
+                # Configure health check for Azure App Service
+                echo "Configuring health check for Azure App Service"
+                az webapp config set \
+                  --resource-group $(ResourceGroupName) \
+                  --name $(BackendAppName) \
+                  --health-check-path "/health" \
+                  --health-check-interval 30 \
+                  --health-check-timeout 10 \
+                  --health-check-unhealthy-threshold 3
           
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Deployment Info'

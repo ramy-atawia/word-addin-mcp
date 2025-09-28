@@ -192,13 +192,36 @@ az webapp deployment container config \
     --name $FRONTEND_APP_NAME \
     --enable-cd true
 
+# Configure health check for Azure App Service (both dev and prod)
+print_info "Configuring health check for Azure App Service..."
+
+# Development backend health check
+az webapp config set \
+  --resource-group $RESOURCE_GROUP \
+  --name $BACKEND_APP_NAME-dev \
+  --health-check-path "/health" \
+  --health-check-interval 30 \
+  --health-check-timeout 10 \
+  --health-check-unhealthy-threshold 3
+
+# Production backend health check
+az webapp config set \
+  --resource-group $RESOURCE_GROUP \
+  --name $BACKEND_APP_NAME \
+  --health-check-path "/health" \
+  --health-check-interval 30 \
+  --health-check-timeout 10 \
+  --health-check-unhealthy-threshold 3
+
 print_success "Deployment completed successfully!"
 echo ""
 echo "🌐 Your URLs:"
 echo "   Development Frontend: https://$FRONTEND_APP_NAME-dev.azurewebsites.net"
 echo "   Development Backend:  https://$BACKEND_APP_NAME-dev.azurewebsites.net"
+echo "   Development Health:   https://$BACKEND_APP_NAME-dev.azurewebsites.net/health"
 echo "   Production Frontend:  https://$FRONTEND_APP_NAME.azurewebsites.net"
 echo "   Production Backend:   https://$BACKEND_APP_NAME.azurewebsites.net"
+echo "   Production Health:    https://$BACKEND_APP_NAME.azurewebsites.net/health"
 echo ""
 echo "💰 Estimated Monthly Cost: ~$20"
 echo "   - Development: Free (F1 tier)"

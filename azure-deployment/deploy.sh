@@ -151,12 +151,23 @@ az webapp deployment container config \
     --name $FRONTEND_APP_NAME \
     --enable-cd true
 
+# Configure health check for Azure App Service
+print_info "Configuring health check for Azure App Service..."
+az webapp config set \
+  --resource-group $RESOURCE_GROUP \
+  --name $BACKEND_APP_NAME \
+  --health-check-path "/health" \
+  --health-check-interval 30 \
+  --health-check-timeout 10 \
+  --health-check-unhealthy-threshold 3
+
 print_success "Deployment completed!"
 echo ""
 echo "🌐 URLs:"
 echo "   Frontend: https://$FRONTEND_APP_NAME.azurewebsites.net"
 echo "   Backend:  https://$BACKEND_APP_NAME.azurewebsites.net"
 echo "   API Docs: https://$BACKEND_APP_NAME.azurewebsites.net/docs"
+echo "   Health:   https://$BACKEND_APP_NAME.azurewebsites.net/health"
 echo ""
 echo "🔑 Redis Key: $REDIS_CONNECTION_STRING"
 echo ""
