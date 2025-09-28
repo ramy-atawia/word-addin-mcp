@@ -18,7 +18,7 @@ import asyncio
 from .core.config import settings
 from .core.logging import setup_logging
 from .middleware.auth0_jwt_middleware import Auth0JWTMiddleware
-from .api.v1 import mcp, health, async_chat
+from .api.v1 import mcp, external_mcp, health, async_chat
 
 # Setup logging
 setup_logging()
@@ -265,7 +265,11 @@ app.include_router(
     tags=["mcp"]
 )
 
-# External MCP module removed - duplicate of MCP module
+app.include_router(
+    external_mcp.router,
+    prefix="/api/v1",
+    tags=["external-mcp"]
+)
 
 # Session management removed - not used by frontend
 

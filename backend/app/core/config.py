@@ -179,6 +179,9 @@ class Settings(BaseSettings):
         "/api/v1/mcp/tools",              # Allow MCP tools listing
         "/api/v1/mcp/tools/",             # Allow MCP tools listing (with trailing slash)
         "/api/v1/mcp/external/servers",   # Allow external servers listing
+        "/api/v1/external/servers",       # Allow external server management
+        "/api/v1/external/servers/",      # Allow external server management (with trailing slash)
+        "/api/v1/external/servers/test-connection",  # Allow connection testing
         "/api/v1/async/chat/submit",      # Allow async chat submission
         "/api/v1/async/chat/status",      # Allow async chat status checks
         "/api/v1/async/chat/result",      # Allow async chat result retrieval
