@@ -130,7 +130,7 @@ Return a JSON response with these fields:
 **ONLY output the JSON object above. Do NOT include any other text, explanations, or formatting.**
 """
             
-            response_data = self.llm_client.generate_text(
+            response_data = await self.llm_client.generate_text(
                 prompt=prompt,
                 max_tokens=800
             )
@@ -173,7 +173,7 @@ Return a JSON response with these fields:
             user_prompt = self._load_user_prompt(claims, analysis_type, focus_areas)
             
             # Call LLM for analysis
-            response_data = self.llm_client.generate_text(
+            response_data = await self.llm_client.generate_text(
                 prompt=user_prompt,
                 system_message=system_prompt,
                 max_tokens=4000

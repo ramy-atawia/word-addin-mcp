@@ -85,8 +85,8 @@ class ClaimDraftingService:
                 document_reference=document_reference or ""
             )
             
-            # Call LLM (not async)
-            response_data = self.llm_client.generate_text(
+            # Call LLM (async)
+            response_data = await self.llm_client.generate_text(
                 prompt=formatted_user_prompt,
                 system_message=system_prompt,
                 max_tokens=4000

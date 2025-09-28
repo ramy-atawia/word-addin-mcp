@@ -117,7 +117,7 @@ class PatentSearchService:
                                     conversation_history="")
         
         try:
-            response = self.llm_client.generate_text(
+            response = await self.llm_client.generate_text(
                 prompt=prompt,
                 system_message="You are a patent search expert. Return ONLY valid JSON - no markdown, no code blocks, no explanations.",
                 max_tokens=16384  # Official Azure max for gpt-5-nano
@@ -325,7 +325,7 @@ Format as concise markdown.
             logger.info(f"Patent {patent_id}: Sending claims analysis request to LLM (prompt length: {len(claims_prompt)} chars)")
             logger.debug(f"Patent {patent_id}: Claims prompt preview: {claims_prompt[:200]}...")
             
-            response = self.llm_client.generate_text(
+            response = await self.llm_client.generate_text(
                 prompt=claims_prompt,
                 max_tokens=16384  # Official Azure max for gpt-5-nano
             )
@@ -491,7 +491,7 @@ Format as concise markdown.
         logger.info(f"Generating final report with prompt length: {len(user_prompt)} chars")
         logger.debug(f"Report generation prompt preview: {user_prompt[:300]}...")
         
-        response = self.report_llm_client.generate_text(
+        response = await self.report_llm_client.generate_text(
             prompt=user_prompt,
             system_message=system_prompt,
             max_tokens=16384  # Official Azure max for gpt-5-nano
