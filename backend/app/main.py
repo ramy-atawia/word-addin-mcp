@@ -258,6 +258,35 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 
+# Register root-level health endpoint first (for deployment probes)
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint for deployment probes.
+    This endpoint is used by Azure Container Apps for liveness and readiness probes.
+    """
+    try:
+        # Simple health check without complex dependencies
+        return {
+            "status": "healthy",
+            "timestamp": time.time(),
+            "service": "Word Add-in MCP API",
+            "version": "1.0.0",
+            "environment": settings.environment
+        }
+            
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "Word Add-in MCP API",
+                "error": str(e)
+            }
+        )
+
 # Include API routers
 app.include_router(
     mcp.router,
@@ -296,35 +325,6 @@ async def root():
         "mcp_compliance": "2025-06-18",
         "timestamp": time.time()
     }
-
-
-@app.get("/health")
-async def health_check():
-    """
-    Health check endpoint for deployment probes.
-    This endpoint is used by Azure Container Apps for liveness and readiness probes.
-    """
-    try:
-        # Simple health check without complex dependencies
-        return {
-            "status": "healthy",
-            "timestamp": time.time(),
-            "service": "Word Add-in MCP API",
-            "version": "1.0.0",
-            "environment": settings.environment
-        }
-            
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "timestamp": time.time(),
-                "service": "Word Add-in MCP API",
-                "error": str(e)
-            }
-        )
 
 
 # Health check endpoint moved to /api/v1/health/ in health router
