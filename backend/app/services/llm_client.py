@@ -7,6 +7,7 @@ Provides a unified interface for text generation, summarization, and analysis.
 
 import os
 import logging
+import asyncio
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime
 import openai
@@ -66,7 +67,7 @@ class LLMClient:
             self.llm_available = False
             logger.warning("Azure OpenAI not configured - LLM features disabled")
     
-    def generate_text_stream(self, prompt: str, max_tokens: int = 16000, 
+    async def generate_text_stream(self, prompt: str, max_tokens: int = 16000, 
                            system_message: Optional[str] = None, 
                            max_retries: int = 3):
         """
@@ -109,8 +110,7 @@ class LLMClient:
                     last_error = e
                     if attempt < max_retries - 1:
                         logger.warning(f"LLM streaming API call failed (attempt {attempt + 1}/{max_retries}): {str(e)}")
-                        import time
-                        time.sleep(2 ** attempt)  # Exponential backoff
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
                     else:
                         yield self._create_error_result(f"LLM streaming failed after {max_retries} attempts: {str(e)}")
                         return
@@ -159,7 +159,7 @@ class LLMClient:
             logger.error(f"LLM streaming error: {str(e)}")
             yield self._create_error_result(f"LLM streaming error: {str(e)}")
 
-    def generate_text(self, prompt: str, max_tokens: int = 16000, 
+    async def generate_text(self, prompt: str, max_tokens: int = 16000, 
                      system_message: Optional[str] = None, 
                      max_retries: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -234,8 +234,7 @@ class LLMClient:
                     
                     if attempt < max_retries - 1:
                         logger.warning(f"Retrying in {backoff_time}s (attempt {attempt + 1}/{max_retries})")
-                        import time
-                        time.sleep(backoff_time)
+                        await asyncio.sleep(backoff_time)
                     else:
                         # Log final failure with context
                         logger.error(f"All retries exhausted. Final error: {error_type}: {error_msg}")

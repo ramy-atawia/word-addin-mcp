@@ -9,7 +9,6 @@ from enum import Enum
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 import structlog
-import threading
 
 logger = structlog.get_logger()
 
@@ -49,7 +48,7 @@ class JobQueue:
         self.job_ttl = 3600  # Job TTL in seconds (1 hour)
         self.cleanup_interval = 300  # Cleanup every 5 minutes
         self.last_cleanup = datetime.utcnow()
-        self._lock = threading.RLock()  # Reentrant lock for thread safety
+        self._lock = asyncio.Lock()  # Async lock for thread safety
         
     async def submit_job(self, job_type: str, request_data: Dict[str, Any], session_id: Optional[str] = None) -> str:
         """Submit a new job and return job ID"""
@@ -67,7 +66,7 @@ class JobQueue:
             session_id=session_id
         )
         
-        with self._lock:
+        async with self._lock:
             self.jobs[job_id] = job
             await self.processing_queue.put((job_id, job_type))
         
@@ -76,7 +75,7 @@ class JobQueue:
     
     async def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job status and progress"""
-        with self._lock:
+        async with self._lock:
             job = self.jobs.get(job_id)
             if not job:
                 return None
@@ -94,7 +93,7 @@ class JobQueue:
     
     async def get_job_result(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job result if completed"""
-        with self._lock:
+        async with self._lock:
             job = self.jobs.get(job_id)
             if not job or job.status != JobStatus.COMPLETED:
                 return None
@@ -116,7 +115,7 @@ class JobQueue:
     
     async def update_job_progress(self, job_id: str, progress: int, status: JobStatus = None):
         """Update job progress"""
-        with self._lock:
+        async with self._lock:
             job = self.jobs.get(job_id)
             if job:
                 # Don't update progress for cancelled jobs
@@ -135,7 +134,7 @@ class JobQueue:
                 
     async def set_job_result(self, job_id: str, result: Dict[str, Any]):
         """Set job result and mark as completed"""
-        with self._lock:
+        async with self._lock:
             job = self.jobs.get(job_id)
             if job:
                 # Don't set result for cancelled jobs
@@ -150,7 +149,7 @@ class JobQueue:
             
     async def set_job_error(self, job_id: str, error: str, error_code: str = None, error_details: Dict[str, Any] = None):
         """Set job error and mark as failed with detailed error information"""
-        with self._lock:
+        async with self._lock:
             job = self.jobs.get(job_id)
             if job:
                 # Don't set error for cancelled jobs
@@ -218,7 +217,7 @@ class JobQueue:
     async def _process_job(self, job_id: str, job_type: str):
         """Process a single job with timeout handling and retry logic"""
         # Check if job was cancelled before starting
-        if self._is_job_cancelled(job_id):
+        if await self._is_job_cancelled(job_id):
             logger.info(f"Job cancelled before processing starts (job_id: {job_id})")
             return
             
@@ -234,7 +233,7 @@ class JobQueue:
                     return
                 
                 # Check if job was cancelled before processing
-                if self._is_job_cancelled(job_id):
+                if await self._is_job_cancelled(job_id):
                     logger.info(f"Job cancelled before processing (job_id: {job_id})")
                     return
                 
@@ -256,7 +255,7 @@ class JobQueue:
                     )
                     
                     # Check if job was cancelled during execution
-                    if self._is_job_cancelled(job_id):
+                    if await self._is_job_cancelled(job_id):
                         logger.info(f"Job cancelled during execution (job_id: {job_id})")
                         return
                     
@@ -313,15 +312,15 @@ class JobQueue:
                     )
                     return
     
-    def _is_job_cancelled(self, job_id: str) -> bool:
+    async def _is_job_cancelled(self, job_id: str) -> bool:
         """Check if job was cancelled"""
-        with self._lock:
+        async with self._lock:
             job = self.jobs.get(job_id)
             return job is not None and job.status == JobStatus.CANCELLED
     
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel a job if it's not already completed"""
-        with self._lock:
+        async with self._lock:
             job = self.jobs.get(job_id)
             if not job:
                 logger.warning(f"Job not found for cancellation: {job_id}")
@@ -347,7 +346,7 @@ class JobQueue:
     async def _execute_job_by_type(self, job: Job, job_type: str, agent_service, mcp_orchestrator):
         """Execute job based on type"""
         # Check cancellation before execution
-        if self._is_job_cancelled(job.id):
+        if await self._is_job_cancelled(job.id):
             logger.info(f"Job cancelled before execution (job_id: {job.id})")
             return None
             
@@ -366,7 +365,7 @@ class JobQueue:
         
         try:
             # Check cancellation before starting
-            if self._is_job_cancelled(job.id):
+            if await self._is_job_cancelled(job.id):
                 logger.info(f"Job cancelled during prior art search (job_id: {job.id})")
                 return None
                 
@@ -490,11 +489,10 @@ class JobQueue:
     async def _execute_with_progress(self, job_id: str, func, *args, progress_start: int = 0, progress_end: int = 100, **kwargs):
         """Execute a function with real progress tracking"""
         import asyncio
-        import threading
         import time
         
         # Check cancellation before starting
-        if self._is_job_cancelled(job_id):
+        if await self._is_job_cancelled(job_id):
             logger.info(f"Job cancelled before execution with progress (job_id: {job_id})")
             return None
         
@@ -511,7 +509,7 @@ class JobQueue:
                 
             async def update_progress(self, progress: int):
                 # Check cancellation before updating progress
-                if self.job_queue._is_job_cancelled(self.job_id):
+                if await self.job_queue._is_job_cancelled(self.job_id):
                     logger.info(f"Job cancelled during progress update (job_id: {self.job_id})")
                     return
                     
@@ -528,7 +526,7 @@ class JobQueue:
             # For async functions, we need to wrap with cancellation checks
             async def cancellable_func():
                 # Check cancellation before execution
-                if self._is_job_cancelled(job_id):
+                if await self._is_job_cancelled(job_id):
                     logger.info(f"Job cancelled before function execution (job_id: {job_id})")
                     return None
                 
@@ -536,7 +534,7 @@ class JobQueue:
                 result = await func(*args, **kwargs)
                 
                 # Check cancellation after execution
-                if self._is_job_cancelled(job_id):
+                if await self._is_job_cancelled(job_id):
                     logger.info(f"Job cancelled after function execution (job_id: {job_id})")
                     return None
                 
@@ -547,7 +545,7 @@ class JobQueue:
             # For sync functions, run in thread pool with cancellation checks
             def cancellable_sync_func():
                 # Check cancellation before execution
-                if self._is_job_cancelled(job_id):
+                if asyncio.run(self._is_job_cancelled(job_id)):
                     logger.info(f"Job cancelled before sync function execution (job_id: {job_id})")
                     return None
                 
@@ -555,17 +553,17 @@ class JobQueue:
                 result = func(*args, **kwargs)
                 
                 # Check cancellation after execution
-                if self._is_job_cancelled(job_id):
+                if asyncio.run(self._is_job_cancelled(job_id)):
                     logger.info(f"Job cancelled after sync function execution (job_id: {job_id})")
                     return None
                 
                 return result
             
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             result = await loop.run_in_executor(None, cancellable_sync_func)
         
         # Check cancellation after execution
-        if self._is_job_cancelled(job_id):
+        if await self._is_job_cancelled(job_id):
             logger.info(f"Job cancelled after execution (job_id: {job_id})")
             return None
         
@@ -582,7 +580,7 @@ class JobQueue:
         if (current_time - self.last_cleanup).total_seconds() < self.cleanup_interval:
             return
         
-        with self._lock:
+        async with self._lock:
             self.last_cleanup = current_time
         
             # Create a copy of jobs to avoid race conditions during iteration
@@ -632,7 +630,7 @@ class JobQueue:
     
     async def get_job_stats(self) -> Dict[str, Any]:
         """Get job queue statistics"""
-        with self._lock:
+        async with self._lock:
             status_counts = {}
             for job in self.jobs.values():
                 status = job.status.value
@@ -648,7 +646,7 @@ class JobQueue:
     
     async def list_jobs(self, limit: int = 10, status_filter: Optional[str] = None) -> Dict[str, Any]:
         """List recent jobs with optional status filtering"""
-        with self._lock:
+        async with self._lock:
             jobs = []
             
             for job_id, job in list(self.jobs.items())[-limit:]:
