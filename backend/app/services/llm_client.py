@@ -100,8 +100,6 @@ class LLMClient:
                         "model": self.azure_deployment,
                         "messages": messages,
                         "max_completion_tokens": max_tokens,
-                        "temperature": 0.7,  # Add temperature for better responses
-                        "top_p": 0.9,  # Add top_p for response diversity
                         "stream": True
                     }
                     
@@ -198,9 +196,7 @@ class LLMClient:
                     api_params = {
                         "model": self.azure_openai_deployment,
                         "messages": messages,
-                        "max_completion_tokens": max_tokens,
-                        "temperature": 0.7,  # Add temperature for better responses
-                        "top_p": 0.9  # Add top_p for response diversity
+                        "max_completion_tokens": max_tokens
                     }
 
                     # Log token limits for debugging
