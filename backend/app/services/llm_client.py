@@ -311,7 +311,7 @@ class LLMClient:
             logger.error(f"Error generating text: {str(e)}")
             return self._create_error_result(f"Text generation failed: {str(e)}")
     
-    def summarize_text(self, text: str, summary_type: str = "concise", 
+    async def summarize_text(self, text: str, summary_type: str = "concise", 
                       max_length: Optional[int] = None) -> Dict[str, Any]:
         """
         Summarize text using the LLM.
@@ -366,7 +366,7 @@ class LLMClient:
             logger.error(f"Error summarizing text: {str(e)}")
             return self._create_error_result(f"Summarization failed: {str(e)}")
     
-    def extract_keywords(self, text: str, max_keywords: int = 10) -> Dict[str, Any]:
+    async def extract_keywords(self, text: str, max_keywords: int = 10) -> Dict[str, Any]:
         """
         Extract keywords from text using the LLM.
         
@@ -415,7 +415,7 @@ class LLMClient:
             logger.error(f"Error extracting keywords: {str(e)}")
             return self._create_error_result(f"Keyword extraction failed: {str(e)}")
     
-    def analyze_sentiment(self, text: str) -> Dict[str, Any]:
+    async def analyze_sentiment(self, text: str) -> Dict[str, Any]:
         """
         Analyze sentiment of text using the LLM.
         
@@ -465,7 +465,7 @@ class LLMClient:
             logger.error(f"Error analyzing sentiment: {str(e)}")
             return self._create_error_result(f"Sentiment analysis failed: {str(e)}")
     
-    def analyze_readability(self, text: str) -> Dict[str, Any]:
+    async def analyze_readability(self, text: str) -> Dict[str, Any]:
         """
         Analyze readability of text using the LLM.
         
@@ -515,7 +515,7 @@ class LLMClient:
             logger.error(f"Error analyzing readability: {str(e)}")
             return self._create_error_result(f"Readability analysis failed: {str(e)}")
     
-    def compare_texts(self, text1: str, text2: str, comparison_type: str = "general") -> Dict[str, Any]:
+    async def compare_texts(self, text1: str, text2: str, comparison_type: str = "general") -> Dict[str, Any]:
         """
         Compare two texts using the LLM.
         
@@ -587,7 +587,7 @@ class LLMClient:
             logger.error(f"Error comparing texts: {str(e)}")
             return self._create_error_result(f"Text comparison failed: {str(e)}")
     
-    def translate_text(self, text: str, target_language: str, source_language: Optional[str] = None) -> Dict[str, Any]:
+    async def translate_text(self, text: str, target_language: str, source_language: Optional[str] = None) -> Dict[str, Any]:
         """
         Translate text using the LLM.
         
