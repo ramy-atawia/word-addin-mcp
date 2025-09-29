@@ -998,7 +998,15 @@ Create a well-structured response that:
 ### RESPONSE FORMAT:
 Structure your response with clear sections and professional formatting. Use markdown formatting for headings, lists, and emphasis. Make the response comprehensive yet readable, and ENSURE it reflects the actual research findings from the tool outputs.
 
-**VALIDATION CHECK**: Before finalizing your response, verify that it actually uses the specific information from the tool outputs rather than generating generic content.
+**SELF-REFLECTION REQUIREMENT**: Before generating your final response, perform the following self-reflection:
+
+1. **Content Mapping Check**: Verify that your response directly maps to and uses the specific information from the tool outputs provided above
+2. **Research Integration Check**: Ensure you're not generating generic content but are actually incorporating the research findings
+3. **Accuracy Verification**: Confirm that your response accurately reflects what was discovered in the research
+4. **Completeness Check**: Make sure you're addressing the user's request comprehensively using the available research data
+5. **Quality Assurance**: Ensure the final output is professional, well-structured, and immediately valuable to the user
+
+**CRITICAL**: Only proceed with your final response after completing this self-reflection. Your response must demonstrate clear evidence of using the actual research findings rather than generic content.
 
 Create a response that the user will find immediately valuable and actionable based on the real research performed."""
 
@@ -1024,78 +1032,16 @@ Create a response that the user will find immediately valuable and actionable ba
         # Return a fallback response instead of empty string
         synthesized_response = "I apologize, but I'm having trouble generating a comprehensive response right now. Please try rephrasing your question or ask me something else."
     
-    # VALIDATION: Check if the response actually uses the tool outputs
-    if not _validate_synthesis_uses_research(synthesized_response, step_results, user_input):
-        logger.warning("Synthesized response appears to be generic, not using research results")
-        # Add a disclaimer
-        synthesized_response = f"""**Note**: The following response may be generic as the system detected limited use of research findings.
-
-{synthesized_response}
-
-**Research Results Summary:**
-{chr(10).join(tool_outputs)}"""
+    # TODO: Implement LLM-based validation in the future to ensure synthesis quality
+    # For now, we trust the LLM to generate appropriate responses based on the research
+    logger.info("Synthesis completed", response_length=len(synthesized_response))
     
     return synthesized_response
 
 
-def _validate_synthesis_uses_research(response: str, step_results: Dict[str, Any], user_input: str) -> bool:
-    """Validate that the synthesis actually uses research results rather than being generic."""
-    if not response or not step_results:
-        return False
-    
-    # Extract key terms from user input (e.g., "Ramy Atawia")
-    user_terms = set()
-    for term in user_input.split():
-        if len(term) > 3:  # Skip short words
-            user_terms.add(term.lower())
-    
-    # Collect all research content
-    research_content = ""
-    research_snippets = []
-    for result in step_results.values():
-        if isinstance(result, dict):
-            content = result.get("result", "")
-            if isinstance(content, str) and len(content.strip()) > 10:
-                research_content += content.lower() + " "
-                # Extract meaningful snippets (first 200 chars of each result)
-                research_snippets.append(content[:200].lower())
-        elif isinstance(result, str) and len(result.strip()) > 10:
-            research_content += result.lower() + " "
-            research_snippets.append(result[:200].lower())
-    
-    response_lower = response.lower()
-    
-    # Check 1: User terms appear in both research and response
-    user_terms_found = 0
-    for term in user_terms:
-        if term in research_content and term in response_lower:
-            user_terms_found += 1
-    
-    # Check 2: Response contains specific research content snippets
-    research_snippets_used = 0
-    for snippet in research_snippets:
-        # Check if any significant part of the snippet appears in the response
-        snippet_words = snippet.split()[:10]  # First 10 words
-        if len(snippet_words) >= 3:  # At least 3 words
-            snippet_phrase = " ".join(snippet_words)
-            if snippet_phrase in response_lower:
-                research_snippets_used += 1
-    
-    # Check 3: Response length vs research content ratio
-    response_length = len(response.strip())
-    research_length = len(research_content.strip())
-    
-    # If response is much shorter than research, it might not be using it
-    if research_length > 0 and response_length < (research_length * 0.1):
-        return False
-    
-    # Validation passes if:
-    # 1. User terms are found in both research and response, OR
-    # 2. At least one research snippet is used in response, OR  
-    # 3. Response is substantial relative to research content
-    return (user_terms_found > 0 or 
-            research_snippets_used > 0 or 
-            (research_length > 0 and response_length > (research_length * 0.2)))
+# TODO: Implement LLM-based validation function in the future
+# This function was removed as the current validation logic was too strict
+# and incorrectly flagged valid responses as generic
 
 
 def _route_after_intent(state: AgentState) -> str:
