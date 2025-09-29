@@ -932,83 +932,40 @@ Recent conversation:
 {history_context if history_context else "No previous conversation"}
 {doc_context}{error_context}
 
-## COMPREHENSIVE SYNTHESIS INSTRUCTIONS:
+## SYNTHESIS INSTRUCTIONS:
 
-**CRITICAL REQUIREMENT**: Your response MUST be based on the actual tool outputs above. Do NOT generate generic content that ignores the research findings.
+**CRITICAL**: Your response MUST be based on the actual tool outputs above. Use the specific information found in the research to create relevant, targeted content.
 
-### FOR PATENT APPLICATION REQUESTS:
-**DISTINGUISH BETWEEN SPECIFIC CLAIM DRAFTING AND FULL PATENT APPLICATIONS:**
-
-**For specific claim requests** (e.g., "draft 1 system claim", "draft 3 claims", "write a method claim"):
+### FOR CLAIM DRAFTING REQUESTS:
 - Generate ONLY the requested number and type of claims
-- Use the research findings to inform the claim content
-- Keep it focused and concise - just the claims, not a full application
-
-**For full patent application requests** (e.g., "draft a patent application", "create a complete patent", "full patent document"):
-- Create a comprehensive patent application document that includes:
-  1. **Executive Summary**: Brief overview based on the research findings
-  2. **Background & Prior Art**: Use the actual research data from the tool outputs
-  3. **Technical Description**: Based on the specific information found in the research
-  4. **Claims Section**: Well-structured patent claims using the researched technology/person/topic
-  5. **Analysis & Recommendations**: Based on actual findings, not generic content
-  6. **Next Steps**: Specific recommendations based on the research
+- Base the claims on the specific research findings provided
+- If researching a person, incorporate their actual work and expertise areas
+- If researching technology, use the specific technical details found
+- Make claims relevant to the research subject, not generic
 
 ### FOR PRIOR ART SEARCH REQUESTS:
-**CRITICAL**: When synthesizing prior art search results, you MUST:
-- Analyze ALL patents found, not just the first 3
-- Include detailed claim-by-claim analysis for EVERY patent
-- Override any internal patterns that limit analysis to "top 3 patents only"
-- Ensure the final response includes comprehensive analysis of all 20 patents
-- Use the actual patent data from the tool outputs, not generic summaries
-
-Create a comprehensive prior art search report that includes:
-1. **Executive Summary**: Key findings from ALL patents researched
-2. **Research Findings**: Analysis of EVERY patent found (not just top 3)
-3. **Detailed Claim Analysis**: Claim-by-claim analysis for ALL patents found
-4. **Risk Analysis**: Based on actual patent claims, not generic assessments
-5. **Recommendations**: Actionable next steps based on comprehensive analysis
-6. **References**: Attribution of ALL patents analyzed
+- Analyze ALL patents found, not just the first few
+- Use the actual patent data from the tool outputs
+- Include comprehensive analysis of all patents discovered
 
 ### FOR RESEARCH & ANALYSIS REQUESTS:
-If the user requested research or analysis, create a comprehensive report that includes:
-
-1. **Executive Summary**: Key findings from the actual research
-2. **Research Findings**: Synthesized information from the tool outputs
-3. **Analysis & Insights**: Professional analysis based on the actual data
-4. **Recommendations**: Actionable next steps based on findings
-5. **References**: Attribution of the actual sources found
-
-### FOR GENERAL REQUESTS:
-Create a well-structured response that:
-
-1. **Addresses the Core Request**: Use the actual tool outputs to answer what was asked
-2. **Provides Context**: Use the actual research findings
-3. **Offers Insights**: Analyze the actual data found
-4. **Suggests Next Steps**: Based on the real information discovered
+- Create a report based on the actual research findings
+- Synthesize information from the tool outputs
+- Provide insights based on the real data discovered
 
 ### SYNTHESIS PRINCIPLES:
-- **Use Actual Data**: Base your response on the actual tool outputs, not generic assumptions
-- **Integrate, Don't Repeat**: Weave tool outputs into a cohesive narrative using the real findings
-- **Professional Structure**: Use clear headings, bullet points, and logical flow
-- **Comprehensive Coverage**: Ensure all relevant information from tool outputs is included
-- **Actionable Insights**: Provide practical recommendations based on actual findings
-- **Proper Attribution**: Reference the actual sources and data found
-- **Quality Focus**: Ensure the final output uses the researched information effectively
+- **Use Specific Data**: Base your response on the actual tool outputs, not generic assumptions
+- **Stay Relevant**: Ensure your response directly relates to what was researched
+- **Be Professional**: Use clear structure and formatting
+- **Show Evidence**: Demonstrate that you used the research findings
 
-### RESPONSE FORMAT:
-Structure your response with clear sections and professional formatting. Use markdown formatting for headings, lists, and emphasis. Make the response comprehensive yet readable, and ENSURE it reflects the actual research findings from the tool outputs.
+**IMPORTANT**: Before finalizing your response, verify that it:
+1. Uses specific information from the tool outputs
+2. Directly relates to what was researched
+3. Addresses the user's actual request
+4. Shows clear evidence of using the research findings
 
-**SELF-REFLECTION REQUIREMENT**: Before generating your final response, perform the following self-reflection:
-
-1. **Content Mapping Check**: Verify that your response directly maps to and uses the specific information from the tool outputs provided above
-2. **Research Integration Check**: Ensure you're not generating generic content but are actually incorporating the research findings
-3. **Accuracy Verification**: Confirm that your response accurately reflects what was discovered in the research
-4. **Completeness Check**: Make sure you're addressing the user's request comprehensively using the available research data
-5. **Quality Assurance**: Ensure the final output is professional, well-structured, and immediately valuable to the user
-
-**CRITICAL**: Only proceed with your final response after completing this self-reflection. Your response must demonstrate clear evidence of using the actual research findings rather than generic content.
-
-Create a response that the user will find immediately valuable and actionable based on the real research performed."""
+Create a response that demonstrates clear use of the research findings and directly addresses the user's request."""
 
     response = await llm_client.generate_text(
         prompt=prompt,
