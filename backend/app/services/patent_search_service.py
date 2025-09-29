@@ -133,8 +133,7 @@ class PatentSearchService:
 
         # Log LLM response for debugging
         logger.debug(f"LLM response received (length: {len(text)})")
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Response preview: {text[:200]}...")
+        logger.debug(f"Response preview: {text[:200]}...")
 
         # Direct JSON parsing - prompts now enforce strict JSON responses
         try:
@@ -163,11 +162,6 @@ class PatentSearchService:
             if not query_data:
                 raise ValueError(f"Query {i+1} missing 'search_query' field")
 
-            # Add delay between search queries to prevent rate limiting
-            if i > 0:
-                logger.debug("Adding delay between search queries...")
-                await asyncio.sleep(3)
-            
             logger.debug(f"Searching with query {i+1}/{len(search_queries)}: {query_data}")
             patents = await self._search_patents_api(query_data)
             all_patents.extend(patents)
@@ -243,11 +237,6 @@ class PatentSearchService:
 
             logger.debug(f"Fetching claims for patent {i}/{len(patents)}: {patent_id}")
 
-            # Add delay between claims requests to prevent rate limiting
-            if i > 1:
-                logger.debug("Adding delay between claims requests...")
-                await asyncio.sleep(1)
-
             claims = await self._fetch_claims(patent_id)
             logger.debug(f"Patent {patent_id}: Fetched {len(claims)} claims")
             patent["claims"] = claims
@@ -257,119 +246,160 @@ class PatentSearchService:
         return patents_with_claims
     
     async def _summarize_claims(self, patents: List[Dict]) -> str:
-        """Summarize claims for patents using LLM with strict requirements."""
+        """Summarize claims for patents using LLM with batched comprehensive analysis."""
         if not patents:
             raise ValueError("No patents provided for claims summary")
         
         # Process all patents (up to 20 for performance)
         top_patents = patents[:20]
-        logger.info(f"Starting claims analysis for {len(top_patents)} patents (out of {len(patents)} total)")
-        claims_summaries = []
+        logger.info(f"Starting batched comprehensive claims analysis for {len(top_patents)} patents (out of {len(patents)} total)")
         
-        async def process_patent_claims(patent):
+        # Prepare batched data for all patents
+        batched_patent_data = []
+        total_claims = 0
+        
+        for patent in top_patents:
             patent_id = patent.get("patent_id", "Unknown")
             patent_title = patent.get("patent_title", "No title")
+            patent_abstract = patent.get("patent_abstract", "No abstract available")
+            patent_date = patent.get("patent_date", "Unknown date")
             claims = patent.get("claims", [])
-            
-            logger.info(f"Processing claims for patent {patent_id}: {patent_title[:50]}...")
-            logger.info(f"Patent {patent_id} has {len(claims)} claims")
             
             if not claims:
                 logger.warning(f"Patent {patent_id} has no claims data")
-                return f"**Patent {patent_id}: {patent_title}**\n- Claims: Not available\n"
+                continue
             
-            # Prepare claims text (process all claims)
-            claims_text = []
-            valid_claims_count = 0
-            for claim in claims:  # Process all claims
+            # Prepare claims text for this patent
+            patent_claims_text = []
+            independent_count = 0
+            dependent_count = 0
+            
+            for claim in claims:
                 claim_number = claim.get("number")
                 claim_text = claim.get("text")
                 claim_type = claim.get("type", "unknown")
                 
-                if not claim_number or not claim_text:
-                    logger.debug(f"Patent {patent_id}: Skipping claim {claim_number} - missing number or text")
+                if not claim_number or not claim_text or len(claim_text.strip()) < 10:
                     continue
                 
-                if len(claim_text.strip()) < 10:
-                    logger.debug(f"Patent {patent_id}: Skipping claim {claim_number} - text too short")
-                    continue
+                full_claim_text = claim_text.strip()
+                patent_claims_text.append(f"**Claim {claim_number} ({claim_type}):**\n{full_claim_text}\n")
                 
-                # Truncate very long claims to 150 chars to fit gpt-5-nano limits
-                truncated_text = claim_text[:150] + "..." if len(claim_text) > 150 else claim_text
-                claims_text.append(f"Claim {claim_number} ({claim_type}): {truncated_text}")
-                valid_claims_count += 1
+                if claim_type == "independent":
+                    independent_count += 1
+                else:
+                    dependent_count += 1
             
-            logger.info(f"Patent {patent_id}: Processed {valid_claims_count} valid claims out of {len(claims)} total")
-            
-            if not claims_text:
-                logger.warning(f"Patent {patent_id}: No valid claim text found after processing")
-                return f"**Patent {patent_id}: {patent_title}**\n- Claims: No valid claim text found\n"
-            
-            claims_prompt = f"""
-Analyze the patent claims for patent {patent_id} titled "{patent_title}".
-
-**CLAIMS TO ANALYZE:**
-{chr(10).join(claims_text)}
+            if patent_claims_text:
+                batched_patent_data.append({
+                    "patent_id": patent_id,
+                    "patent_title": patent_title,
+                    "patent_abstract": patent_abstract,
+                    "patent_date": patent_date,
+                    "claims_text": patent_claims_text,
+                    "independent_count": independent_count,
+                    "dependent_count": dependent_count,
+                    "total_claims": len(patent_claims_text)
+                })
+                total_claims += len(patent_claims_text)
+        
+        logger.info(f"Prepared {len(batched_patent_data)} patents with {total_claims} total claims for batched analysis")
+        
+        if not batched_patent_data:
+            return "No valid patent claims found for analysis."
+        
+        # Create comprehensive batched prompt
+        batched_prompt = f"""
+You are a patent attorney analyzing multiple patent claims for comprehensive prior art research. Provide detailed technical analysis for each patent.
 
 **ANALYSIS REQUIREMENTS:**
-1. **Technical Summary**: 2-3 sentence summary of the main invention
-2. **Key Technical Features**: List 3-4 key technical elements
-3. **Claim Structure**: Identify independent vs dependent claims
-4. **Technical Scope**: Brief scope and limitations
+For each patent, provide:
 
-**IMPORTANT**: Keep your response under 200 words. Be concise and focused.
+1. **TECHNICAL INVENTION SUMMARY** (2-3 sentences):
+   - Core technical innovation
+   - Problem it solves
+   - How it works technically
 
-Format as concise markdown.
+2. **KEY TECHNICAL FEATURES** (4-5 bullet points):
+   - Most important technical elements
+   - Specific technical terms and mechanisms
+   - Novel technical aspects
+
+3. **CLAIM STRUCTURE ANALYSIS**:
+   - Independent vs dependent claims count
+   - Broadest independent claim identification
+   - Key claim dependencies
+
+4. **TECHNICAL SCOPE & PRIOR ART RELEVANCE**:
+   - Technical domains covered
+   - Key limitations/constraints
+   - Search terms for similar patents
+
+**PATENTS TO ANALYZE:**
+
 """
-            
-            logger.info(f"Patent {patent_id}: Sending claims analysis request to LLM (prompt length: {len(claims_prompt)} chars)")
-            logger.debug(f"Patent {patent_id}: Claims prompt preview: {claims_prompt[:200]}...")
-            
-            response = await self.llm_client.generate_text(
-                prompt=claims_prompt,
-                max_tokens=16384  # Official Azure max for gpt-5-nano
-            )
-            
-            if not response.get("success"):
-                logger.error(f"Patent {patent_id}: LLM claims analysis failed - {response.get('error')}")
-                raise ValueError(f"Failed to summarize claims for patent {patent_id}: {response.get('error')}")
-            
-            summary = response["text"]
-            
-            # Enhanced validation and logging
-            logger.info(f"Patent {patent_id}: LLM claims analysis response generated (length: {len(summary)}, preview: {summary[:100] if summary else 'EMPTY'})")
-            
-            # Validate response is not empty
-            if not summary or len(summary.strip()) < 10:
-                logger.error(f"Patent {patent_id}: LLM generated empty or very short claims analysis (response: {response}, generated_text: {summary})")
-                summary = f"Claims analysis for patent {patent_id} is not available. The patent data may be incomplete or the analysis failed."
-            
-            logger.info(f"Patent {patent_id}: Claims analysis completed successfully (response length: {len(summary)} chars)")
-            logger.debug(f"Patent {patent_id}: Claims analysis response preview: {summary[:200]}...")
-            return f"**Patent {patent_id}: {patent_title}**\n{summary}\n"
         
-        # Process patents in parallel
-        logger.info(f"Starting parallel processing of {len(top_patents)} patents for claims analysis")
-        tasks = [process_patent_claims(patent) for patent in top_patents]
+        # Add each patent's data to the prompt
+        for i, patent_data in enumerate(batched_patent_data, 1):
+            batched_prompt += f"""
+## PATENT {i}: {patent_data['patent_id']} - {patent_data['patent_title']}
+
+**Patent Information:**
+- Patent ID: {patent_data['patent_id']}
+- Title: {patent_data['patent_title']}
+- Filing Date: {patent_data['patent_date']}
+- Abstract: {patent_data['patent_abstract'][:300]}{'...' if len(patent_data['patent_abstract']) > 300 else ''}
+- Claims: {patent_data['total_claims']} total ({patent_data['independent_count']} independent, {patent_data['dependent_count']} dependent)
+
+**Complete Claims:**
+{chr(10).join(patent_data['claims_text'])}
+
+---
+
+"""
         
-        try:
-            results = await asyncio.gather(*tasks)
-            logger.info(f"Successfully completed claims analysis for {len(results)} patents")
-        except Exception as e:
-            logger.error(f"Error during parallel claims processing: {str(e)}")
-            raise
+        batched_prompt += """
+**FORMAT REQUIREMENTS:**
+- Use clear markdown formatting with ## headings for each patent
+- Be comprehensive but concise (300-400 words per patent)
+- Include specific technical details
+- Focus on technical substance over legal language
+- Use the exact patent ID and title as provided
+
+**IMPORTANT**: This analysis will be used for patent prior art research, so emphasize technical content and searchable terms for each patent.
+"""
         
-        claims_summaries.extend(results)
+        logger.info(f"Sending batched claims analysis request to LLM (prompt length: {len(batched_prompt)} chars)")
+        logger.debug(f"Batched prompt preview: {batched_prompt[:500]}...")
+        
+        # Single LLM call for all patents
+        response = await self.llm_client.generate_text(
+            prompt=batched_prompt,
+            max_tokens=16384  # Official Azure max for gpt-5-nano
+        )
+        
+        if not response.get("success"):
+            logger.error(f"Batched LLM claims analysis failed - {response.get('error')}")
+            raise ValueError(f"Failed to summarize claims in batch: {response.get('error')}")
+        
+        batched_summary = response["text"]
+        
+        # Enhanced validation and logging
+        logger.info(f"Batched LLM analysis response generated (length: {len(batched_summary)}, preview: {batched_summary[:200] if batched_summary else 'EMPTY'})")
+        
+        # Validate response is not empty - fail fast if too short
+        if not batched_summary or len(batched_summary.strip()) < 100:
+            logger.error(f"LLM generated empty or very short batched analysis (response: {response}, generated_text: {batched_summary})")
+            raise ValueError(f"Batched claims analysis failed - LLM returned empty or too short response (length: {len(batched_summary) if batched_summary else 0}). Please try again or contact support if the issue persists.")
         
         # Add note for remaining patents if any
         if len(patents) > 20:
             remaining_count = len(patents) - 20
-            logger.info(f"Note: {remaining_count} additional patents found but not analyzed for claims")
-            claims_summaries.append(f"**Additional Patents**: {remaining_count} more patents found with claims data\n")
+            logger.info(f"Note: {remaining_count} additional patents found but not analyzed for comprehensive claims")
+            batched_summary += f"\n\n**Additional Patents**: {remaining_count} more patents found with claims data"
         
-        final_summary = "\n".join(claims_summaries)
-        logger.info(f"Claims summarization completed. Final summary length: {len(final_summary)} chars")
-        return final_summary
+        logger.info(f"Batched claims summarization completed successfully. Final summary length: {len(batched_summary)} chars")
+        return batched_summary
     
     async def _fetch_claims(self, patent_id: str) -> List[Dict]:
         """Fetch claims for a specific patent with strict validation."""
@@ -426,7 +456,7 @@ Format as concise markdown.
                 claims.append({
                     "number": claim_number,
                     "text": claim_text.strip(),
-                    "type": "dependent" if claim.get("claim_dependent") else "independent",
+                    "type": "dependent" if claim.get("claim_dependent") is not None else "independent",
                     "sequence": claim.get("claim_sequence", 0)
                 })
             
