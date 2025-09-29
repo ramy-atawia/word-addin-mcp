@@ -460,7 +460,7 @@ jobs:
         echo "Patent search response preview: $(echo "$patent_response" | head -c 500)..."
         
         # Check if response contains success status and report content
-        if echo "$patent_response" | grep -q '"status":"success"' && echo "$patent_response" | grep -q "Prior Art Search Report"; then
+        if echo "$patent_response" | grep -q '"status":"success"' && echo "$patent_response" | grep -q "Executive Summary"; then
           echo "Patent search test passed: Report generated successfully"
         elif echo "$patent_response" | grep -q '"timeout":true' || echo "$patent_response" | grep -q "504\|GatewayTimeout\|timeout"; then
           echo "Patent search test skipped: Request timed out - this is expected for external API calls"
