@@ -649,7 +649,7 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any],
             
             if substitutions_made:
                 logger.info(f"Made substitutions for {key} (substitutions: {substitutions_made})")
-        else:
+            else:
                 logger.warning(f"No substitutions made for {key} despite placeholders", 
                              value=value, available_keys=list(step_results.keys()))
     
