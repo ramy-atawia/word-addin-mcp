@@ -1049,25 +1049,53 @@ def _validate_synthesis_uses_research(response: str, step_results: Dict[str, Any
         if len(term) > 3:  # Skip short words
             user_terms.add(term.lower())
     
-    # Check if any research results contain these terms
+    # Collect all research content
     research_content = ""
+    research_snippets = []
     for result in step_results.values():
         if isinstance(result, dict):
             content = result.get("result", "")
-            if isinstance(content, str):
+            if isinstance(content, str) and len(content.strip()) > 10:
                 research_content += content.lower() + " "
+                # Extract meaningful snippets (first 200 chars of each result)
+                research_snippets.append(content[:200].lower())
+        elif isinstance(result, str) and len(result.strip()) > 10:
+            research_content += result.lower() + " "
+            research_snippets.append(result[:200].lower())
     
-    # Check if response contains specific terms from research
     response_lower = response.lower()
-    research_terms_found = 0
     
+    # Check 1: User terms appear in both research and response
+    user_terms_found = 0
     for term in user_terms:
         if term in research_content and term in response_lower:
-            research_terms_found += 1
+            user_terms_found += 1
     
-    # If no specific terms from user request appear in both research and response,
-    # it might be generic
-    return research_terms_found > 0
+    # Check 2: Response contains specific research content snippets
+    research_snippets_used = 0
+    for snippet in research_snippets:
+        # Check if any significant part of the snippet appears in the response
+        snippet_words = snippet.split()[:10]  # First 10 words
+        if len(snippet_words) >= 3:  # At least 3 words
+            snippet_phrase = " ".join(snippet_words)
+            if snippet_phrase in response_lower:
+                research_snippets_used += 1
+    
+    # Check 3: Response length vs research content ratio
+    response_length = len(response.strip())
+    research_length = len(research_content.strip())
+    
+    # If response is much shorter than research, it might not be using it
+    if research_length > 0 and response_length < (research_length * 0.1):
+        return False
+    
+    # Validation passes if:
+    # 1. User terms are found in both research and response, OR
+    # 2. At least one research snippet is used in response, OR  
+    # 3. Response is substantial relative to research content
+    return (user_terms_found > 0 or 
+            research_snippets_used > 0 or 
+            (research_length > 0 and response_length > (research_length * 0.2)))
 
 
 def _route_after_intent(state: AgentState) -> str:
