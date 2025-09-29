@@ -942,6 +942,8 @@ Recent conversation:
 - If researching a person, incorporate their actual work and expertise areas
 - If researching technology, use the specific technical details found
 - Make claims relevant to the research subject, not generic
+- **ALWAYS include the research findings that informed the claims**
+- Show how the claims relate to the specific research discovered
 
 ### FOR PRIOR ART SEARCH REQUESTS:
 - Analyze ALL patents found, not just the first few
@@ -964,6 +966,12 @@ Recent conversation:
 2. Directly relates to what was researched
 3. Addresses the user's actual request
 4. Shows clear evidence of using the research findings
+
+**RESPONSE FORMAT FOR CLAIM DRAFTING**:
+When drafting claims based on research, structure your response as:
+1. **Research Summary**: Brief overview of the key findings that informed the claims
+2. **Claims**: The requested patent claims based on the research
+3. **Research References**: Show how each claim relates to specific research findings
 
 Create a response that demonstrates clear use of the research findings and directly addresses the user's request."""
 
