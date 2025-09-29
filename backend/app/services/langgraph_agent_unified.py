@@ -936,14 +936,12 @@ Recent conversation:
 
 **CRITICAL**: Your response MUST be based on the actual tool outputs above. Use the specific information found in the research to create relevant, targeted content.
 
-### FOR CLAIM DRAFTING REQUESTS:
-- Generate ONLY the requested number and type of claims
-- Base the claims on the specific research findings provided
-- If researching a person, incorporate their actual work and expertise areas
-- If researching technology, use the specific technical details found
-- Make claims relevant to the research subject, not generic
-- **ALWAYS include the research findings that informed the claims**
-- Show how the claims relate to the specific research discovered
+### FOR ALL REQUESTS:
+- Generate the requested output based on the specific tool results provided
+- Use the actual data and findings from the tool outputs, not generic assumptions
+- Make your response relevant to what was actually discovered/researched
+- **ALWAYS show the connection between tool results and your final output**
+- Demonstrate that your response is based on the specific information found
 
 ### FOR PRIOR ART SEARCH REQUESTS:
 - Analyze ALL patents found, not just the first few
@@ -957,9 +955,10 @@ Recent conversation:
 
 ### SYNTHESIS PRINCIPLES:
 - **Use Specific Data**: Base your response on the actual tool outputs, not generic assumptions
-- **Stay Relevant**: Ensure your response directly relates to what was researched
+- **Stay Relevant**: Ensure your response directly relates to what was discovered
 - **Be Professional**: Use clear structure and formatting
-- **Show Evidence**: Demonstrate that you used the research findings
+- **Show Evidence**: Demonstrate that you used the tool findings
+- **Be Transparent**: Show what tools were used and how their results informed your response
 
 **IMPORTANT**: Before finalizing your response, verify that it:
 1. Uses specific information from the tool outputs
@@ -967,11 +966,11 @@ Recent conversation:
 3. Addresses the user's actual request
 4. Shows clear evidence of using the research findings
 
-**RESPONSE FORMAT FOR CLAIM DRAFTING**:
-When drafting claims based on research, structure your response as:
-1. **Research Summary**: Brief overview of the key findings that informed the claims
-2. **Claims**: The requested patent claims based on the research
-3. **Research References**: Show how each claim relates to specific research findings
+**RESPONSE FORMAT**:
+Structure your response as:
+1. **Execution Summary**: What tools were executed and their purpose
+2. **Tool Results Summary**: Key findings from the tool outputs that informed your response
+3. **Final Output**: Your synthesized response based on the tool results
 
 Create a response that demonstrates clear use of the research findings and directly addresses the user's request."""
 
