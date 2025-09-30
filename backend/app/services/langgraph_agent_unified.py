@@ -710,9 +710,9 @@ async def _generate_conversation_response(state: AgentState) -> str:
     llm_client = dependencies.llm_client
         
         # Build context with improved history formatting
-        history_context = ""
-        if conversation_history:
-            recent = conversation_history[-10:]  # Last 10 messages (increased from 3)
+    history_context = ""
+    if conversation_history:
+        recent = conversation_history[-10:]  # Last 10 messages (increased from 3)
         history_parts = []
         for msg in recent:
             # Handle both dict and string message formats
