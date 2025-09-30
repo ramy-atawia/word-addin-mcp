@@ -274,14 +274,6 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
         {/* Enhanced Controls */}
         <div className={styles.controlsContainer}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              onClick={clearMessages}
-              className={styles.clearButton}
-              title="Clear conversation history for new invention context"
-              disabled={isProcessing}
-            >
-              🧹 Clear Context
-            </button>
             
             {isProcessing && (
               <div style={{ 
