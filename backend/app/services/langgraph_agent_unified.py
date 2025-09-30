@@ -311,7 +311,7 @@ async def _llm_intent_detection(state: AgentState) -> tuple[str, List[Dict]]:
     
     response = await llm_client.generate_text(
         prompt=prompt,
-        max_tokens=16000
+        max_tokens=32000  # Increased to accommodate larger context
     )
     
     if not response.get("success"):
@@ -489,8 +489,8 @@ def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> 
     
     # Extract recent conversation pairs (user query + assistant response) without keyword filtering
     recent_context = []
-    for i in range(len(conversation_history) - 1, -1, -1):  # Check last 5 messages
-        if i >= len(conversation_history) - 5:  # Only check last 5 messages
+    for i in range(len(conversation_history) - 1, -1, -1):  # Check last 15 messages
+        if i >= len(conversation_history) - 15:  # Only check last 15 messages (increased from 5)
             msg = conversation_history[i]
             
             # Handle both dict and string message formats
@@ -519,8 +519,8 @@ def _extract_recent_tool_results(conversation_history: List[Dict[str, Any]]) -> 
                     context_parts.append(f"User Query: {user_query}")
                 
                 # Truncate long content to prevent prompt overflow
-                if len(content) > 1500:
-                    content = content[:1500] + "... [truncated]"
+                if len(content) > 10000:
+                    content = content[:10000] + "... [truncated]"
                 context_parts.append(f"Response: {content}")
                 
                 recent_context.append("\n".join(context_parts))
@@ -603,8 +603,8 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any],
                 if content and len(str(content).strip()) > 10:
                     # Truncate long content to prevent prompt overflow
                     context_text = str(content)
-                    if len(context_text) > 1500:
-                        context_text = context_text[:1500] + "... [truncated]"
+                    if len(context_text) > 10000:
+                        context_text = context_text[:10000] + "... [truncated]"
                     
                     context_parts.append(f"{step_key}: {context_text}")
         
@@ -639,8 +639,8 @@ def _add_context_to_params(params: Dict[str, Any], step_results: Dict[str, Any],
                         context_text = str(result_value)
                     
                     # Limit context size to prevent prompt overflow
-                    if len(context_text) > 2000:
-                        context_text = context_text[:2000] + "... [truncated]"
+                    if len(context_text) > 10000:
+                        context_text = context_text[:10000] + "... [truncated]"
                     
                     processed_value = processed_value.replace(placeholder, context_text)
                     substitutions_made.append(f"{placeholder} -> {len(context_text)} chars")
@@ -709,10 +709,10 @@ async def _generate_conversation_response(state: AgentState) -> str:
         
     llm_client = dependencies.llm_client
         
-    # Build context with improved history formatting
-    history_context = ""
-    if conversation_history:
-        recent = conversation_history[-3:]  # Last 3 messages
+        # Build context with improved history formatting
+        history_context = ""
+        if conversation_history:
+            recent = conversation_history[-10:]  # Last 10 messages (increased from 3)
         history_parts = []
         for msg in recent:
             # Handle both dict and string message formats
@@ -755,7 +755,7 @@ For document drafting requests (like invention disclosures, reports, proposals),
     
     response = await llm_client.generate_text(
         prompt=prompt,
-        max_tokens=16000
+        max_tokens=32000  # Increased to accommodate larger context
     )
     
     if not response.get("success"):
@@ -976,7 +976,7 @@ Create a response that demonstrates clear use of the research findings and direc
 
     response = await llm_client.generate_text(
         prompt=prompt,
-        max_tokens=16000  # Standardized limit for comprehensive analysis
+        max_tokens=32000  # Increased to accommodate larger context  # Standardized limit for comprehensive analysis
     )
     
     if not response.get("success"):
