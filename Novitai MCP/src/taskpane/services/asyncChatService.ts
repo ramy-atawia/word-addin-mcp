@@ -76,6 +76,47 @@ export class AsyncChatService {
   }
 
   /**
+   * Submit a document modification request for asynchronous processing
+   */
+  async submitDocumentModificationRequest(params: {
+    user_request: string;
+    paragraphs: Array<{
+      index: number;
+      text: string;
+      formatting?: any;
+    }>;
+    sessionId: string;
+  }): Promise<AsyncJobResponse> {
+    try {
+      const token = getAccessToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${this.baseURL}/api/v1/async/document-modification/submit`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(params)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result: AsyncJobResponse = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Failed to submit document modification request:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Submit a chat request for asynchronous processing
    */
   async submitChatRequest(params: {

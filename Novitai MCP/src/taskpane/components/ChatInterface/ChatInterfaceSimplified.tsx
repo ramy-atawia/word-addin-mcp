@@ -8,6 +8,8 @@ import { useChatMessages } from '../../hooks/useChatMessages';
 import { useAsyncChat } from '../../hooks/useAsyncChat';
 import mcpToolService from '../../services/mcpToolService';
 import { documentContextService } from '../../services/documentContextService';
+import { officeIntegrationService } from '../../services/officeIntegrationService';
+import { DocumentModificationService } from '../../services/documentModificationService';
 import ErrorBoundary from '../ErrorBoundary';
 import { useState, useCallback, useEffect } from 'react';
 
@@ -123,6 +125,7 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [availableTools, setAvailableTools] = useState<MCPTool[]>([]);
   const [toolsLoading, setToolsLoading] = useState(false);
+  const [documentModificationService] = useState(() => new DocumentModificationService(officeIntegrationService));
   
   // Use custom hooks
   const { addMessage, initializeMessages, messages: chatMessages } = useChatMessages({ 
@@ -181,6 +184,99 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
     }
   };
 
+  // Check if user request is for document modification
+  const isModificationRequest = (message: string): boolean => {
+    const modificationKeywords = [
+      'modify', 'edit', 'change', 'update', 'revise', 'amend',
+      'replace', 'substitute', 'fix', 'correct', 'improve',
+      'rewrite', 'rephrase', 'adjust', 'adapt'
+    ];
+    
+    return modificationKeywords.some(keyword => 
+      message.toLowerCase().includes(keyword)
+    );
+  };
+
+  // Handle document modification
+  const handleDocumentModification = async (userRequest: string) => {
+    try {
+      // Get document paragraphs
+      const paragraphs = await documentModificationService.getDocumentParagraphs();
+      
+      if (paragraphs.length === 0) {
+        addMessage({
+          id: (Date.now() + 1).toString(),
+          type: 'system',
+          content: '❌ No document content found. Please open a Word document and try again.',
+          timestamp: new Date()
+        });
+        return;
+      }
+
+      // Add processing message
+      addMessage({
+        id: (Date.now() + 1).toString(),
+        type: 'system',
+        content: '🔍 Analyzing document and generating modification plan...',
+        timestamp: new Date()
+      });
+
+      // Call backend for modification plan
+      const response = await fetch(`${(window as any).BACKEND_URL || 'http://localhost:9000'}/api/v1/mcp/tools/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(window as any).getAccessToken?.() || ''}`
+        },
+        body: JSON.stringify({
+          tool_name: 'document_modification_tool',
+          parameters: {
+            user_request: userRequest,
+            paragraphs: paragraphs
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        // Apply modifications
+        const modificationResult = await documentModificationService.applyModifications(result.data.modifications);
+        
+        if (modificationResult.success) {
+          addMessage({
+            id: (Date.now() + 2).toString(),
+            type: 'system',
+            content: `✅ Document updated successfully! Applied ${modificationResult.changesApplied} changes. ${result.data.summary}`,
+            timestamp: new Date()
+          });
+        } else {
+          addMessage({
+            id: (Date.now() + 2).toString(),
+            type: 'system',
+            content: `❌ Document modification failed: ${modificationResult.errors.join(', ')}`,
+            timestamp: new Date()
+          });
+        }
+      } else {
+        throw new Error(result.error || 'Failed to generate modification plan');
+      }
+      
+    } catch (error) {
+      console.error('Document modification failed:', error);
+      addMessage({
+        id: (Date.now() + 2).toString(),
+        type: 'system',
+        content: `❌ Document modification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: new Date()
+      });
+    }
+  };
+
   const handleSendMessage = useCallback(async (content: string) => {
     // Input validation
     const trimmedContent = content.trim();
@@ -204,6 +300,12 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
     try {
       if (onLoadingChange) {
         onLoadingChange(true);
+      }
+      
+      // Check if this is a document modification request
+      if (isModificationRequest(trimmedContent)) {
+        await handleDocumentModification(trimmedContent);
+        return; // Exit early, don't proceed with normal chat
       }
       
       // Use async processing only
@@ -240,7 +342,7 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
         onLoadingChange(false);
       }
     }
-  }, [loading, isProcessing, addMessage, handleAsyncMessage, messages, availableTools, onLoadingChange]);
+  }, [loading, isProcessing, addMessage, handleAsyncMessage, messages, availableTools, onLoadingChange, isModificationRequest, handleDocumentModification]);
 
 
   return (

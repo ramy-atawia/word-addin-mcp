@@ -1,0 +1,34 @@
+USER REQUEST: {user_request}
+
+DOCUMENT PARAGRAPHS:
+{paragraphs}
+
+Your task:
+1. Analyze each paragraph in context of its position in the document
+2. Identify specific text within paragraphs that needs changing
+3. Generate precise change instructions with exact text matching
+4. Consider document flow and structure
+5. Provide clear reasoning for each change
+
+Return modifications as JSON with this exact format:
+{{
+    "modifications": [
+        {{
+            "paragraph_index": 0,
+            "changes": [
+                {{
+                    "action": "replace" or "insert" or "delete",
+                    "exact_find_text": "exact text as it appears in document",
+                    "replace_text": "replacement text",
+                    "reason": "why this change is needed"
+                }}
+            ]
+        }}
+    ],
+    "summary": "Brief summary of all modifications made"
+}}
+
+Be specific about what content to change, add, remove, or reorganize.
+Consider the impact on document flow and reader experience.
+Ensure all changes are actionable and clearly defined.
+Use exact text matching - the exact_find_text must match exactly what appears in the document.

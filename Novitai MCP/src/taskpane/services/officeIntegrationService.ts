@@ -486,6 +486,102 @@ export class OfficeIntegrationService {
       return '';
     }
   }
+
+  /**
+   * Get document content as paragraphs with formatting
+   */
+  async getDocumentParagraphs(): Promise<Array<{index: number, text: string, formatting?: any}>> {
+    await this.initializationPromise;
+    
+    if (!this.isOfficeReady) {
+      console.warn('Office.js not available, returning empty paragraphs');
+      return [];
+    }
+
+    return new Promise((resolve, reject) => {
+      Word.run(async (context) => {
+        try {
+          const paragraphs = context.document.body.paragraphs;
+          paragraphs.load('text,font');
+          await context.sync();
+          
+          const paragraphData = paragraphs.items.map((para, index) => ({
+            index: index,
+            text: para.text,
+            formatting: {
+              bold: para.font.bold,
+              italic: para.font.italic,
+              font_size: para.font.size,
+              font_name: para.font.name,
+              color: para.font.color
+            }
+          }));
+          
+          resolve(paragraphData);
+        } catch (error) {
+          reject(error);
+        }
+      }).catch(reject);
+    });
+  }
+
+  /**
+   * Search and replace text in a specific paragraph with track changes
+   */
+  async searchAndReplaceInParagraph(
+    paragraphIndex: number, 
+    findText: string, 
+    replaceText: string, 
+    reason: string
+  ): Promise<boolean> {
+    await this.initializationPromise;
+    
+    if (!this.isOfficeReady) {
+      console.warn('Office.js not available, cannot perform search and replace');
+      return false;
+    }
+
+    return new Promise((resolve, reject) => {
+      Word.run(async (context) => {
+        try {
+          const paragraphs = context.document.body.paragraphs;
+          paragraphs.load('text');
+          await context.sync();
+          
+          if (paragraphIndex >= paragraphs.items.length) {
+            throw new Error(`Paragraph index ${paragraphIndex} not found`);
+          }
+          
+          const paragraph = paragraphs.items[paragraphIndex];
+          
+          // Search for exact text within the paragraph
+          const ranges = paragraph.search(findText, {
+            matchCase: false,
+            matchWholeWord: true
+          });
+          
+          if (ranges.items.length === 0) {
+            throw new Error(`Text "${findText}" not found in paragraph ${paragraphIndex}`);
+          }
+          
+          const range = ranges.items[0];
+          
+          // Replace the text
+          range.insertText(replaceText, Word.InsertLocation.replace);
+          
+          // Add review comment
+          range.insertComment(reason);
+          
+          await context.sync();
+          resolve(true);
+          
+        } catch (error) {
+          console.error('Search and replace failed:', error);
+          resolve(false);
+        }
+      }).catch(reject);
+    });
+  }
 }
 
 // Export singleton instance
