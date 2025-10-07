@@ -110,7 +110,7 @@ export class DocumentModificationService {
             }
             
             // Apply the change using Office.js
-            await this.applyChange(change, modification.paragraph_index, findIndex);
+            await this.applyChange(change, modification.paragraph_index);
             
             result.changesApplied++;
             
@@ -134,7 +134,7 @@ export class DocumentModificationService {
   /**
    * Apply a single change using Office.js
    */
-  private async applyChange(change: ChangeInstruction, paragraphIndex: number, findIndex: number): Promise<void> {
+  private async applyChange(change: ChangeInstruction, paragraphIndex: number): Promise<void> {
     return new Promise((resolve, reject) => {
       Word.run(async (context) => {
         try {
