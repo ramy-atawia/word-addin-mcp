@@ -505,20 +505,32 @@ export class OfficeIntegrationService {
           paragraphs.load('text,font');
           await context.sync();
           
-          const paragraphData = paragraphs.items.map((para, index) => ({
-            index: index,
-            text: para.text,
-            formatting: {
-              bold: para.font.bold,
-              italic: para.font.italic,
-              font_size: para.font.size,
-              font_name: para.font.name,
-              color: para.font.color
-            }
-          }));
+          console.log(`Office.js found ${paragraphs.items.length} paragraphs`);
           
-          resolve(paragraphData);
+          const paragraphData = paragraphs.items.map((para, index) => {
+            const text = para.text || '';
+            console.log(`Paragraph ${index}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+            
+            return {
+              index: index,
+              text: text,
+              formatting: {
+                bold: para.font.bold,
+                italic: para.font.italic,
+                font_size: para.font.size,
+                font_name: para.font.name,
+                color: para.font.color
+              }
+            };
+          });
+          
+          // Filter out empty paragraphs
+          const nonEmptyParagraphs = paragraphData.filter(para => para.text.trim().length > 0);
+          console.log(`Found ${nonEmptyParagraphs.length} non-empty paragraphs`);
+          
+          resolve(nonEmptyParagraphs);
         } catch (error) {
+          console.error('Error getting document paragraphs:', error);
           reject(error);
         }
       }).catch(reject);

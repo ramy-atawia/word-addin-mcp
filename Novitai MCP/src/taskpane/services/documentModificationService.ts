@@ -45,15 +45,14 @@ export class DocumentModificationService {
    */
   async getDocumentParagraphs(): Promise<DocumentParagraph[]> {
     try {
-      const content = await this.officeIntegrationService.getDocumentContent();
+      // Use the proper Office.js paragraph extraction
+      const paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
       
-      // Split content into paragraphs
-      const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-      
-      const paragraphData: DocumentParagraph[] = paragraphs.map((text, index) => ({
-        index: index,
-        text: text.trim(),
-        formatting: {
+      // Convert to our interface format
+      const paragraphData: DocumentParagraph[] = paragraphs.map((para: any) => ({
+        index: para.index,
+        text: para.text,
+        formatting: para.formatting || {
           bold: false,
           italic: false,
           font_size: 11,

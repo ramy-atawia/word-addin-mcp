@@ -200,6 +200,18 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   // Handle document modification
   const handleDocumentModification = async (userRequest: string) => {
     try {
+      // Check if Office.js is ready first
+      const isOfficeReady = await officeIntegrationService.checkOfficeReady();
+      if (!isOfficeReady) {
+        addMessage({
+          id: (Date.now() + 1).toString(),
+          type: 'system',
+          content: '❌ Office.js is not ready. Please ensure you are running this in Microsoft Word.',
+          timestamp: new Date()
+        });
+        return;
+      }
+
       // Get document paragraphs
       const paragraphs = await documentModificationService.getDocumentParagraphs();
       
@@ -207,11 +219,13 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
         addMessage({
           id: (Date.now() + 1).toString(),
           type: 'system',
-          content: '❌ No document content found. Please open a Word document and try again.',
+          content: '❌ No document content found. Please ensure your Word document has text content and try again.',
           timestamp: new Date()
         });
         return;
       }
+
+      console.log(`Found ${paragraphs.length} paragraphs in document`);
 
       // Add processing message
       addMessage({
