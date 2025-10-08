@@ -590,7 +590,7 @@ export class OfficeIntegrationService {
       return false;
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       Word.run(async (context) => {
         try {
           const paragraphs = context.document.body.paragraphs;
