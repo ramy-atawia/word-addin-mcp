@@ -701,7 +701,7 @@ if (typeof window !== 'undefined') {
       console.log(`First paragraph text: "${firstParagraph.text}"`);
       
       // Try to replace first word
-      const words = firstParagraph.text.split();
+      const words = firstParagraph.text.split(' ');
       if (words.length > 0) {
         const firstWord = words[0];
         console.log(`Trying to replace "${firstWord}" with "TEST"`);
