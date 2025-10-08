@@ -81,11 +81,13 @@ export class DocumentModificationService {
       // Enable track changes
       await this.enableTrackChanges();
       
-      // Get current document content for paragraph indexing
-      const content = await this.officeIntegrationService.getDocumentContent();
-      const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+      // Get current document paragraphs using Office.js
+      const paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
+      console.log(`Found ${paragraphs.length} paragraphs for modification`);
       
       for (const modification of modifications) {
+        console.log(`Processing modification for paragraph ${modification.paragraph_index}`);
+        
         // Validate paragraph index exists
         if (modification.paragraph_index >= paragraphs.length) {
           const error = `Paragraph index ${modification.paragraph_index} not found. Document has ${paragraphs.length} paragraphs.`;
@@ -94,24 +96,29 @@ export class DocumentModificationService {
           continue;
         }
         
-        const paragraphText = paragraphs[modification.paragraph_index];
+        const paragraph = paragraphs[modification.paragraph_index];
+        console.log(`Paragraph ${modification.paragraph_index} text: "${paragraph.text}"`);
         
         for (const change of modification.changes) {
           try {
-            // Search for exact text within the paragraph
-            const findIndex = paragraphText.indexOf(change.exact_find_text);
+            console.log(`Applying change: "${change.exact_find_text}" -> "${change.replace_text}"`);
             
-            if (findIndex === -1) {
-              const error = `Text "${change.exact_find_text}" not found in paragraph ${modification.paragraph_index}`;
+            // Use Office.js search and replace
+            const success = await this.officeIntegrationService.searchAndReplaceInParagraph(
+              modification.paragraph_index,
+              change.exact_find_text,
+              change.replace_text,
+              change.reason
+            );
+            
+            if (success) {
+              result.changesApplied++;
+              console.log(`Successfully applied change in paragraph ${modification.paragraph_index}`);
+            } else {
+              const error = `Failed to apply change in paragraph ${modification.paragraph_index}`;
               console.error(error);
               result.errors.push(error);
-              continue;
             }
-            
-            // Apply the change using Office.js
-            await this.applyChange(change, modification.paragraph_index);
-            
-            result.changesApplied++;
             
           } catch (changeError) {
             const error = `Failed to apply change in paragraph ${modification.paragraph_index}: ${changeError}`;
@@ -130,58 +137,6 @@ export class DocumentModificationService {
     return result;
   }
 
-  /**
-   * Apply a single change using Office.js
-   */
-  private async applyChange(change: ChangeInstruction, paragraphIndex: number): Promise<void> {
-    return new Promise((resolve, reject) => {
-      Word.run(async (context) => {
-        try {
-          // Get all paragraphs
-          const paragraphs = context.document.body.paragraphs;
-          paragraphs.load('text');
-          await context.sync();
-          
-          // Get the specific paragraph
-          const paragraph = paragraphs.items[paragraphIndex];
-          
-          // Search for the exact text in the paragraph
-          const ranges = paragraph.search(change.exact_find_text, {
-            matchCase: false,
-            matchWholeWord: true
-          });
-          
-          if (ranges.items.length === 0) {
-            throw new Error(`Text "${change.exact_find_text}" not found in paragraph`);
-          }
-          
-          const range = ranges.items[0];
-          
-          // Apply the change based on action
-          switch (change.action) {
-            case 'replace':
-              range.insertText(change.replace_text, Word.InsertLocation.replace);
-              break;
-            case 'insert':
-              range.insertText(change.replace_text, Word.InsertLocation.after);
-              break;
-            case 'delete':
-              range.insertText('', Word.InsertLocation.replace);
-              break;
-          }
-          
-          // Add review comment
-          range.insertComment(change.reason);
-          
-          await context.sync();
-          resolve();
-          
-        } catch (error) {
-          reject(error);
-        }
-      }).catch(reject);
-    });
-  }
 
   /**
    * Enable track changes in the document
