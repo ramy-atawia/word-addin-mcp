@@ -42,7 +42,7 @@ export class OfficeIntegrationService {
   private async initializeOffice(): Promise<void> {
     try {
       // Use Office.onReady() for proper initialization
-      await new Promise<void>((resolve, reject) => {
+      await new Promise<void>((resolve) => {
         if (typeof Office !== 'undefined' && Office.onReady) {
           Office.onReady((info) => {
             console.log('Office.onReady callback executed with info:', info);
