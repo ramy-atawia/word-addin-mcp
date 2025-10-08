@@ -63,15 +63,22 @@ export class OfficeIntegrationService {
   private async waitForOffice(): Promise<void> {
     return new Promise((resolve, reject) => {
       let attempts = 0;
-      const maxAttempts = 50; // 5 seconds max
+      const maxAttempts = 100; // 10 seconds max
       
       const checkOffice = () => {
         attempts++;
         
-        if (typeof Office !== 'undefined' && Office.context) {
+        console.log(`Office.js check attempt ${attempts}/${maxAttempts}`);
+        console.log(`Office defined: ${typeof Office !== 'undefined'}`);
+        console.log(`Office.context: ${typeof Office !== 'undefined' && Office.context ? 'defined' : 'undefined'}`);
+        console.log(`Office.context.document: ${typeof Office !== 'undefined' && Office.context && Office.context.document ? 'defined' : 'undefined'}`);
+        
+        if (typeof Office !== 'undefined' && Office.context && Office.context.document) {
+          console.log('Office.js fully ready with document context');
           resolve();
         } else if (attempts >= maxAttempts) {
-          reject(new Error('Office.js not available after 5 seconds'));
+          console.error('Office.js not available after 10 seconds');
+          reject(new Error('Office.js not available after 10 seconds'));
         } else {
           setTimeout(checkOffice, 100);
         }

@@ -46,6 +46,10 @@ export class DocumentContextService {
       const isOfficeReady = await officeIntegrationService.checkOfficeReady();
       if (!isOfficeReady) {
         console.warn('Office.js not ready, returning default context');
+        console.log('This might happen if:');
+        console.log('1. The add-in is not running in Microsoft Word');
+        console.log('2. Office.js is still initializing');
+        console.log('3. There is an issue with the Office.js environment');
         return this.getDefaultContext();
       }
 
