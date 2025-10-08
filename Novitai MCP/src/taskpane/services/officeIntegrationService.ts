@@ -539,7 +539,7 @@ export class OfficeIntegrationService {
       Word.run(async (context) => {
         try {
           const paragraphs = context.document.body.paragraphs;
-          paragraphs.load('text,font');
+          paragraphs.load('text,font/bold,font/italic,font/size,font/name,font/color');
           await context.sync();
           
           console.log(`Office.js found ${paragraphs.items.length} paragraphs`);
@@ -611,6 +611,8 @@ export class OfficeIntegrationService {
             matchCase: false,
             matchWholeWord: true
           });
+          ranges.load('text');
+          await context.sync();
           
           console.log(`Whole word search found ${ranges.items.length} matches`);
           
@@ -620,6 +622,8 @@ export class OfficeIntegrationService {
               matchCase: false,
               matchWholeWord: false
             });
+            ranges.load('text');
+            await context.sync();
             console.log(`Partial word search found ${ranges.items.length} matches`);
           }
           
