@@ -16,6 +16,7 @@ from ...services.mcp.orchestrator import get_initialized_mcp_orchestrator
 from ...schemas.agent import AgentChatRequest, AgentChatResponse
 from ...services.agent import agent_service
 from ...schemas.mcp import ExternalServerRequest
+from ...mcp_servers.tools.document_modification_tool import document_modification_tool
 
 logger = logging.getLogger(__name__)
 
@@ -302,4 +303,59 @@ async def get_external_servers():
                 "error": "Internal Server Error",
                 "message": str(e)
             }
+        )
+
+
+class ToolExecuteRequest(BaseModel):
+    tool_name: str
+    parameters: Dict[str, Any]
+
+class ToolExecuteResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+@router.post("/mcp/tools/execute", response_model=ToolExecuteResponse)
+async def execute_tool(request: ToolExecuteRequest):
+    """
+    Execute a specific MCP tool with given parameters.
+    
+    This endpoint provides direct tool execution for tools that don't need
+    the full agent workflow, such as document modification.
+    
+    Args:
+        request: Tool execution request with tool name and parameters
+        
+    Returns:
+        Tool execution result with success status and data
+    """
+    try:
+        logger.info(f"Executing tool: {request.tool_name}")
+        
+        # Handle document modification tool
+        if request.tool_name == "document_modification_tool":
+            result = await document_modification_tool.modify_document(
+                user_request=request.parameters.get("user_request", ""),
+                paragraphs=request.parameters.get("paragraphs", [])
+            )
+            
+            return ToolExecuteResponse(
+                success=True,
+                data=result,
+                error=None
+            )
+        
+        # Handle other tools here as needed
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unknown tool: {request.tool_name}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Tool execution failed: {str(e)}")
+        return ToolExecuteResponse(
+            success=False,
+            data=None,
+            error=str(e)
         )
