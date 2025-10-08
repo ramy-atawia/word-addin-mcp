@@ -93,6 +93,27 @@ export class OfficeIntegrationService {
    */
   async checkOfficeReady(): Promise<boolean> {
     await this.initializationPromise;
+    
+    // Additional debugging
+    console.log('=== Office.js Readiness Check ===');
+    console.log('isOfficeReady:', this.isOfficeReady);
+    console.log('Office defined:', typeof Office !== 'undefined');
+    console.log('Office.context:', typeof Office !== 'undefined' && Office.context);
+    console.log('Office.context.document:', typeof Office !== 'undefined' && Office.context && Office.context.document);
+    console.log('Office.context.requirements:', typeof Office !== 'undefined' && Office.context && Office.context.requirements);
+    console.log('Office.context.platform:', typeof Office !== 'undefined' && Office.context && Office.context.platform);
+    
+    // If not ready, try to reinitialize
+    if (!this.isOfficeReady && typeof Office !== 'undefined') {
+      console.log('Office.js not ready, attempting reinitialization...');
+      try {
+        await this.initializeOffice();
+        console.log('Reinitialization result:', this.isOfficeReady);
+      } catch (error) {
+        console.error('Reinitialization failed:', error);
+      }
+    }
+    
     return this.isOfficeReady;
   }
 
@@ -605,3 +626,22 @@ export class OfficeIntegrationService {
 
 // Export singleton instance
 export const officeIntegrationService = new OfficeIntegrationService();
+
+// Add global debugging function for console testing
+if (typeof window !== 'undefined') {
+  (window as any).debugOfficeJS = async () => {
+    console.log('=== Manual Office.js Debug ===');
+    console.log('Office defined:', typeof Office !== 'undefined');
+    if (typeof Office !== 'undefined') {
+      console.log('Office.context:', Office.context);
+      console.log('Office.context.document:', Office.context?.document);
+      console.log('Office.context.requirements:', Office.context?.requirements);
+      console.log('Office.context.platform:', Office.context?.platform);
+      console.log('Office.context.host:', Office.context?.host);
+    }
+    
+    const isReady = await officeIntegrationService.checkOfficeReady();
+    console.log('Office.js ready:', isReady);
+    return isReady;
+  };
+}
