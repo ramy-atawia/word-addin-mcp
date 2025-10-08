@@ -84,8 +84,13 @@ export class OfficeIntegrationService {
     console.log('Office defined:', typeof Office !== 'undefined');
     console.log('Office.context:', typeof Office !== 'undefined' && Office.context);
     console.log('Office.context.document:', typeof Office !== 'undefined' && Office.context && Office.context.document);
-    console.log('Office.context.requirements:', typeof Office !== 'undefined' && Office.context && Office.context.requirements);
-    console.log('Office.context.platform:', typeof Office !== 'undefined' && Office.context && Office.context.platform);
+    
+    // Safe property access with type checking
+    if (typeof Office !== 'undefined' && Office.context) {
+      const context = Office.context as any;
+      console.log('Office.context.requirements:', context.requirements);
+      console.log('Office.context.platform:', context.platform);
+    }
     
     // If not ready, try to reinitialize
     if (!this.isOfficeReady && typeof Office !== 'undefined') {
@@ -639,9 +644,12 @@ if (typeof window !== 'undefined') {
     if (typeof Office !== 'undefined') {
       console.log('Office.context:', Office.context);
       console.log('Office.context.document:', Office.context?.document);
-      console.log('Office.context.requirements:', Office.context?.requirements);
-      console.log('Office.context.platform:', Office.context?.platform);
-      console.log('Office.context.host:', Office.context?.host);
+      
+      // Safe property access with type checking
+      const context = Office.context as any;
+      console.log('Office.context.requirements:', context?.requirements);
+      console.log('Office.context.platform:', context?.platform);
+      console.log('Office.context.host:', context?.host);
     }
     
     const isReady = await officeIntegrationService.checkOfficeReady();
