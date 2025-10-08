@@ -603,11 +603,16 @@ export class OfficeIntegrationService {
           
           const paragraph = paragraphs.items[paragraphIndex];
           
+          console.log(`Searching for "${findText}" in paragraph ${paragraphIndex}`);
+          console.log(`Paragraph text: "${paragraph.text}"`);
+          
           // Try exact match first with whole word
           let ranges = paragraph.search(findText, {
             matchCase: false,
             matchWholeWord: true
           });
+          
+          console.log(`Whole word search found ${ranges.items.length} matches`);
           
           // If no exact match, try without whole word constraint
           if (ranges.items.length === 0) {
@@ -615,9 +620,12 @@ export class OfficeIntegrationService {
               matchCase: false,
               matchWholeWord: false
             });
+            console.log(`Partial word search found ${ranges.items.length} matches`);
           }
           
           if (ranges.items.length === 0) {
+            console.error(`Text "${findText}" not found in paragraph ${paragraphIndex}`);
+            console.error(`Available text: "${paragraph.text}"`);
             throw new Error(`Text "${findText}" not found in paragraph ${paragraphIndex}`);
           }
           
@@ -636,7 +644,10 @@ export class OfficeIntegrationService {
           console.error('Search and replace failed:', error);
           resolve(false);
         }
-      }).catch(reject);
+      }).catch((error) => {
+        console.error('Word.run failed:', error);
+        resolve(false);
+      });
     });
   }
 }

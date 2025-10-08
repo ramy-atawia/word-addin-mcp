@@ -122,12 +122,20 @@ export class DocumentModificationService {
             console.log(`Applying change: "${change.exact_find_text}" -> "${change.replace_text}"`);
             
             // Use Office.js search and replace
+            console.log(`Calling searchAndReplaceInParagraph with:`);
+            console.log(`  paragraphIndex: ${modification.paragraph_index}`);
+            console.log(`  findText: "${change.exact_find_text}"`);
+            console.log(`  replaceText: "${change.replace_text}"`);
+            console.log(`  reason: "${change.reason}"`);
+            
             const success = await this.officeIntegrationService.searchAndReplaceInParagraph(
               modification.paragraph_index,
               change.exact_find_text,
               change.replace_text,
               change.reason
             );
+            
+            console.log(`searchAndReplaceInParagraph returned: ${success}`);
             
             if (success) {
               result.changesApplied++;
