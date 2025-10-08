@@ -603,11 +603,19 @@ export class OfficeIntegrationService {
           
           const paragraph = paragraphs.items[paragraphIndex];
           
-          // Search for exact text within the paragraph
-          const ranges = paragraph.search(findText, {
+          // Try exact match first with whole word
+          let ranges = paragraph.search(findText, {
             matchCase: false,
             matchWholeWord: true
           });
+          
+          // If no exact match, try without whole word constraint
+          if (ranges.items.length === 0) {
+            ranges = paragraph.search(findText, {
+              matchCase: false,
+              matchWholeWord: false
+            });
+          }
           
           if (ranges.items.length === 0) {
             throw new Error(`Text "${findText}" not found in paragraph ${paragraphIndex}`);

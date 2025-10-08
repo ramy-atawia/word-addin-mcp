@@ -48,23 +48,41 @@ export class DocumentModificationService {
       // Use the proper Office.js paragraph extraction
       const paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
       
-      // Convert to our interface format
-      const paragraphData: DocumentParagraph[] = paragraphs.map((para: any) => ({
-        index: para.index,
-        text: para.text,
-        formatting: para.formatting || {
-          bold: false,
-          italic: false,
-          font_size: 11,
-          font_name: 'Calibri'
-        }
-      }));
+      // Validate and convert to our interface format
+      const paragraphData: DocumentParagraph[] = paragraphs
+        .map((para: any) => this.validateParagraph(para))
+        .filter((para): para is DocumentParagraph => para !== null);
+      
+      if (paragraphData.length === 0) {
+        throw new Error('No valid paragraphs found in document');
+      }
       
       return paragraphData;
     } catch (error) {
       console.error('Failed to get document paragraphs:', error);
       throw new Error(`Failed to get document paragraphs: ${error}`);
     }
+  }
+
+  /**
+   * Validate paragraph structure
+   */
+  private validateParagraph(para: any): DocumentParagraph | null {
+    if (!para || typeof para.index !== 'number' || typeof para.text !== 'string') {
+      console.warn('Invalid paragraph structure:', para);
+      return null;
+    }
+    
+    return {
+      index: para.index,
+      text: para.text,
+      formatting: para.formatting || {
+        bold: false,
+        italic: false,
+        font_size: 11,
+        font_name: 'Calibri'
+      }
+    };
   }
 
   /**

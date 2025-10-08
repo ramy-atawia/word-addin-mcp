@@ -186,15 +186,16 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
 
   // Check if user request is for document modification
   const isModificationRequest = (message: string): boolean => {
-    const modificationKeywords = [
-      'modify', 'edit', 'change', 'update', 'revise', 'amend',
-      'replace', 'substitute', 'fix', 'correct', 'improve',
-      'rewrite', 'rephrase', 'adjust', 'adapt'
+    const modificationPatterns = [
+      /change\s+['\"]?\w+['\"]?\s+to\s+['\"]?\w+['\"]?/i,
+      /replace\s+['\"]?\w+['\"]?\s+with\s+['\"]?\w+['\"]?/i,
+      /modify\s+['\"]?\w+['\"]?/i,
+      /edit\s+['\"]?\w+['\"]?/i,
+      /update\s+['\"]?\w+['\"]?/i,
+      /revise\s+['\"]?\w+['\"]?/i
     ];
     
-    return modificationKeywords.some(keyword => 
-      message.toLowerCase().includes(keyword)
-    );
+    return modificationPatterns.some(pattern => pattern.test(message));
   };
 
   // Handle document modification
