@@ -50,12 +50,26 @@ const rootElement: HTMLElement | null = document.getElementById("container");
 const root = rootElement ? createRoot(rootElement) : undefined;
 
 /* Render application after Office initializes */
-Office.onReady(() => {
-  root?.render(
-    <FluentProvider theme={webLightTheme}>
-      <App />
-    </FluentProvider>
-  );
+Office.onReady((info) => {
+  console.log('Office.js onReady called with info:', info);
+  
+  // Check if we're in Word
+  if (info.host === Office.HostType.Word) {
+    console.log('Running in Word, initializing app...');
+    root?.render(
+      <FluentProvider theme={webLightTheme}>
+        <App />
+      </FluentProvider>
+    );
+  } else {
+    console.warn('Not running in Word, host type:', info.host);
+    // Still render the app for development/testing
+    root?.render(
+      <FluentProvider theme={webLightTheme}>
+        <App />
+      </FluentProvider>
+    );
+  }
 });
 
 if ((module as any).hot) {

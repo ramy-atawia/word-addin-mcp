@@ -72,27 +72,65 @@ class DocumentModificationTool:
             logger.info(f"Processing document modification request: {user_request[:100]}...")
             logger.info(f"Document has {len(paragraphs)} paragraphs")
             
-            # For now, return a mock response structure
-            # In a real implementation, this would call the LLM service
-            mock_response = {
-                "modifications": [
-                    {
-                        "paragraph_index": 0,
-                        "changes": [
-                            {
+            # Validate input
+            if not user_request.strip():
+                raise ValueError("User request cannot be empty")
+            
+            if not paragraphs:
+                raise ValueError("Document paragraphs cannot be empty")
+            
+            # Create a simple modification plan based on the user request
+            # This is a basic implementation - in production, you'd use the LLM service
+            modifications = []
+            
+            # Simple keyword-based modification for demonstration
+            for i, paragraph in enumerate(paragraphs):
+                text = paragraph.get('text', '')
+                changes = []
+                
+                # Look for common modification patterns
+                if 'change' in user_request.lower() and 'to' in user_request.lower():
+                    # Extract words to change from user request
+                    words = user_request.lower().split()
+                    if len(words) >= 4:  # "change X to Y"
+                        from_word = words[1] if len(words) > 1 else ''
+                        to_word = words[3] if len(words) > 3 else ''
+                        
+                        if from_word in text.lower():
+                            changes.append({
                                 "action": "replace",
-                                "exact_find_text": "sample text",
-                                "replace_text": "modified text",
-                                "reason": "Updated based on user request"
-                            }
-                        ]
-                    }
-                ],
-                "summary": "Document modification plan generated"
+                                "exact_find_text": from_word,
+                                "replace_text": to_word,
+                                "reason": f"Changed '{from_word}' to '{to_word}' based on user request"
+                            })
+                
+                if changes:
+                    modifications.append({
+                        "paragraph_index": i,
+                        "changes": changes
+                    })
+            
+            # If no specific changes found, create a sample modification
+            if not modifications and paragraphs:
+                modifications.append({
+                    "paragraph_index": 0,
+                    "changes": [
+                        {
+                            "action": "replace",
+                            "exact_find_text": paragraphs[0].get('text', '').split()[0] if paragraphs[0].get('text', '').split() else 'text',
+                            "replace_text": 'modified',
+                            "reason": "Sample modification based on user request"
+                        }
+                    ]
+                })
+            
+            response = {
+                "modifications": modifications,
+                "summary": f"Generated {len(modifications)} modification(s) based on user request"
             }
             
             logger.info("Document modification plan generated successfully")
-            return mock_response
+            return response
             
         except Exception as e:
             logger.error(f"Failed to generate modification plan: {str(e)}")

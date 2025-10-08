@@ -200,13 +200,13 @@ const ChatInterfaceSimplified: React.FC<ChatInterfaceProps> = ({
   // Handle document modification
   const handleDocumentModification = async (userRequest: string) => {
     try {
-      // Check if Office.js is ready first
-      const isOfficeReady = await officeIntegrationService.checkOfficeReady();
+      // Check if Office.js is ready first with retry mechanism
+      const isOfficeReady = await officeIntegrationService.waitForOfficeReady(5);
       if (!isOfficeReady) {
         addMessage({
           id: (Date.now() + 1).toString(),
           type: 'system',
-          content: '❌ Office.js is not ready. Please ensure you are running this in Microsoft Word.',
+          content: '❌ Office.js is not ready. Please ensure you are running this in Microsoft Word and try again.',
           timestamp: new Date()
         });
         return;

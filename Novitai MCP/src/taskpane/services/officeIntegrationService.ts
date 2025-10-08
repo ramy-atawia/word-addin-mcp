@@ -41,52 +41,36 @@ export class OfficeIntegrationService {
    */
   private async initializeOffice(): Promise<void> {
     try {
-      // Wait for Office.js to be available
-      await this.waitForOffice();
+      // Use Office.onReady() for proper initialization
+      await new Promise<void>((resolve, reject) => {
+        if (typeof Office !== 'undefined' && Office.onReady) {
+          Office.onReady((info) => {
+            console.log('Office.onReady callback executed with info:', info);
+            
+            if (info.host === Office.HostType.Word) {
+              this.isOfficeReady = true;
+              console.log('Office.js integration ready for Word');
+              resolve();
+            } else {
+              console.warn('Not running in Word, host type:', info.host);
+              this.isOfficeReady = false;
+              resolve(); // Still resolve to allow app to work
+            }
+          });
+        } else {
+          // Fallback for cases where Office.js is not available
+          console.warn('Office.js not available - running in standalone mode');
+          this.isOfficeReady = false;
+          resolve();
+        }
+      });
       
-      if (typeof Office !== 'undefined' && Office.context && Office.context.document) {
-        this.isOfficeReady = true;
-        console.log('Office.js integration ready');
-      } else {
-        console.warn('Office.js not available - running in standalone mode');
-        this.isOfficeReady = false;
-      }
     } catch (error) {
       console.error('Failed to initialize Office.js:', error);
       this.isOfficeReady = false;
     }
   }
 
-  /**
-   * Wait for Office.js to be available
-   */
-  private async waitForOffice(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      let attempts = 0;
-      const maxAttempts = 100; // 10 seconds max
-      
-      const checkOffice = () => {
-        attempts++;
-        
-        console.log(`Office.js check attempt ${attempts}/${maxAttempts}`);
-        console.log(`Office defined: ${typeof Office !== 'undefined'}`);
-        console.log(`Office.context: ${typeof Office !== 'undefined' && Office.context ? 'defined' : 'undefined'}`);
-        console.log(`Office.context.document: ${typeof Office !== 'undefined' && Office.context && Office.context.document ? 'defined' : 'undefined'}`);
-        
-        if (typeof Office !== 'undefined' && Office.context && Office.context.document) {
-          console.log('Office.js fully ready with document context');
-          resolve();
-        } else if (attempts >= maxAttempts) {
-          console.error('Office.js not available after 10 seconds');
-          reject(new Error('Office.js not available after 10 seconds'));
-        } else {
-          setTimeout(checkOffice, 100);
-        }
-      };
-      
-      checkOffice();
-    });
-  }
 
   /**
    * Check if Office.js is ready for use
@@ -115,6 +99,26 @@ export class OfficeIntegrationService {
     }
     
     return this.isOfficeReady;
+  }
+
+  /**
+   * Wait for Office.js to be ready with retry mechanism
+   */
+  async waitForOfficeReady(maxAttempts: number = 10): Promise<boolean> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`Office.js readiness check attempt ${attempt}/${maxAttempts}`);
+      
+      if (this.isOfficeReady) {
+        console.log('Office.js is ready!');
+        return true;
+      }
+      
+      // Wait a bit before next attempt
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    console.warn(`Office.js not ready after ${maxAttempts} attempts`);
+    return false;
   }
 
   /**
