@@ -679,4 +679,50 @@ if (typeof window !== 'undefined') {
     console.log('Office.js ready:', isReady);
     return isReady;
   };
+
+  // Add test function for document modification
+  (window as any).testDocumentModification = async () => {
+    console.log('=== Testing Document Modification ===');
+    
+    try {
+      // Test 1: Get paragraphs
+      console.log('1. Getting document paragraphs...');
+      const paragraphs = await officeIntegrationService.getDocumentParagraphs();
+      console.log(`Found ${paragraphs.length} paragraphs:`, paragraphs);
+      
+      if (paragraphs.length === 0) {
+        console.error('No paragraphs found!');
+        return false;
+      }
+      
+      // Test 2: Try to search and replace
+      console.log('2. Testing search and replace...');
+      const firstParagraph = paragraphs[0];
+      console.log(`First paragraph text: "${firstParagraph.text}"`);
+      
+      // Try to replace first word
+      const words = firstParagraph.text.split();
+      if (words.length > 0) {
+        const firstWord = words[0];
+        console.log(`Trying to replace "${firstWord}" with "TEST"`);
+        
+        const success = await officeIntegrationService.searchAndReplaceInParagraph(
+          0,
+          firstWord,
+          'TEST',
+          'Test replacement'
+        );
+        
+        console.log(`Search and replace result: ${success}`);
+        return success;
+      } else {
+        console.error('No words found in first paragraph');
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('Test failed:', error);
+      return false;
+    }
+  };
 }
