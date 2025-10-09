@@ -79,76 +79,13 @@ class DocumentModificationTool:
             if not paragraphs:
                 raise ValueError("Document paragraphs cannot be empty")
             
-            # Create a simple modification plan based on the user request
-            # This is a basic implementation - in production, you'd use the LLM service
-            modifications = []
+            # Use LLM to generate intelligent modification plan
+            modifications = await self._generate_llm_modification_plan(user_request, paragraphs)
             
-            # Parse modification request using regex patterns
-            modification_instruction = self.parse_modification_request(user_request)
-            
-            if modification_instruction:
-                from_word = modification_instruction['from']
-                to_word = modification_instruction['to']
-                
-                # Apply changes to all paragraphs containing the word
-                for i, paragraph in enumerate(paragraphs):
-                    text = paragraph.get('text', '')
-                    changes = []
-                    
-                    # Check if paragraph contains the word to change
-                    if from_word.lower() in text.lower():
-                        # Find the exact case of the word in the text
-                        import re
-                        pattern = re.compile(re.escape(from_word), re.IGNORECASE)
-                        match = pattern.search(text)
-                        
-                        if match:
-                            exact_word = match.group(0)  # Preserve original case
-                            changes.append({
-                                "action": "replace",
-                                "exact_find_text": exact_word,
-                                "replace_text": to_word,
-                                "reason": f"Changed '{exact_word}' to '{to_word}' based on user request"
-                            })
-                    else:
-                        # If exact word not found, try to find similar words
-                        # This helps with cases like "the author" -> "Ramy"
-                        words_in_text = text.split()
-                        for word in words_in_text:
-                            # Remove punctuation for comparison
-                            clean_word = re.sub(r'[^\w]', '', word)
-                            if clean_word.lower() == from_word.lower():
-                                changes.append({
-                                    "action": "replace",
-                                    "exact_find_text": word,
-                                    "replace_text": to_word,
-                                    "reason": f"Changed '{word}' to '{to_word}' based on user request"
-                                })
-                                break
-                    
-                    if changes:
-                        modifications.append({
-                            "paragraph_index": i,
-                            "changes": changes
-                        })
-            
-            # If no specific changes found, create a sample modification
-            if not modifications and paragraphs:
-                first_paragraph_text = paragraphs[0].get('text', '')
-                words = first_paragraph_text.split()
-                first_word = words[0] if words else 'text'
-                
-                modifications.append({
-                    "paragraph_index": 0,
-                    "changes": [
-                        {
-                            "action": "replace",
-                            "exact_find_text": first_word,
-                            "replace_text": 'modified',
-                            "reason": "Sample modification based on user request"
-                        }
-                    ]
-                })
+            # Fallback to regex if LLM fails
+            if not modifications:
+                logger.warning("LLM modification plan failed, falling back to regex parsing")
+                modifications = self._generate_regex_fallback_plan(user_request, paragraphs)
             
             response = {
                 "modifications": modifications,
@@ -162,6 +99,79 @@ class DocumentModificationTool:
             logger.error(f"Failed to generate modification plan: {str(e)}")
             raise
     
+    def _generate_regex_fallback_plan(self, user_request: str, paragraphs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Fallback regex-based modification plan when LLM fails."""
+        modifications = []
+        
+        # Parse modification request using regex patterns
+        modification_instruction = self.parse_modification_request(user_request)
+        
+        if modification_instruction:
+            from_word = modification_instruction['from']
+            to_word = modification_instruction['to']
+            
+            # Apply changes to all paragraphs containing the word
+            for i, paragraph in enumerate(paragraphs):
+                text = paragraph.get('text', '')
+                changes = []
+                
+                # Check if paragraph contains the word to change
+                if from_word.lower() in text.lower():
+                    # Find the exact case of the word in the text
+                    import re
+                    pattern = re.compile(re.escape(from_word), re.IGNORECASE)
+                    match = pattern.search(text)
+                    
+                    if match:
+                        exact_word = match.group(0)  # Preserve original case
+                        changes.append({
+                            "action": "replace",
+                            "exact_find_text": exact_word,
+                            "replace_text": to_word,
+                            "reason": f"Changed '{exact_word}' to '{to_word}' based on user request"
+                        })
+                else:
+                    # If exact word not found, try to find similar words
+                    # This helps with cases like "the author" -> "Ramy"
+                    words_in_text = text.split()
+                    for word in words_in_text:
+                        # Remove punctuation for comparison
+                        clean_word = re.sub(r'[^\w]', '', word)
+                        if clean_word.lower() == from_word.lower():
+                            changes.append({
+                                "action": "replace",
+                                "exact_find_text": word,
+                                "replace_text": to_word,
+                                "reason": f"Changed '{word}' to '{to_word}' based on user request"
+                            })
+                            break
+                
+                if changes:
+                    modifications.append({
+                        "paragraph_index": i,
+                        "changes": changes
+                    })
+        
+        # If no specific changes found, create a sample modification
+        if not modifications and paragraphs:
+            first_paragraph_text = paragraphs[0].get('text', '')
+            words = first_paragraph_text.split()
+            first_word = words[0] if words else 'text'
+            
+            modifications.append({
+                "paragraph_index": 0,
+                "changes": [
+                    {
+                        "action": "replace",
+                        "exact_find_text": first_word,
+                        "replace_text": 'modified',
+                        "reason": "Sample modification based on user request"
+                    }
+                ]
+            })
+        
+        return modifications
+
     def parse_modification_request(self, user_request: str) -> Dict[str, str]:
         """Parse user request to extract modification instructions."""
         import re
@@ -192,6 +202,76 @@ class DocumentModificationTool:
             return {"from": "Ramy", "to": match4.group(1).strip()}
         
         return None
+
+    async def _generate_llm_modification_plan(self, user_request: str, paragraphs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Use LLM to generate intelligent modification plan based on user request and document content."""
+        try:
+            # Import LLM client here to avoid circular imports
+            from ...utils.llm_client import LLMClient
+            from ...utils.prompt_loader import prompt_loader
+            
+            llm_client = LLMClient()
+            
+            # Prepare document content for LLM
+            doc_content = "\n\n".join([f"Paragraph {i}: {p.get('text', '')}" for i, p in enumerate(paragraphs)])
+            
+            # Load prompts
+            system_prompt = prompt_loader.load_prompt("document_modification_system")
+            user_prompt = prompt_loader.load_prompt("document_modification_user")
+            
+            # Format the user prompt with actual data
+            formatted_user_prompt = user_prompt.format(
+                user_request=user_request,
+                paragraphs_json=doc_content
+            )
+            
+            # Call LLM to generate modification plan
+            response = await llm_client.generate_response(
+                system_prompt=system_prompt,
+                user_prompt=formatted_user_prompt,
+                temperature=0.1  # Low temperature for consistent results
+            )
+            
+            # Parse LLM response
+            try:
+                import json
+                # Extract JSON from response (handle cases where LLM adds extra text)
+                json_start = response.find('{')
+                json_end = response.rfind('}') + 1
+                if json_start != -1 and json_end > json_start:
+                    json_str = response[json_start:json_end]
+                    plan = json.loads(json_str)
+                    
+                    # Convert LLM response to our format
+                    modifications = []
+                    for mod in plan.get('modifications', []):
+                        paragraph_index = mod.get('paragraph_index', 0)
+                        changes = []
+                        for change in mod.get('changes', []):
+                            changes.append({
+                                "action": change.get('action', 'replace'),
+                                "exact_find_text": change.get('exact_find_text', ''),
+                                "replace_text": change.get('replace_text', ''),
+                                "reason": change.get('reason', 'LLM-generated modification')
+                            })
+                        if changes:
+                            modifications.append({
+                                "paragraph_index": paragraph_index,
+                                "changes": changes
+                            })
+                    
+                    return modifications
+                    
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Failed to parse LLM response as JSON: {e}")
+                logger.warning(f"LLM response: {response}")
+            
+            # Fallback: return empty modifications if LLM parsing fails
+            return []
+            
+        except Exception as e:
+            logger.error(f"LLM modification plan generation failed: {e}")
+            return []
 
     def get_tool_definition(self) -> Dict[str, Any]:
         """Get the tool definition for MCP registration."""
