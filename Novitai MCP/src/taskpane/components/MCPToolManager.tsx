@@ -30,7 +30,7 @@ import { MCPTool, MCPToolExecutionResult, MCPConnectionStatus } from '../service
 import { AddServerModal } from './ExternalMCPServerManager/AddServerModal';
 import ServerToolsList from './ServerToolsList/ServerToolsList';
 import mcpToolService from '../services/mcpToolService';
-import { getApiUrl } from '../../config/backend';
+import { getApiUrl } from '../config/backend';
 // Removed environment detection import - using window globals directly
 
 const useStyles = makeStyles({
