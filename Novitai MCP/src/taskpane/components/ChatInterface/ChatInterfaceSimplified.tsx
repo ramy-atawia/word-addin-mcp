@@ -243,36 +243,22 @@ import { getApiUrl } from '../../config/backend';
         timestamp: new Date()
       });
 
-        // Call backend for modification plan using the correct endpoint
-        const response = await fetch(getApiUrl('MCP_TOOLS') + '/document_modification_tool/execute', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${(window as any).getAccessToken?.() || ''}`
-          },
-          body: JSON.stringify({
-            parameters: {
-              user_request: userRequest,
-              paragraphs: paragraphs
-            }
-          })
+        // Call backend for modification plan using service layer
+        const result = await mcpToolService.executeTool('document_modification_tool', {
+          user_request: userRequest,
+          paragraphs: paragraphs
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-        }
-
-        const result = await response.json();
         
-        if (result.success && result.result) {
+        // Handle the response from service layer
+        if (result.success && (result as any).result) {
           // Apply modifications
-          const modificationResult = await documentModificationService.applyModifications(result.result.modifications);
+          const modificationResult = await documentModificationService.applyModifications((result as any).result.modifications);
           
         if (modificationResult.success) {
           addMessage({
             id: generateMessageId(),
             type: 'system',
-            content: `✅ Document updated successfully! Applied ${modificationResult.changesApplied} changes. ${result.result.summary}`,
+            content: `✅ Document updated successfully! Applied ${modificationResult.changesApplied} changes. ${(result as any).result.summary}`,
             timestamp: new Date()
           });
         } else {
@@ -284,7 +270,7 @@ import { getApiUrl } from '../../config/backend';
           });
         }
         } else {
-          throw new Error(result.error || 'Failed to generate modification plan');
+          throw new Error((result as any).error || 'Failed to generate modification plan');
         }
         
       } catch (error) {
