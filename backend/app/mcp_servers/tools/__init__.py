@@ -9,11 +9,13 @@ from .web_search import WebSearchTool
 from .prior_art_search import PriorArtSearchTool
 from .claim_drafting import ClaimDraftingTool
 from .claim_analysis import ClaimAnalysisTool
+from .document_modification_tool import DocumentModificationTool
 
 __all__ = [
     "BaseInternalTool",
     "WebSearchTool",
     "PriorArtSearchTool",
     "ClaimDraftingTool",
-    "ClaimAnalysisTool"
+    "ClaimAnalysisTool",
+    "DocumentModificationTool"
 ]

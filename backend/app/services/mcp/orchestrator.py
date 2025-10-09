@@ -372,7 +372,7 @@ class MCPOrchestrator:
                 "name": "Internal MCP Server",
                 "server_url": "http://localhost:8001/mcp",
                 "type": "internal",
-                "tools": ["web_search_tool", "prior_art_search_tool", "claim_drafting_tool", "claim_analysis_tool"]
+                "tools": ["web_search_tool", "prior_art_search_tool", "claim_drafting_tool", "claim_analysis_tool", "document_modification_tool"]
             }
             
             await self.server_registry.add_server(server_info)
