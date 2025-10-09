@@ -105,7 +105,8 @@ const useStyles = makeStyles({
     fontSize: '12px',
     fontWeight: '600',
     boxShadow: tokens.shadow8,
-    animation: 'fadeInDown 0.3s ease-out',
+    opacity: 1,
+    transform: 'translateY(0)',
   },
 });
 
