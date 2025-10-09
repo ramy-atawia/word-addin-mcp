@@ -67,6 +67,15 @@ class DocumentModificationTool(BaseInternalTool):
             logger.warning("LLM failed, using regex fallback")
             modifications = self._generate_regex_plan(user_request, paragraphs)
         
+        # If still no modifications, provide helpful error
+        if not modifications:
+            logger.error(f"No modifications could be generated for request: {user_request}")
+            return {
+                "modifications": [],
+                "summary": f"No modifications found for request: '{user_request}'. Please check the text exists in the document.",
+                "error": f"Could not parse modification request: '{user_request}'"
+            }
+        
         return {
             "modifications": modifications,
             "summary": f"Generated {len(modifications)} modification(s)"
@@ -104,14 +113,22 @@ class DocumentModificationTool(BaseInternalTool):
                 temperature=0.1
             )
             
+            logger.info(f"LLM response received: {len(response)} characters")
+            
             # Extract and parse JSON response
             json_start = response.find('{')
             json_end = response.rfind('}') + 1
             
             if json_start == -1 or json_end <= json_start:
+                logger.warning(f"LLM response contains no valid JSON: {response[:200]}...")
                 return []
             
-            plan = json.loads(response[json_start:json_end])
+            try:
+                plan = json.loads(response[json_start:json_end])
+            except json.JSONDecodeError as e:
+                logger.error(f"LLM response JSON parsing failed: {e}")
+                logger.error(f"Response content: {response[json_start:json_end]}")
+                return []
             
             # Convert to internal format
             modifications = []
@@ -134,6 +151,9 @@ class DocumentModificationTool(BaseInternalTool):
             
             return modifications
             
+        except ImportError as e:
+            logger.error(f"Failed to import LLM dependencies: {e}")
+            return []
         except Exception as e:
             logger.error(f"LLM plan generation failed: {e}")
             return []
@@ -173,8 +193,11 @@ class DocumentModificationTool(BaseInternalTool):
         # Patterns for different modification requests
         patterns = [
             (r"change\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?", None),
+            (r"change\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?", None),  # Added "change X with Y"
             (r"replace\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?", None),
+            (r"replace\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?", None),   # Added "replace X to Y"
             (r"modify\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?", None),
+            (r"modify\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?", None),  # Added "modify X with Y"
         ]
         
         for pattern, special_from in patterns:
