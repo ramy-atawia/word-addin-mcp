@@ -175,30 +175,30 @@ class DocumentModificationTool:
     def parse_modification_request(self, user_request: str) -> Dict[str, str]:
         """Parse user request to extract modification instructions."""
         
-        # Pattern 1: "change X to Y" or "change 'X' to 'Y'" (supports multi-word phrases)
-        pattern1 = r"change\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?"
+        # Pattern 1: "change the author to X" - special case for author changes (MUST be first)
+        pattern1 = r"change\s+the\s+author\s+to\s+['\"]?([^'\"]+)['\"]?"
         match1 = re.search(pattern1, user_request.lower())
         if match1:
-            return {"from": match1.group(1).strip(), "to": match1.group(2).strip()}
+            # Look for "Ramy" in the document and replace with the new name
+            return {"from": "Ramy", "to": match1.group(1).strip()}
         
-        # Pattern 2: "replace X with Y" or "replace 'X' with 'Y'" (supports multi-word phrases)
-        pattern2 = r"replace\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?"
+        # Pattern 2: "change X to Y" or "change 'X' to 'Y'" (supports multi-word phrases)
+        pattern2 = r"change\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?"
         match2 = re.search(pattern2, user_request.lower())
         if match2:
             return {"from": match2.group(1).strip(), "to": match2.group(2).strip()}
         
-        # Pattern 3: "modify X to Y" or "modify 'X' to 'Y'" (supports multi-word phrases)
-        pattern3 = r"modify\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?"
+        # Pattern 3: "replace X with Y" or "replace 'X' with 'Y'" (supports multi-word phrases)
+        pattern3 = r"replace\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?"
         match3 = re.search(pattern3, user_request.lower())
         if match3:
             return {"from": match3.group(1).strip(), "to": match3.group(2).strip()}
         
-        # Pattern 4: "change the author to X" - special case for author changes
-        pattern4 = r"change\s+the\s+author\s+to\s+['\"]?([^'\"]+)['\"]?"
+        # Pattern 4: "modify X to Y" or "modify 'X' to 'Y'" (supports multi-word phrases)
+        pattern4 = r"modify\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?"
         match4 = re.search(pattern4, user_request.lower())
         if match4:
-            # Look for "Ramy" in the document and replace with the new name
-            return {"from": "Ramy", "to": match4.group(1).strip()}
+            return {"from": match4.group(1).strip(), "to": match4.group(2).strip()}
         
         return None
 
@@ -206,8 +206,8 @@ class DocumentModificationTool:
         """Use LLM to generate intelligent modification plan based on user request and document content."""
         try:
             # Import LLM client here to avoid circular imports
-            from ...utils.llm_client import LLMClient
-            from ...utils.prompt_loader import prompt_loader
+            from ...services.llm_client import LLMClient
+            from ...utils.prompt_loader import load_prompt
             
             llm_client = LLMClient()
             
@@ -215,8 +215,8 @@ class DocumentModificationTool:
             doc_content = "\n\n".join([f"Paragraph {i}: {p.get('text', '')}" for i, p in enumerate(paragraphs)])
             
             # Load prompts
-            system_prompt = prompt_loader.load_prompt("document_modification_system")
-            user_prompt = prompt_loader.load_prompt("document_modification_user")
+            system_prompt = load_prompt("document_modification_system")
+            user_prompt = load_prompt("document_modification_user")
             
             # Format the user prompt with actual data
             formatted_user_prompt = user_prompt.format(
