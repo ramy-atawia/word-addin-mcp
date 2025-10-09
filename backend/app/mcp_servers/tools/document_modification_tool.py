@@ -101,8 +101,9 @@ class DocumentModificationTool:
     
     def _generate_regex_fallback_plan(self, user_request: str, paragraphs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Fallback regex-based modification plan when LLM fails."""
+        import re
         modifications = []
-        
+
         # Parse modification request using regex patterns
         modification_instruction = self.parse_modification_request(user_request)
         
@@ -118,7 +119,6 @@ class DocumentModificationTool:
                 # Check if paragraph contains the word to change
                 if from_word.lower() in text.lower():
                     # Find the exact case of the word in the text
-                    import re
                     pattern = re.compile(re.escape(from_word), re.IGNORECASE)
                     match = pattern.search(text)
                     
