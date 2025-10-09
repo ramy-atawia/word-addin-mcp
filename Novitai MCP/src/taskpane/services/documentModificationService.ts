@@ -88,20 +88,23 @@ export class DocumentModificationService {
   /**
    * Apply modifications with track changes
    */
-  async applyModifications(modifications: DocumentModification[]): Promise<ModificationResult> {
-    const result: ModificationResult = {
-      success: true,
-      changesApplied: 0,
-      errors: []
-    };
+    async applyModifications(modifications: DocumentModification[]): Promise<ModificationResult> {
+        const result: ModificationResult = {
+            success: true,
+            changesApplied: 0,
+            errors: []
+        };
 
-    try {
-      // Enable track changes
-      await this.enableTrackChanges();
-      
-      // Get current document paragraphs using Office.js
-      const paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
-      console.log(`Found ${paragraphs.length} paragraphs for modification`);
+        try {
+            // Enable track changes
+            await this.enableTrackChanges();
+            
+            // Get current document paragraphs using Office.js
+            const paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
+            console.log(`Found ${paragraphs.length} paragraphs for modification`);
+            
+            // VISIBLE DEBUG: Show in UI
+            alert(`DEBUG: Found ${paragraphs.length} paragraphs. Modifications: ${modifications.length}`);
       
       for (const modification of modifications) {
         console.log(`Processing modification for paragraph ${modification.paragraph_index}`);
@@ -140,10 +143,14 @@ export class DocumentModificationService {
             if (success) {
               result.changesApplied++;
               console.log(`Successfully applied change in paragraph ${modification.paragraph_index}`);
+              // VISIBLE DEBUG: Show success
+              alert(`DEBUG: Successfully applied change "${change.exact_find_text}" -> "${change.replace_text}"`);
             } else {
               const error = `Failed to apply change in paragraph ${modification.paragraph_index}`;
               console.error(error);
               result.errors.push(error);
+              // VISIBLE DEBUG: Show failure
+              alert(`DEBUG: FAILED to apply change "${change.exact_find_text}" -> "${change.replace_text}"`);
             }
             
           } catch (changeError) {
