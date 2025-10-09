@@ -516,7 +516,8 @@ const MCPToolManager: React.FC = () => {
 
   // Update tool counts when tools are loaded
   useEffect(() => {
-    if (tools.length > 0 && servers.length > 0) {
+    if (tools && Array.isArray(tools) && tools.length > 0 && 
+        servers && Array.isArray(servers) && servers.length > 0) {
       const updatedServers = servers.map(server => {
         if (server.name === 'Internal Server') {
           return {
@@ -837,14 +838,14 @@ const MCPToolManager: React.FC = () => {
             servers.map((server, index) => {
               // Filter tools by server ID for external servers, or by source for internal server
               const serverTools = server.name === 'Internal Server' 
-                ? tools.filter(tool => (tool as EnhancedTool).source === 'internal')
-                : tools.filter(tool => (tool as EnhancedTool).server_id === server.id);
+                ? (tools || []).filter(tool => (tool as EnhancedTool).source === 'internal')
+                : (tools || []).filter(tool => (tool as EnhancedTool).server_id === server.id);
               
               // Debug logging
               console.log(`Server: ${server.name} (${server.id})`, {
-                totalTools: tools.length,
-                serverTools: serverTools.length,
-                toolNames: serverTools.map(t => t.name)
+                totalTools: tools?.length || 0,
+                serverTools: serverTools?.length || 0,
+                toolNames: serverTools?.map(t => t.name) || []
               });
               
               return (

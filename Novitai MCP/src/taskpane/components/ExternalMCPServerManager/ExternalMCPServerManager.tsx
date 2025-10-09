@@ -126,7 +126,7 @@ export const ExternalMCPServerManager: React.FC = () => {
   };
 
   const getConnectedServersCount = () => {
-    return servers.filter(server => server.status === 'connected').length;
+    return (servers || []).filter(server => server.status === 'connected').length;
   };
 
   const clearMessages = () => {
@@ -138,7 +138,7 @@ export const ExternalMCPServerManager: React.FC = () => {
     setIsHealthMonitoring(true);
     try {
       // Start monitoring all servers
-      const healthPromises = servers.map(async (server) => {
+      const healthPromises = (servers || []).map(async (server) => {
         try {
           const response = await fetch(getApiUrl('TEST_CONNECTION'), {
             method: 'POST',
@@ -323,7 +323,7 @@ export const ExternalMCPServerManager: React.FC = () => {
               border: '1px solid var(--colorNeutralStroke2)'
             }}>
               <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-                {servers.length > 0 ? Math.round((getConnectedServersCount() / servers.length) * 100) : 0}%
+                {servers && servers.length > 0 ? Math.round((getConnectedServersCount() / servers.length) * 100) : 0}%
               </div>
               <div style={{ fontSize: '12px', color: 'var(--colorNeutralForeground3)' }}>Uptime</div>
             </div>
@@ -360,7 +360,7 @@ export const ExternalMCPServerManager: React.FC = () => {
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: '12px'
             }}>
-              {servers.map(server => {
+              {(servers || []).map(server => {
                 const health = healthData[server.id];
                 return (
                   <div key={server.id} style={{
@@ -469,7 +469,7 @@ export const ExternalMCPServerManager: React.FC = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {servers.map(server => (
+              {(servers || []).map(server => (
                 <div key={server.id} style={{
                   backgroundColor: 'var(--colorNeutralBackground2)',
                   border: '1px solid var(--colorNeutralStroke2)',

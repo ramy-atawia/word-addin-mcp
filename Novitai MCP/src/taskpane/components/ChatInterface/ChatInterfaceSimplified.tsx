@@ -339,7 +339,7 @@ import { getApiUrl } from '../../config/backend';
         const context = {
           document_content: documentContent,
           chat_history: JSON.stringify(messages.slice(-10)), // Last 10 messages
-          available_tools: availableTools.map(t => t.name).join(', '),
+          available_tools: (availableTools || []).map(t => t.name).join(', '),
           session_id: sessionId
         };
         
