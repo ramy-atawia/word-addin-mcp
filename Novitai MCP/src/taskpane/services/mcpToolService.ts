@@ -81,31 +81,9 @@ class MCPToolService {
   }
 
   async getToolSchema(toolName: string): Promise<any> {
-    try {
-      const token = getAccessToken();
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`${this.baseUrl}/api/v1/mcp/tools/${toolName}/schema`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const schema = await response.json();
-      return schema;
-    } catch (error) {
-      console.error('Failed to get tool schema:', error);
-      throw error;
-    }
+    // TODO: Implement tool schema endpoint in backend
+    // For now, return a mock schema or throw an error
+    throw new Error(`Tool schema endpoint not yet implemented for ${toolName}`);
   }
 
   async testConnection(): Promise<boolean> {

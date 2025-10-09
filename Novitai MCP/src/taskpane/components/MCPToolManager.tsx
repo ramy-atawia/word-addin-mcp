@@ -250,7 +250,7 @@ const MCPToolManager: React.FC = () => {
           };
 
           // Load external servers
-          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`, {
+          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/external/servers`, {
             method: 'GET',
             headers: getAuthHeaders(),
           });
@@ -621,7 +621,7 @@ const MCPToolManager: React.FC = () => {
           };
 
           // Load external servers
-          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`, {
+          const serversResponse = await fetch(`${getBackendUrl()}/api/v1/external/servers`, {
             method: 'GET',
             headers: getAuthHeaders(),
           });
@@ -765,7 +765,7 @@ const MCPToolManager: React.FC = () => {
                         };
 
                         // Load external servers (authenticated)
-                        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/mcp/external/servers`, {
+                        const serversResponse = await fetch(`${getBackendUrl()}/api/v1/external/servers`, {
                           method: 'GET',
                           headers: getAuthHeaders(),
                         });

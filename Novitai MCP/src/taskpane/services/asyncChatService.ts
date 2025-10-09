@@ -97,7 +97,7 @@ export class AsyncChatService {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${this.baseURL}/api/v1/async/document-modification/submit`, {
+      const response = await fetch(`${this.baseURL}/api/v1/async/chat/submit`, {
         method: 'POST',
         headers,
         body: JSON.stringify(params)
