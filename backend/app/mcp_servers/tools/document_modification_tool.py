@@ -10,6 +10,7 @@ This tool handles paragraph-level document modifications with:
 
 import json
 import logging
+import re
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 
@@ -101,7 +102,6 @@ class DocumentModificationTool:
     
     def _generate_regex_fallback_plan(self, user_request: str, paragraphs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Fallback regex-based modification plan when LLM fails."""
-        import re
         modifications = []
 
         # Parse modification request using regex patterns
@@ -174,7 +174,6 @@ class DocumentModificationTool:
 
     def parse_modification_request(self, user_request: str) -> Dict[str, str]:
         """Parse user request to extract modification instructions."""
-        import re
         
         # Pattern 1: "change X to Y" or "change 'X' to 'Y'" (supports multi-word phrases)
         pattern1 = r"change\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?"
