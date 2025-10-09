@@ -5,7 +5,7 @@ import {
 import { 
   Add24Regular, Link24Regular, Server24Regular, Key24Regular
 } from '@fluentui/react-icons';
-import { getApiUrl } from '../../config/backend';
+import { getApiUrl } from '../../../config/backend';
 import { getAccessToken } from '../../../services/authTokenStore';
 
 

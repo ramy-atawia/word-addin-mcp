@@ -1,6 +1,6 @@
 import React from 'react';
 import { makeStyles, tokens } from '@fluentui/react-components';
-import { getApiUrl } from '../config/backend';
+import { getApiUrl } from '../../config/backend';
   import MessageList from './MessageList';
   import MessageInput from './MessageInput';
   import { ChatMessage } from './MessageBubble';

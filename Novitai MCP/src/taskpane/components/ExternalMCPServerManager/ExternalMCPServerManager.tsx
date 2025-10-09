@@ -7,7 +7,7 @@ import {
   CheckmarkCircle24Regular, ErrorCircle24Regular, Info24Regular
 } from '@fluentui/react-icons';
 import { AddServerModal } from './AddServerModal';
-import { getApiUrl } from '../../config/backend';
+import { getApiUrl } from '../../../config/backend';
 import { getAccessToken } from '../../../services/authTokenStore';
 
 const getAuthHeaders = () => {
