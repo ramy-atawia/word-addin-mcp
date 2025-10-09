@@ -18,9 +18,9 @@ class AgentChatRequest(BaseModel):
         max_length=10000
     )
     
-    context: Dict[str, str] = Field(
+    context: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Context information for the agent (document_content, chat_history, available_tools)"
+        description="Context information for the agent (document_content, chat_history, available_tools, session_id)"
     )
     
     class Config:
