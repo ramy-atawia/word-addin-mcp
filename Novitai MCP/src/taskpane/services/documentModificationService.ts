@@ -94,13 +94,41 @@ export class DocumentModificationService {
             changesApplied: 0,
             errors: []
         };
+        
+        // Validate modifications array
+        if (!modifications || !Array.isArray(modifications)) {
+            result.success = false;
+            result.errors.push('Invalid modifications array provided');
+            return result;
+        }
+        
+        if (modifications.length === 0) {
+            result.errors.push('No modifications to apply');
+            return result;
+        }
+        
+        console.log(`Applying ${modifications.length} modifications`);
 
         try {
             // Enable track changes
             await this.enableTrackChanges();
             
             // Get current document paragraphs using Office.js
-            const paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
+            let paragraphs;
+            try {
+              paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
+            } catch (officeError) {
+              console.error('Office.js error getting paragraphs:', officeError);
+              throw new Error(`Office.js failed to get paragraphs: ${officeError}`);
+            }
+            
+            // Validate paragraphs array
+            if (!paragraphs || !Array.isArray(paragraphs)) {
+              console.error('Invalid paragraphs response:', paragraphs);
+              throw new Error('Failed to get document paragraphs: Invalid response from Office.js');
+            }
+            
+            console.log(`Successfully got ${paragraphs.length} paragraphs from Office.js`);
       
       for (const modification of modifications) {
         
