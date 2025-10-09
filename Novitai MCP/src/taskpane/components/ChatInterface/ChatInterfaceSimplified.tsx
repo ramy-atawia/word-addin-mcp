@@ -243,15 +243,14 @@ import { getApiUrl } from '../../config/backend';
         timestamp: new Date()
       });
 
-        // Call backend for modification plan
-        const response = await fetch(getApiUrl('MCP_EXECUTE'), {
+        // Call backend for modification plan using the correct endpoint
+        const response = await fetch(getApiUrl('MCP_TOOLS') + '/document_modification_tool/execute', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${(window as any).getAccessToken?.() || ''}`
           },
           body: JSON.stringify({
-            tool_name: 'document_modification_tool',
             parameters: {
               user_request: userRequest,
               paragraphs: paragraphs
@@ -265,15 +264,15 @@ import { getApiUrl } from '../../config/backend';
 
         const result = await response.json();
         
-        if (result.success && result.data) {
+        if (result.success && result.result) {
           // Apply modifications
-          const modificationResult = await documentModificationService.applyModifications(result.data.modifications);
+          const modificationResult = await documentModificationService.applyModifications(result.result.modifications);
           
         if (modificationResult.success) {
           addMessage({
             id: generateMessageId(),
             type: 'system',
-            content: `✅ Document updated successfully! Applied ${modificationResult.changesApplied} changes. ${result.data.summary}`,
+            content: `✅ Document updated successfully! Applied ${modificationResult.changesApplied} changes. ${result.result.summary}`,
             timestamp: new Date()
           });
         } else {
