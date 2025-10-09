@@ -125,8 +125,8 @@ export class AsyncChatService {
       document_content: string;
       chat_history: string;
       available_tools: string;
+      session_id?: string; // Move session_id to context for consistency
     };
-    sessionId: string;
   }): Promise<AsyncJobResponse> {
     try {
       const token = getAccessToken();
@@ -146,7 +146,8 @@ export class AsyncChatService {
           context: {
             document_content: params.context.document_content,
             chat_history: params.context.chat_history,
-            available_tools: params.context.available_tools
+            available_tools: params.context.available_tools,
+            session_id: params.context.session_id
           }
         }),
       });
@@ -442,8 +443,8 @@ export class AsyncChatService {
         document_content: string;
         chat_history: string;
         available_tools: string;
+        session_id?: string;
       };
-      sessionId: string;
     },
     callbacks: AsyncChatCallbacks
   ): Promise<void> {

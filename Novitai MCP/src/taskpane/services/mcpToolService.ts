@@ -104,19 +104,21 @@ class MCPToolService {
   }
 
   async chatWithAgent(params: {
-    message: any;
+    message: string;
     context: {
       document_content: string;
       chat_history: string;
       available_tools: string;
+      session_id?: string; // Add session_id to context instead of separate field
     };
-    sessionId: string;
   }): Promise<{
     success: boolean;
     result?: {
       response: string;
       tool_name?: string;
       intent_type?: string;
+      execution_time?: number;
+      workflow_metadata?: any;
     };
     error?: string;
   }> {
@@ -130,10 +132,21 @@ class MCPToolService {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
+      // Send request in backend-expected format
+      const requestBody = {
+        message: params.message,
+        context: {
+          document_content: params.context.document_content,
+          chat_history: params.context.chat_history,
+          available_tools: params.context.available_tools,
+          session_id: params.context.session_id
+        }
+      };
+      
       const response = await fetch(`${this.baseUrl}/api/v1/mcp/agent/chat`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(params),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -148,7 +161,9 @@ class MCPToolService {
         result: {
           response: result.response,
           tool_name: result.tool_name,
-          intent_type: result.intent_type
+          intent_type: result.intent_type,
+          execution_time: result.execution_time,
+          workflow_metadata: result.workflow_metadata
         },
         error: result.error
       };
