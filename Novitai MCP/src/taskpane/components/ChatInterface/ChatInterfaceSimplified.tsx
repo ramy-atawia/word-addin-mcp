@@ -250,15 +250,15 @@ import { getApiUrl } from '../../config/backend';
         });
         
         // Handle the response from service layer
-        if (result.success && (result as any).result) {
+        if (result.success && result.result) {
           // Apply modifications
-          const modificationResult = await documentModificationService.applyModifications((result as any).result.modifications);
+          const modificationResult = await documentModificationService.applyModifications(result.result.modifications);
           
         if (modificationResult.success) {
           addMessage({
             id: generateMessageId(),
             type: 'system',
-            content: `✅ Document updated successfully! Applied ${modificationResult.changesApplied} changes. ${(result as any).result.summary}`,
+            content: `✅ Document updated successfully! Applied ${modificationResult.changesApplied} changes. ${result.result.summary}`,
             timestamp: new Date()
           });
         } else {
@@ -270,7 +270,7 @@ import { getApiUrl } from '../../config/backend';
           });
         }
         } else {
-          throw new Error((result as any).error || 'Failed to generate modification plan');
+          throw new Error(result.error || 'Failed to generate modification plan');
         }
         
       } catch (error) {

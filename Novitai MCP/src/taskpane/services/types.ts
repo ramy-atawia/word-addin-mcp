@@ -17,11 +17,10 @@ export interface MCPTool {
 
 export interface MCPToolExecutionResult {
   success: boolean;
-  output?: Record<string, any>;
-  data?: Record<string, any>;
+  tool_name: string;
+  result: Record<string, any>;
+  timestamp: number;
   error?: string;
-  executionTime?: number;
-  metadata?: Record<string, any>;
 }
 
 export type MCPConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
