@@ -1,5 +1,6 @@
-  import React from 'react';
-  import { makeStyles, tokens } from '@fluentui/react-components';
+import React from 'react';
+import { makeStyles, tokens } from '@fluentui/react-components';
+import { getApiUrl } from '../../config/backend';
   import MessageList from './MessageList';
   import MessageInput from './MessageInput';
   import { ChatMessage } from './MessageBubble';
@@ -243,7 +244,7 @@
       });
 
         // Call backend for modification plan
-        const response = await fetch(`${(window as any).BACKEND_URL || 'http://localhost:9000'}/api/v1/mcp/tools/execute`, {
+        const response = await fetch(getApiUrl('MCP_EXECUTE'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

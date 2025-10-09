@@ -172,7 +172,6 @@ class DocumentModificationTool(BaseInternalTool):
         
         # Patterns for different modification requests
         patterns = [
-            (r"change\s+the\s+author\s+to\s+['\"]?([^'\"]+)['\"]?", "Ramy"),  # Special case
             (r"change\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?", None),
             (r"replace\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?", None),
             (r"modify\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?", None),
@@ -181,13 +180,10 @@ class DocumentModificationTool(BaseInternalTool):
         for pattern, special_from in patterns:
             match = re.search(pattern, request_lower)
             if match:
-                if special_from:  # Author change special case
-                    return {"from": special_from, "to": match.group(1).strip()}
-                else:
-                    return {
-                        "from": match.group(1).strip(), 
-                        "to": match.group(2).strip()
-                    }
+                return {
+                    "from": match.group(1).strip(), 
+                    "to": match.group(2).strip()
+                }
         
         return None
     
@@ -222,32 +218,3 @@ class DocumentModificationTool(BaseInternalTool):
                 }
         
         return None
-    
-    def get_tool_definition(self) -> Dict[str, Any]:
-        """Get the tool definition for MCP registration."""
-        return {
-            "name": self.name,
-            "description": self.description,
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "user_request": {
-                        "type": "string",
-                        "description": "Natural language request for modification"
-                    },
-                    "paragraphs": {
-                        "type": "array",
-                        "description": "Document paragraphs with formatting",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "index": {"type": "integer"},
-                                "text": {"type": "string"},
-                                "formatting": {"type": "object"}
-                            }
-                        }
-                    }
-                },
-                "required": ["user_request", "paragraphs"]
-            }
-        }

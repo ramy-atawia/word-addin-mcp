@@ -101,36 +101,20 @@ export class DocumentModificationService {
             
             // Get current document paragraphs using Office.js
             const paragraphs = await this.officeIntegrationService.getDocumentParagraphs();
-            console.log(`Found ${paragraphs.length} paragraphs for modification`);
-            
-            // VISIBLE DEBUG: Show in UI
-            alert(`DEBUG: Found ${paragraphs.length} paragraphs. Modifications: ${modifications.length}`);
       
       for (const modification of modifications) {
-        console.log(`Processing modification for paragraph ${modification.paragraph_index}`);
         
         // Validate paragraph index exists
         if (modification.paragraph_index >= paragraphs.length) {
           const error = `Paragraph index ${modification.paragraph_index} not found. Document has ${paragraphs.length} paragraphs.`;
-          console.error(error);
           result.errors.push(error);
           continue;
         }
         
         const paragraph = paragraphs[modification.paragraph_index];
-        console.log(`Paragraph ${modification.paragraph_index} text: "${paragraph.text}"`);
         
         for (const change of modification.changes) {
           try {
-            console.log(`Applying change: "${change.exact_find_text}" -> "${change.replace_text}"`);
-            
-            // Use Office.js search and replace
-            console.log(`Calling searchAndReplaceInParagraph with:`);
-            console.log(`  paragraphIndex: ${modification.paragraph_index}`);
-            console.log(`  findText: "${change.exact_find_text}"`);
-            console.log(`  replaceText: "${change.replace_text}"`);
-            console.log(`  reason: "${change.reason}"`);
-            
             const success = await this.officeIntegrationService.searchAndReplaceInParagraph(
               modification.paragraph_index,
               change.exact_find_text,
@@ -138,31 +122,20 @@ export class DocumentModificationService {
               change.reason
             );
             
-            console.log(`searchAndReplaceInParagraph returned: ${success}`);
-            
             if (success) {
               result.changesApplied++;
-              console.log(`Successfully applied change in paragraph ${modification.paragraph_index}`);
-              // VISIBLE DEBUG: Show success
-              alert(`DEBUG: Successfully applied change "${change.exact_find_text}" -> "${change.replace_text}"`);
             } else {
               const error = `Failed to apply change in paragraph ${modification.paragraph_index}`;
-              console.error(error);
               result.errors.push(error);
-              // VISIBLE DEBUG: Show failure
-              alert(`DEBUG: FAILED to apply change "${change.exact_find_text}" -> "${change.replace_text}"`);
             }
-            
           } catch (changeError) {
             const error = `Failed to apply change in paragraph ${modification.paragraph_index}: ${changeError}`;
-            console.error(error);
             result.errors.push(error);
           }
         }
       }
       
     } catch (error) {
-      console.error('Failed to apply modifications:', error);
       result.success = false;
       result.errors.push(`Failed to apply modifications: ${error}`);
     }
@@ -178,9 +151,8 @@ export class DocumentModificationService {
     try {
       // Note: Office.js doesn't directly control track changes
       // This is a placeholder - user should enable track changes manually
-      console.log('Please ensure track changes is enabled in Word for best results');
     } catch (error) {
-      console.warn('Could not enable track changes:', error);
+      // Track changes enablement is optional
     }
   }
 }
