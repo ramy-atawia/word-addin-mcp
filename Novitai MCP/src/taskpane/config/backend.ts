@@ -51,7 +51,6 @@ export const getApiUrl = (endpoint: string): string => {
   const endpoints: { [key: string]: string } = {
     // MCP endpoints
     'MCP_TOOLS': getEndpointUrl('mcp/tools'),
-    'MCP_EXECUTE': getEndpointUrl('mcp/execute'),
     'MCP_SERVERS': getEndpointUrl('mcp/servers'),
     
     // External server endpoints
@@ -60,6 +59,13 @@ export const getApiUrl = (endpoint: string): string => {
     'ADD_SERVER': getEndpointUrl('external/servers'),
     'UPDATE_SERVER': getEndpointUrl('external/servers/{id}'),
     'REMOVE_SERVER': getEndpointUrl('external/servers/{id}'),
+    
+    // Agent and async endpoints
+    'MCP_AGENT_CHAT': getEndpointUrl('mcp/agent/chat'),
+    'HEALTH_CHECK': getEndpointUrl('health'),
+    'ASYNC_CHAT_SUBMIT': getEndpointUrl('async/chat/submit'),
+    'ASYNC_CHAT_STATUS': getEndpointUrl('async/chat/status'),
+    'ASYNC_CHAT_RESULT': getEndpointUrl('async/chat/result'),
   };
   
   return endpoints[endpoint] || getEndpointUrl(endpoint);
