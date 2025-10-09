@@ -412,7 +412,13 @@ export const useAsyncChat = ({
 
         // FIX: Process with abort signal
         await asyncChatService.processChatAsync(
-          { message, context, sessionId },
+          { 
+            message, 
+            context: {
+              ...context,
+              session_id: sessionId
+            }
+          },
           callbacks
         );
 
