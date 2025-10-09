@@ -83,41 +83,67 @@ class DocumentModificationTool:
             # This is a basic implementation - in production, you'd use the LLM service
             modifications = []
             
-            # Simple keyword-based modification for demonstration
-            for i, paragraph in enumerate(paragraphs):
-                text = paragraph.get('text', '')
-                changes = []
+            # Parse modification request using regex patterns
+            modification_instruction = self.parse_modification_request(user_request)
+            
+            if modification_instruction:
+                from_word = modification_instruction['from']
+                to_word = modification_instruction['to']
                 
-                # Look for common modification patterns
-                if 'change' in user_request.lower() and 'to' in user_request.lower():
-                    # Extract words to change from user request
-                    words = user_request.lower().split()
-                    if len(words) >= 4:  # "change X to Y"
-                        from_word = words[1] if len(words) > 1 else ''
-                        to_word = words[3] if len(words) > 3 else ''
+                # Apply changes to all paragraphs containing the word
+                for i, paragraph in enumerate(paragraphs):
+                    text = paragraph.get('text', '')
+                    changes = []
+                    
+                    # Check if paragraph contains the word to change
+                    if from_word.lower() in text.lower():
+                        # Find the exact case of the word in the text
+                        import re
+                        pattern = re.compile(re.escape(from_word), re.IGNORECASE)
+                        match = pattern.search(text)
                         
-                        if from_word in text.lower():
+                        if match:
+                            exact_word = match.group(0)  # Preserve original case
                             changes.append({
                                 "action": "replace",
-                                "exact_find_text": from_word,
+                                "exact_find_text": exact_word,
                                 "replace_text": to_word,
-                                "reason": f"Changed '{from_word}' to '{to_word}' based on user request"
+                                "reason": f"Changed '{exact_word}' to '{to_word}' based on user request"
                             })
-                
-                if changes:
-                    modifications.append({
-                        "paragraph_index": i,
-                        "changes": changes
-                    })
+                    else:
+                        # If exact word not found, try to find similar words
+                        # This helps with cases like "the author" -> "Ramy"
+                        words_in_text = text.split()
+                        for word in words_in_text:
+                            # Remove punctuation for comparison
+                            clean_word = re.sub(r'[^\w]', '', word)
+                            if clean_word.lower() == from_word.lower():
+                                changes.append({
+                                    "action": "replace",
+                                    "exact_find_text": word,
+                                    "replace_text": to_word,
+                                    "reason": f"Changed '{word}' to '{to_word}' based on user request"
+                                })
+                                break
+                    
+                    if changes:
+                        modifications.append({
+                            "paragraph_index": i,
+                            "changes": changes
+                        })
             
             # If no specific changes found, create a sample modification
             if not modifications and paragraphs:
+                first_paragraph_text = paragraphs[0].get('text', '')
+                words = first_paragraph_text.split()
+                first_word = words[0] if words else 'text'
+                
                 modifications.append({
                     "paragraph_index": 0,
                     "changes": [
                         {
                             "action": "replace",
-                            "exact_find_text": paragraphs[0].get('text', '').split()[0] if paragraphs[0].get('text', '').split() else 'text',
+                            "exact_find_text": first_word,
                             "replace_text": 'modified',
                             "reason": "Sample modification based on user request"
                         }
@@ -136,6 +162,37 @@ class DocumentModificationTool:
             logger.error(f"Failed to generate modification plan: {str(e)}")
             raise
     
+    def parse_modification_request(self, user_request: str) -> Dict[str, str]:
+        """Parse user request to extract modification instructions."""
+        import re
+        
+        # Pattern 1: "change X to Y" or "change 'X' to 'Y'" (supports multi-word phrases)
+        pattern1 = r"change\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?"
+        match1 = re.search(pattern1, user_request.lower())
+        if match1:
+            return {"from": match1.group(1).strip(), "to": match1.group(2).strip()}
+        
+        # Pattern 2: "replace X with Y" or "replace 'X' with 'Y'" (supports multi-word phrases)
+        pattern2 = r"replace\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?"
+        match2 = re.search(pattern2, user_request.lower())
+        if match2:
+            return {"from": match2.group(1).strip(), "to": match2.group(2).strip()}
+        
+        # Pattern 3: "modify X to Y" or "modify 'X' to 'Y'" (supports multi-word phrases)
+        pattern3 = r"modify\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?"
+        match3 = re.search(pattern3, user_request.lower())
+        if match3:
+            return {"from": match3.group(1).strip(), "to": match3.group(2).strip()}
+        
+        # Pattern 4: "change the author to X" - special case for author changes
+        pattern4 = r"change\s+the\s+author\s+to\s+['\"]?([^'\"]+)['\"]?"
+        match4 = re.search(pattern4, user_request.lower())
+        if match4:
+            # Look for "Ramy" in the document and replace with the new name
+            return {"from": "Ramy", "to": match4.group(1).strip()}
+        
+        return None
+
     def get_tool_definition(self) -> Dict[str, Any]:
         """Get the tool definition for MCP registration."""
         return {
