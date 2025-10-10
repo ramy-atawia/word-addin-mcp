@@ -48,7 +48,8 @@ async def agent_chat(request: AgentChatRequest):
         if available_tools_raw:
             mcp_orchestrator = _get_orchestrator_or_empty()
             if mcp_orchestrator:
-                all_tools = await mcp_orchestrator.get_all_tools()
+                all_tools_response = await mcp_orchestrator.list_all_tools()
+                all_tools = all_tools_response.get("tools", [])
                 tool_lookup = {tool["name"]: tool for tool in all_tools}
                 
                 for tool_name in available_tools_raw:
