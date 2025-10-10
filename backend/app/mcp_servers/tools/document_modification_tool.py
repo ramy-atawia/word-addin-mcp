@@ -198,6 +198,10 @@ class DocumentModificationTool(BaseInternalTool):
             (r"replace\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?", None),   # Added "replace X to Y"
             (r"modify\s+['\"]?([^'\"]+)['\"]?\s+to\s+['\"]?([^'\"]+)['\"]?", None),
             (r"modify\s+['\"]?([^'\"]+)['\"]?\s+with\s+['\"]?([^'\"]+)['\"]?", None),  # Added "modify X with Y"
+            # More flexible patterns for phrases with spaces
+            (r"replace\s+([^'\"]+?)\s+in\s+the\s+doc\s+with\s+([^'\"]+)", None),  # "replace X in the doc with Y"
+            (r"change\s+([^'\"]+?)\s+in\s+the\s+doc\s+to\s+([^'\"]+)", None),      # "change X in the doc to Y"
+            (r"change\s+([^'\"]+?)\s+in\s+the\s+doc\s+with\s+([^'\"]+)", None),   # "change X in the doc with Y"
         ]
         
         for pattern, special_from in patterns:
