@@ -51,10 +51,15 @@ class DocumentModificationTool(BaseInternalTool):
         user_request = parameters.get("user_request", "")
         paragraphs = parameters.get("paragraphs", [])
         
+        logger.info(f"Document modification tool called with user_request: '{user_request}', paragraphs: {len(paragraphs) if paragraphs else 0}")
+        logger.debug(f"Parameters received: {parameters}")
+        
         if not user_request.strip():
+            logger.error("User request is empty")
             raise ValueError("User request cannot be empty")
         
         if not paragraphs:
+            logger.error("Paragraphs array is empty")
             raise ValueError("Document paragraphs cannot be empty")
         
         logger.info(f"Processing modification: {user_request[:100]}...")

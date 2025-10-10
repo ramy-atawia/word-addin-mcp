@@ -536,6 +536,7 @@ class AgentService:
         
         llm_client = self._get_llm_client()
         context = self._prepare_context(user_input, conversation_history, document_content, available_tools)
+        logger.debug(f"Context prepared for LLM: {context[:500]}...")
         return await self._llm_intent_detection(context, llm_client)
 
     def _prepare_context(self,
@@ -589,11 +590,26 @@ class AgentService:
         """Use LLM to detect intent and return routing decision."""
 
         system_prompt = f'''
-        Analyze user input and determine whether to call a tool or provide a conversational response.
+        You are an AI assistant that analyzes user requests and determines whether to call a tool or provide a conversational response.
 
         {context}
 
         **CRITICAL: Return ONLY valid JSON - no markdown, no code blocks, no explanations, no additional text.**
+
+        For document modification requests, you MUST extract:
+        - user_request: The exact modification request (e.g., "replace Ramy with Mariam")
+        - paragraphs: Convert the document content into an array of paragraph objects
+
+        Example for document modification:
+        If user says "replace Ramy with Mariam" and document content is "This is written by Ramy", return:
+        {{{{
+            "action": "tool_call",
+            "tool_name": "document_modification_tool",
+            "parameters": {{{{
+                "user_request": "replace Ramy with Mariam",
+                "paragraphs": [{{"index": 0, "text": "This is written by Ramy", "formatting": {{}}}}]
+            }}}}
+        }}}}
 
         Respond with JSON in one of two formats:
 
@@ -602,7 +618,8 @@ class AgentService:
             "action": "tool_call",
             "tool_name": "exact_tool_name_from_available_tools",
             "parameters": {{{{
-                "query": "extracted_search_term_or_content"
+                "user_request": "extracted_modification_request",
+                "paragraphs": [{{"index": 0, "text": "document_content", "formatting": {{}}}}]
             }}}}
         }}}}
 
@@ -629,12 +646,69 @@ Choose the most appropriate tool or provide a conversational response."""
         )
 
         llm_response_text = raw_llm_response.get("text", "")
-        parsed_response = json.loads(llm_response_text)
+        logger.debug(f"LLM response text: {llm_response_text}")
+        
+        try:
+            parsed_response = json.loads(llm_response_text)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM response as JSON: {e}")
+            logger.error(f"LLM response was: {llm_response_text}")
+            return "conversation", None, {}, "Invalid JSON response from LLM"
+        
+        logger.debug(f"Parsed LLM response: {parsed_response}")
         action = parsed_response.get("action")
 
         if action == "tool_call":
             tool_name = parsed_response.get("tool_name")
             parameters = parsed_response.get("parameters", {})
+            logger.info(f"Tool call detected: {tool_name}")
+            logger.info(f"Parameters extracted: {json.dumps(parameters)}")
+            
+            # Special handling for document_modification_tool - extract from context if parameters are empty
+            if tool_name == "document_modification_tool" and (not parameters.get("user_request") or not parameters.get("paragraphs")):
+                logger.warning("Document modification tool called with incomplete parameters, extracting from context")
+                logger.info(f"Context available: {context[:200]}...")
+                
+                # Extract user_request from user_input
+                try:
+                    user_request = context.split('User Input: ')[1].split('\n\n')[0] if 'User Input: ' in context else ""
+                except Exception as e:
+                    logger.error(f"Failed to extract user_request: {e}")
+                    user_request = ""
+                
+                # Extract document content and convert to paragraphs
+                paragraphs = []
+                try:
+                    if 'Current Document Content:' in context:
+                        # More robust extraction
+                        parts = context.split("Current Document Content:")
+                        if len(parts) > 1:
+                            doc_part = parts[1].strip()
+                            # Remove the triple quotes if present
+                            if doc_part.startswith("'''"):
+                                doc_part = doc_part[3:]
+                            if "'''" in doc_part:
+                                doc_content = doc_part.split("'''")[0].strip()
+                            else:
+                                doc_content = doc_part.strip()
+                            
+                            if doc_content:
+                                # Treat entire content as single paragraph for simplicity
+                                paragraphs = [{"index": 0, "text": doc_content, "formatting": {}}]
+                except Exception as e:
+                    logger.error(f"Failed to extract paragraphs: {e}")
+                    paragraphs = []
+                
+                logger.info(f"Extracted user_request: '{user_request}'")
+                logger.info(f"Extracted paragraphs: {len(paragraphs)} paragraphs")
+                if paragraphs:
+                    logger.info(f"First paragraph text: '{paragraphs[0].get('text', '')[:50]}...'")
+                
+                parameters = {
+                    "user_request": user_request,
+                    "paragraphs": paragraphs
+                }
+            
             reasoning = f"Tool call: {tool_name}"
             return "tool_execution", tool_name, parameters, reasoning
 
