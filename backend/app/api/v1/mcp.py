@@ -41,7 +41,21 @@ async def agent_chat(request: AgentChatRequest):
 
         # Parse context from frontend
         chat_history = _parse_json_field(request.context.get("chat_history", ""), [])
-        available_tools = _parse_json_field(request.context.get("available_tools", ""), [])
+        available_tools_raw = _parse_json_field(request.context.get("available_tools", ""), [])
+        
+        # Convert tool names to tool objects
+        available_tools = []
+        if available_tools_raw:
+            mcp_orchestrator = _get_orchestrator_or_empty()
+            if mcp_orchestrator:
+                all_tools = await mcp_orchestrator.get_all_tools()
+                tool_lookup = {tool["name"]: tool for tool in all_tools}
+                
+                for tool_name in available_tools_raw:
+                    if tool_name in tool_lookup:
+                        available_tools.append(tool_lookup[tool_name])
+                    else:
+                        logger.warning(f"Tool '{tool_name}' not found in available tools")
         
         # Prepare agent context
         agent_context = {
