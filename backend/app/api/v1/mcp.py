@@ -67,7 +67,7 @@ async def agent_chat(request: AgentChatRequest):
             intent_type=response.get("intent_type", "conversation"),
             tool_name=response.get("tool_name"),
             execution_result=response.get("execution_result"),
-            processing_time=processing_time,
+            execution_time=processing_time,
             success=response.get("success", True),
             error=response.get("error")
         )
