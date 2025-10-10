@@ -52,7 +52,7 @@ async def agent_chat(request: AgentChatRequest):
         
         # Process through agent
         start_time = time.time()
-        response = await agent_service.process_message(
+        response = await agent_service.process_user_message(
             message=request.message,
             context=agent_context
         )
