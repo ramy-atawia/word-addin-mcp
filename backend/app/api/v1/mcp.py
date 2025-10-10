@@ -53,8 +53,10 @@ async def agent_chat(request: AgentChatRequest):
         # Process through agent
         start_time = time.time()
         response = await agent_service.process_user_message(
-            message=request.message,
-            context=agent_context
+            user_message=request.message,
+            document_content=agent_context.get("document_content", ""),
+            available_tools=agent_context.get("available_tools", []),
+            frontend_chat_history=agent_context.get("chat_history", [])
         )
         processing_time = time.time() - start_time
         
