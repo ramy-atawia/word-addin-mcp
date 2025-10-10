@@ -534,18 +534,9 @@ class AgentService:
         """
         logger.debug(f"Detecting intent for: '{user_input[:30]}...', tools: {len(available_tools) if available_tools else 0}")
         
-        try:
-            llm_client = self._get_llm_client()
-            if not llm_client:
-                logger.debug("No LLM client, defaulting to conversation")
-                return "conversation", None, {}, "I'm happy to chat with you!"
-
-            context = self._prepare_context(user_input, conversation_history, document_content, available_tools)
-            return await self._llm_intent_detection(context, llm_client)
-            
-        except Exception as e:
-            logger.error(f"Intent detection failed: {type(e).__name__}: {str(e)}")
-            return "conversation", None, {}, "I'm having trouble understanding your request, but I'm here to help!"
+        llm_client = self._get_llm_client()
+        context = self._prepare_context(user_input, conversation_history, document_content, available_tools)
+        return await self._llm_intent_detection(context, llm_client)
 
     def _prepare_context(self,
         user_input: str,
@@ -554,50 +545,45 @@ class AgentService:
         available_tools: List[Dict[str, Any]] = None
     ) -> str:
         """Prepare context information for LLM analysis."""
-        try:
-            context_parts = []
-            context_parts.append(f"User Input: {user_input}")
+        context_parts = []
+        context_parts.append(f"User Input: {user_input}")
 
-            if conversation_history:
-                # Truncate conversation history to prevent token limit issues
-                # Keep only the last 5 messages to maintain context while staying within limits
-                recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
-                history_parts = []
-                for msg in recent_history:
-                    # Handle both dict and string message formats
-                    if isinstance(msg, dict):
-                        role = msg.get('role', 'user')
-                        content = msg.get('content', '')
-                    elif isinstance(msg, str):
-                        role = 'user'
-                        content = msg
-                    else:
-                        continue
-                    history_parts.append(f"{role}: {content}")
-                history_text = "\n".join(history_parts)
-                context_parts.append(f"Conversation History (last {len(recent_history)} messages):\n{history_text}")
+        if conversation_history:
+            # Truncate conversation history to prevent token limit issues
+            # Keep only the last 5 messages to maintain context while staying within limits
+            recent_history = conversation_history[-5:] if len(conversation_history) > 5 else conversation_history
+            history_parts = []
+            for msg in recent_history:
+                # Handle both dict and string message formats
+                if isinstance(msg, dict):
+                    role = msg.get('role', 'user')
+                    content = msg.get('content', '')
+                elif isinstance(msg, str):
+                    role = 'user'
+                    content = msg
+                else:
+                    continue
+                history_parts.append(f"{role}: {content}")
+            history_text = "\n".join(history_parts)
+            context_parts.append(f"Conversation History (last {len(recent_history)} messages):\n{history_text}")
 
-            if document_content:
-                # Use full document content (up to 10000 chars from frontend)
-                doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
-                context_parts.append(f"Current Document Content:\n'''\n{doc_preview}\n'''")
+        if document_content:
+            # Use full document content (up to 10000 chars from frontend)
+            doc_preview = document_content[:10000] + "..." if len(document_content) > 10000 else document_content
+            context_parts.append(f"Current Document Content:\n'''\n{doc_preview}\n'''")
 
-            if available_tools:
-                tool_descriptions = []
-                for tool in available_tools:
-                    tool_info = {
-                        "name": tool.get("name"),
-                        "description": tool.get("description"),
-                        "parameters": tool.get("input_schema")
-                    }
-                    tool_descriptions.append(json.dumps(tool_info, indent=2))
-                context_parts.append(f"Available Tools:\n'''\n{chr(10).join(tool_descriptions)}\n'''")
+        if available_tools:
+            tool_descriptions = []
+            for tool in available_tools:
+                tool_info = {
+                    "name": tool.get("name"),
+                    "description": tool.get("description"),
+                    "parameters": tool.get("input_schema")
+                }
+                tool_descriptions.append(json.dumps(tool_info, indent=2))
+            context_parts.append(f"Available Tools:\n'''\n{chr(10).join(tool_descriptions)}\n'''")
 
-            return "\n\n".join(context_parts)
-            
-        except Exception as e:
-            logger.error(f"Context preparation failed: {type(e).__name__}: {str(e)}")
-            return f"User Input: {user_input}"
+        return "\n\n".join(context_parts)
 
     async def _llm_intent_detection(self, context: str, llm_client) -> Tuple[str, str, Dict[str, Any], str]:
         """Use LLM to detect intent and return routing decision."""
@@ -606,34 +592,6 @@ class AgentService:
         Analyze user input and determine whether to call a tool or provide a conversational response.
 
         {context}
-
-        IMPORTANT RULES:
-        1. For web search requests like "web search [query]" or "search for [query]":
-           - Extract the query after "web search" or "search for"
-           - Use web_search_tool with {{"query": "extracted_query"}}
-           - Example: "web search ramy Atawia" → {{"action": "tool_call", "tool_name": "web_search_tool", "parameters": {{"query": "ramy Atawia"}}}}
-        
-        2. For prior art search or patent search:
-           - Use prior_art_search_tool with the invention/technology as query
-           - Example: "prior art search 5G" → {{"action": "tool_call", "tool_name": "prior_art_search_tool", "parameters": {{"query": "5G"}}}}
-        
-        3. For claim drafting:
-           - Use claim_drafting_tool with user query, conversation context, and document reference
-           - ALWAYS include the document content in document_reference parameter
-           - ALWAYS include conversation history in conversation_context parameter
-           - Extract the relevant context from the document and conversation
-           - Example: "draft claims for AI system" → {{"action": "tool_call", "tool_name": "claim_drafting_tool", "parameters": {{"user_query": "draft claims for AI system", "conversation_context": "extracted_conversation_context", "document_reference": "extracted_document_content"}}}}
-        
-        4. For document modification requests like "replace X with Y", "change X to Y", "modify X with Y":
-           - Use document_modification_tool with user_request and paragraphs parameters
-           - ALWAYS include the document content as paragraphs array
-           - Extract the modification request from user input
-           - Convert document content to paragraphs format: [{{"index": 0, "text": "document_text", "formatting": {{}}}}]
-           - Example: "replace Ramy with Mariam" → {{"action": "tool_call", "tool_name": "document_modification_tool", "parameters": {{"user_request": "replace Ramy with Mariam", "paragraphs": [{{"index": 0, "text": "document_content", "formatting": {{}}}}]}}}}
-        
-        5. Always extract the actual content/query from user messages - don't leave parameters empty
-        6. For claim drafting, ALWAYS use the document content and conversation context to create relevant, specific claims
-        7. For document modification, ALWAYS include the document content as paragraphs array
 
         **CRITICAL: Return ONLY valid JSON - no markdown, no code blocks, no explanations, no additional text.**
 
@@ -664,84 +622,28 @@ User said: "{user_input}"
 
 Choose the most appropriate tool or provide a conversational response."""
 
-        try:
-            raw_llm_response = await llm_client.generate_text(
-                prompt=user_prompt,
-                max_tokens=16000,
-                system_message=system_prompt
-            )
+        raw_llm_response = await llm_client.generate_text(
+            prompt=user_prompt,
+            max_tokens=16000,
+            system_message=system_prompt
+        )
 
-            if not raw_llm_response.get("success"):
-                logger.error(f"LLM tool selection failed: {raw_llm_response.get('error')}")
-                raise RuntimeError(f"LLM tool selection failed: {raw_llm_response.get('error')}")
+        llm_response_text = raw_llm_response.get("text", "")
+        parsed_response = json.loads(llm_response_text)
+        action = parsed_response.get("action")
 
-            llm_response_text = raw_llm_response.get("text", "")
-            
-            # Enhanced validation and logging
-            logger.info(f"LLM tool selection response generated (length: {len(llm_response_text)}, preview: {llm_response_text[:100] if llm_response_text else 'EMPTY'})")
-            
-            # Validate response is not empty
-            if not llm_response_text or len(llm_response_text.strip()) < 10:
-                logger.error("LLM generated empty tool selection response", 
-                            response=raw_llm_response,
-                            generated_text=llm_response_text)
-                raise RuntimeError("LLM generated empty tool selection response")
+        if action == "tool_call":
+            tool_name = parsed_response.get("tool_name")
+            parameters = parsed_response.get("parameters", {})
+            reasoning = f"Tool call: {tool_name}"
+            return "tool_execution", tool_name, parameters, reasoning
 
-            # Direct JSON parsing - prompts now enforce strict JSON responses
-            try:
-                parsed_response = json.loads(llm_response_text)
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON parsing failed: {e}")
-                logger.error(f"Raw response: {llm_response_text[:200]}...")
-                return "conversation", None, {}, f"I had trouble processing that request: {str(e)}"
+        elif action == "conversational_response":
+            response_text = parsed_response.get("response")
+            return "conversation", None, {}, response_text
 
-            action = parsed_response.get("action")
-
-            if action == "tool_call":
-                tool_name = parsed_response.get("tool_name")
-                parameters = parsed_response.get("parameters", {})
-                if not tool_name or not isinstance(parameters, dict):
-                    return "conversation", None, {}, "I'm not sure how to process that tool request."
-                
-                # For claim drafting tool, ensure context is properly passed
-                if tool_name == "claim_drafting_tool":
-                    # Extract context from the prepared context string
-                    context_lines = context.split('\n')
-                    conversation_context = ""
-                    document_reference = ""
-                    
-                    for line in context_lines:
-                        if line.startswith("Conversation History"):
-                            conversation_context = line.split(":", 1)[1].strip() if ":" in line else ""
-                        elif line.startswith("Current Document Content"):
-                            # Find the document content between the triple quotes
-                            doc_start = context.find("'''")
-                            if doc_start != -1:
-                                doc_end = context.find("'''", doc_start + 3)
-                                if doc_end != -1:
-                                    document_reference = context[doc_start + 3:doc_end].strip()
-                    
-                    # Update parameters with extracted context
-                    if conversation_context:
-                        parameters["conversation_context"] = conversation_context
-                    if document_reference:
-                        parameters["document_reference"] = document_reference
-                
-                reasoning = f"Tool call: {tool_name}"
-                return "tool_execution", tool_name, parameters, reasoning
-
-            elif action == "conversational_response":
-                response_text = parsed_response.get("response")
-                if not response_text:
-                    return "conversation", None, {}, "I'm here to help! What would you like to know?"
-                return "conversation", None, {}, response_text
-
-            else:
-                return "conversation", None, {}, "I'm not sure how to help with that, but I'm happy to try something else!"
-
-        except Exception as e:
-            logger.error(f"LLM intent detection failed: {type(e).__name__}: {str(e)}")
-            return "conversation", None, {}, "I'm having some technical difficulties, but I'm still here to help!"
+        else:
+            return "conversation", None, {}, "Invalid action"
     
     async def format_tool_output_with_llm(self, tool_output: Any, user_query: str, tool_name: str = None) -> str:
         """
