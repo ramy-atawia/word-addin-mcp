@@ -624,8 +624,16 @@ class AgentService:
            - Extract the relevant context from the document and conversation
            - Example: "draft claims for AI system" → {{"action": "tool_call", "tool_name": "claim_drafting_tool", "parameters": {{"user_query": "draft claims for AI system", "conversation_context": "extracted_conversation_context", "document_reference": "extracted_document_content"}}}}
         
-        4. Always extract the actual content/query from user messages - don't leave parameters empty
-        5. For claim drafting, ALWAYS use the document content and conversation context to create relevant, specific claims
+        4. For document modification requests like "replace X with Y", "change X to Y", "modify X with Y":
+           - Use document_modification_tool with user_request and paragraphs parameters
+           - ALWAYS include the document content as paragraphs array
+           - Extract the modification request from user input
+           - Convert document content to paragraphs format: [{{"index": 0, "text": "document_text", "formatting": {{}}}}]
+           - Example: "replace Ramy with Mariam" → {{"action": "tool_call", "tool_name": "document_modification_tool", "parameters": {{"user_request": "replace Ramy with Mariam", "paragraphs": [{{"index": 0, "text": "document_content", "formatting": {{}}}}]}}}}
+        
+        5. Always extract the actual content/query from user messages - don't leave parameters empty
+        6. For claim drafting, ALWAYS use the document content and conversation context to create relevant, specific claims
+        7. For document modification, ALWAYS include the document content as paragraphs array
 
         **CRITICAL: Return ONLY valid JSON - no markdown, no code blocks, no explanations, no additional text.**
 
