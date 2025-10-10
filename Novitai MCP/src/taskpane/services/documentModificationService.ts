@@ -95,14 +95,20 @@ export class DocumentModificationService {
             errors: []
         };
         
+        console.log('DocumentModificationService.applyModifications called with:', modifications);
+        console.log('Modifications type:', typeof modifications);
+        console.log('Is array:', Array.isArray(modifications));
+        
         // Validate modifications array
         if (!modifications || !Array.isArray(modifications)) {
+            console.error('Invalid modifications array:', modifications);
             result.success = false;
-            result.errors.push('Invalid modifications array provided');
+            result.errors.push(`Invalid modifications array provided. Received: ${JSON.stringify(modifications)}`);
             return result;
         }
         
         if (modifications.length === 0) {
+            console.warn('No modifications to apply');
             result.errors.push('No modifications to apply');
             return result;
         }
@@ -131,6 +137,14 @@ export class DocumentModificationService {
             console.log(`Successfully got ${paragraphs.length} paragraphs from Office.js`);
       
       for (const modification of modifications) {
+        console.log('Processing modification:', modification);
+        
+        // Validate modification structure
+        if (!modification || typeof modification.paragraph_index !== 'number' || !Array.isArray(modification.changes)) {
+          const error = `Invalid modification structure: ${JSON.stringify(modification)}`;
+          result.errors.push(error);
+          continue;
+        }
         
         // Validate paragraph index exists
         if (modification.paragraph_index >= paragraphs.length) {
@@ -142,6 +156,15 @@ export class DocumentModificationService {
         const paragraph = paragraphs[modification.paragraph_index];
         
         for (const change of modification.changes) {
+          console.log('Processing change:', change);
+          
+          // Validate change structure
+          if (!change || typeof change.exact_find_text !== 'string' || typeof change.replace_text !== 'string') {
+            const error = `Invalid change structure: ${JSON.stringify(change)}`;
+            result.errors.push(error);
+            continue;
+          }
+          
           try {
             const success = await this.officeIntegrationService.searchAndReplaceInParagraph(
               modification.paragraph_index,
